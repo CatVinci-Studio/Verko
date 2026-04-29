@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowUpRight, MoreHorizontal } from 'lucide-react'
+import { ArrowUpRight, MoreHorizontal, Trash2 } from 'lucide-react'
 import { flexRender, type Row } from '@tanstack/react-table'
 import { useTranslation } from 'react-i18next'
 import type { PaperRef, CollectionInfo } from '@shared/types'
@@ -71,25 +71,17 @@ export function PaperRow({
         </div>
       ))}
 
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onClick() }}
-        title={t('common.open')}
-        className={cn(
-          'w-7 shrink-0 flex items-center justify-center transition-colors',
-          'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]',
-        )}
-      >
-        <ArrowUpRight size={13} />
-      </button>
-
       <div
-        className="w-9 shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+        className="w-9 shrink-0 flex items-center justify-center"
         onClick={(e) => e.stopPropagation()}
       >
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]"
+            >
               <MoreHorizontal size={14} />
             </Button>
           </DropdownMenuTrigger>
@@ -123,6 +115,7 @@ export function PaperRow({
               onClick={onDelete}
               className="text-[var(--danger)] focus:text-[var(--danger)] focus:bg-[var(--danger)]/10"
             >
+              <Trash2 size={12} className="mr-2" />
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
