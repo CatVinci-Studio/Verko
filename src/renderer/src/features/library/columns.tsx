@@ -1,15 +1,25 @@
-/* eslint-disable react-refresh/only-export-components -- module exports a column-def builder, not React components; Fast Refresh boundary check doesn't apply */
 import type { ColumnDef } from '@tanstack/react-table'
 import type { TFunction } from 'i18next'
-import { Star, FileText } from 'lucide-react'
-import type { PaperRef, Column } from '@shared/types'
+import { Star, FileText, ArrowUpRight } from 'lucide-react'
+import type { PaperRef, PaperPatch, PaperStatus, Column } from '@shared/types'
 import { ChipStatus } from '@/components/common/ChipStatus'
 import { ChipTag } from '@/components/common/ChipTag'
 import { formatAuthors, formatYear } from '@/lib/utils'
+import { EditableTextCell, EditableSelectCell } from './EditableCell'
 
-const ITALIC_PLACEHOLDER = (label: string) => (
-  <span className="text-[var(--text-muted)] font-normal italic">{label}</span>
-)
+const STATUS_OPTIONS: PaperStatus[] = ['unread', 'reading', 'read', 'archived']
+
+// Augment TanStack Table's meta channel so cells can dispatch open/update
+// without each ColumnDef closing over component-level handlers. The
+// generic TData is unused here but matches the upstream signature, which
+// is required for module augmentation to merge correctly.
+declare module '@tanstack/react-table' {
+  interface TableMeta<TData> {
+    open: (id: string) => void
+    update: (id: string, patch: PaperPatch) => void | Promise<void>
+    _phantom?: TData
+  }
+}
 
 export function buildColumns(extras: Column[], t: TFunction): ColumnDef<PaperRef>[] {
   return [
@@ -17,23 +27,36 @@ export function buildColumns(extras: Column[], t: TFunction): ColumnDef<PaperRef
       id: 'title',
       accessorKey: 'title',
       header: t('library.header.title'),
-      // Title is the primary column — always visible, but the user is allowed
-      // to resize it like any other (Excel/Notion style). Default 320 leaves
-      // comfortable room; minSize 200 prevents accidental clipping.
       enableHiding: false,
       size: 320,
       minSize: 200,
-      cell: ({ row }) => {
+      cell: ({ row, table }) => {
         const p = row.original
+        const meta = table.options.meta!
         return (
-          <div className="flex items-center gap-1.5 min-w-0">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              meta.open(p.id)
+            }}
+            className="group/title flex items-center gap-1.5 min-w-0 w-full text-left rounded-[4px] hover:bg-[var(--bg-elevated)] px-1 -mx-1"
+          >
             {p.hasPdf && (
-              <FileText size={12} className="shrink-0 text-[var(--text-dim)] group-hover:text-[var(--text-muted)]" />
+              <FileText size={12} className="shrink-0 text-[var(--text-dim)]" />
             )}
-            <span className="text-[13px] truncate font-medium text-[var(--text-bright)] group-data-[selected=true]:text-[var(--text-primary)]">
-              {p.title || ITALIC_PLACEHOLDER('Untitled')}
+            <span className="text-[13px] truncate font-medium text-[var(--text-bright)]">
+              {p.title || (
+                <span className="text-[var(--text-muted)] font-normal italic">
+                  {t('paper.untitled')}
+                </span>
+              )}
             </span>
-          </div>
+            <ArrowUpRight
+              size={12}
+              className="shrink-0 text-[var(--text-muted)] opacity-0 group-hover/title:opacity-100 transition-opacity"
+            />
+          </button>
         )
       },
     },
@@ -43,11 +66,31 @@ export function buildColumns(extras: Column[], t: TFunction): ColumnDef<PaperRef
       header: t('library.header.authors'),
       size: 168,
       minSize: 80,
-      cell: ({ row }) => (
-        <span className="text-[12px] text-[var(--text-secondary)] truncate">
-          {formatAuthors(row.original.authors)}
-        </span>
-      ),
+      cell: ({ row, table }) => {
+        const p = row.original
+        const meta = table.options.meta!
+        // Authors round-trip as "Last, F.; Last, F." (semicolon-separated)
+        // because the names themselves contain commas.
+        return (
+          <EditableTextCell
+            value={p.authors.join('; ')}
+            placeholder={t('paper.noAuthors')}
+            display={
+              <span className="text-[12px] text-[var(--text-secondary)] truncate">
+                {formatAuthors(p.authors)}
+              </span>
+            }
+            onSave={(next) =>
+              meta.update(p.id, {
+                authors: next
+                  .split(';')
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
+        )
+      },
     },
     {
       id: 'year',
@@ -55,11 +98,25 @@ export function buildColumns(extras: Column[], t: TFunction): ColumnDef<PaperRef
       header: t('library.header.year'),
       size: 64,
       minSize: 48,
-      cell: ({ row }) => (
-        <span className="text-[12px] text-[var(--text-secondary)] tabular-nums">
-          {formatYear(row.original.year)}
-        </span>
-      ),
+      cell: ({ row, table }) => {
+        const p = row.original
+        const meta = table.options.meta!
+        return (
+          <EditableTextCell
+            value={p.year ? String(p.year) : ''}
+            inputType="number"
+            display={
+              <span className="text-[12px] text-[var(--text-secondary)] tabular-nums">
+                {formatYear(p.year)}
+              </span>
+            }
+            onSave={(next) => {
+              const n = parseInt(next, 10)
+              meta.update(p.id, { year: Number.isFinite(n) ? n : undefined })
+            }}
+          />
+        )
+      },
     },
     {
       id: 'status',
@@ -67,7 +124,19 @@ export function buildColumns(extras: Column[], t: TFunction): ColumnDef<PaperRef
       header: t('library.header.status'),
       size: 104,
       minSize: 80,
-      cell: ({ row }) => <ChipStatus status={row.original.status} />,
+      cell: ({ row, table }) => {
+        const p = row.original
+        const meta = table.options.meta!
+        return (
+          <EditableSelectCell<PaperStatus>
+            value={p.status}
+            options={STATUS_OPTIONS.map((s) => ({ value: s }))}
+            renderOption={(s) => <ChipStatus status={s} />}
+            trigger={<ChipStatus status={p.status} />}
+            onSave={(s) => meta.update(p.id, { status: s })}
+          />
+        )
+      },
     },
     {
       id: 'tags',
@@ -76,20 +145,37 @@ export function buildColumns(extras: Column[], t: TFunction): ColumnDef<PaperRef
       enableSorting: false,
       size: 144,
       minSize: 80,
-      cell: ({ row }) => {
-        const tags = row.original.tags
-        if (!tags?.length) return null
+      cell: ({ row, table }) => {
+        const p = row.original
+        const meta = table.options.meta!
+        // Tags edit as a comma-separated string for fast keyboard entry.
         return (
-          <div className="flex items-center gap-1 overflow-hidden">
-            {tags.slice(0, 2).map((t) => (
-              <ChipTag key={t} tag={t} />
-            ))}
-            {tags.length > 2 && (
-              <span className="text-[10px] text-[var(--text-muted)] shrink-0">
-                +{tags.length - 2}
-              </span>
-            )}
-          </div>
+          <EditableTextCell
+            value={p.tags.join(', ')}
+            placeholder="—"
+            display={
+              p.tags.length > 0 ? (
+                <div className="flex items-center gap-1 overflow-hidden">
+                  {p.tags.slice(0, 2).map((tag) => (
+                    <ChipTag key={tag} tag={tag} />
+                  ))}
+                  {p.tags.length > 2 && (
+                    <span className="text-[10px] text-[var(--text-muted)] shrink-0">
+                      +{p.tags.length - 2}
+                    </span>
+                  )}
+                </div>
+              ) : null
+            }
+            onSave={(next) =>
+              meta.update(p.id, {
+                tags: next
+                  .split(',')
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              })
+            }
+          />
         )
       },
     },
@@ -99,7 +185,26 @@ export function buildColumns(extras: Column[], t: TFunction): ColumnDef<PaperRef
       header: col.name,
       size: 96,
       minSize: 60,
-      cell: ({ getValue }) => renderExtraValue(col, getValue()),
+      cell: ({ row, table, getValue }) => {
+        const p = row.original
+        const meta = table.options.meta!
+        const raw = getValue()
+        return (
+          <EditableTextCell
+            value={raw == null ? '' : String(raw)}
+            placeholder="—"
+            inputType={col.type === 'number' ? 'number' : 'text'}
+            display={renderExtraValue(col, raw)}
+            onSave={(next) => {
+              const value =
+                col.type === 'number'
+                  ? next === '' ? undefined : Number(next)
+                  : next || undefined
+              meta.update(p.id, { [col.name]: value } as PaperPatch)
+            }}
+          />
+        )
+      },
     })),
   ]
 }

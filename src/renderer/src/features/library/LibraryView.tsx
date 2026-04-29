@@ -60,6 +60,21 @@ export function LibraryView() {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'added_at', desc: true }])
   const { sizing, setSizing, visibility, setVisibility } = useColumnPersistence(activeLibraryName)
 
+  const handleSelect = (id: string) => {
+    setSelected(id)
+    setActiveView('paper')
+  }
+
+  const handleInlineUpdate = async (id: string, patch: Parameters<typeof api.papers.update>[1]) => {
+    try {
+      await api.papers.update(id, patch)
+      await refreshPapers()
+      queryClient.invalidateQueries({ queryKey: ['papers'] })
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const table = useReactTable({
     data: papers,
     columns,
@@ -71,12 +86,11 @@ export function LibraryView() {
     columnResizeMode: 'onChange',
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    meta: {
+      open: handleSelect,
+      update: handleInlineUpdate,
+    },
   })
-
-  const handleSelect = (id: string) => {
-    setSelected(id)
-    setActiveView('paper')
-  }
 
   const handleDelete = async (id: string) => {
     const ok = await confirmDialog({
