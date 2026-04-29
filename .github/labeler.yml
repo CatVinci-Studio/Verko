@@ -48,4 +48,4 @@ area:deps:
   - changed-files:
     - any-glob-to-any-file:
       - "package.json"
-      - "pnpm-lock.yaml"
+      - "package-lock.json"

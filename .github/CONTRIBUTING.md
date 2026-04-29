@@ -14,15 +14,15 @@ Thanks for your interest in contributing! Here's everything you need to know.
 ```bash
 git clone https://github.com/CatVinci-Studio/PaperwithAgent.git
 cd PaperwithAgent
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
 ## Before submitting a PR
 
 ```bash
-pnpm typecheck   # Must pass with 0 errors
-pnpm test        # All 39 main-process tests must pass
+npm run typecheck   # Must pass with 0 errors
+npm test            # All 39 main-process tests must pass
 ```
 
 ## Commit style
