@@ -4,7 +4,7 @@ import type {
   VisibilityState,
 } from '@tanstack/react-table'
 
-const KEY_PREFIX = 'paperwithagent:column-state:'
+const KEY_PREFIX = 'verko:column-state:'
 
 interface ColumnState {
   sizing: ColumnSizingState

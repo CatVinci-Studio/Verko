@@ -1,4 +1,4 @@
-# PaperwithAgent — Claude Code Guide
+# Verko — Claude Code Guide
 
 ## Project Overview
 Agent-first academic paper management desktop app. Built with Electron + React 19. Storage is plain files: one Markdown per paper (YAML frontmatter + notes body), `schema.md` for column definitions (also YAML frontmatter), and a derived `papers.csv` index. The AI agent runs in-process and reads/writes papers through the same `Library` abstraction the UI uses.
@@ -125,7 +125,7 @@ The renderer uses i18next:
 The papers list is a TanStack Table v8 (headless) instance. The contract:
 
 - **Column definitions** (`features/library/columns.tsx`): `buildColumns(extras)` returns `ColumnDef<PaperRef>[]` for the core columns plus any user-defined schema extras. Title is `enableResizing: false, enableHiding: false` (always present, always flexible).
-- **Persistence** (`features/library/useColumnPersistence.ts`): TanStack's `columnSizing` and `columnVisibility` state piped through `localStorage`, scoped per-library. Key prefix is `paperwithagent:column-state:<libraryName>`. **The library schema (`schema.md`, `papers.csv`, paper `.md` files) intentionally never sees these preferences** — keeping the data layer agent-readable is more important than syncing prefs across machines.
+- **Persistence** (`features/library/useColumnPersistence.ts`): TanStack's `columnSizing` and `columnVisibility` state piped through `localStorage`, scoped per-library. Key prefix is `verko:column-state:<libraryName>`. **The library schema (`schema.md`, `papers.csv`, paper `.md` files) intentionally never sees these preferences** — keeping the data layer agent-readable is more important than syncing prefs across machines.
 - **Header** (`features/library/ColumnHeader.tsx`): renders sort toggle, drag-to-resize handle (right edge), and ⋮ dropdown on hover (Hide / New column). Hidden columns surface again via the 👁 button at the right end of the header bar.
 - **Add column** flow: a context-menu "New column" opens a `promptDialog` for name + type and calls `api.schema.addColumn`. Schema changes are persisted (they're real data); only sizing/visibility live in localStorage.
 

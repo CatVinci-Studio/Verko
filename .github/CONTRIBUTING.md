@@ -1,4 +1,4 @@
-# Contributing to PaperwithAgent
+# Contributing to Verko
 
 Thanks for your interest in contributing! Here's everything you need to know.
 
@@ -12,8 +12,8 @@ Thanks for your interest in contributing! Here's everything you need to know.
 ## Development setup
 
 ```bash
-git clone https://github.com/CatVinci-Studio/PaperwithAgent.git
-cd PaperwithAgent
+git clone https://github.com/CatVinci-Studio/Verko.git
+cd Verko
 npm install
 npm run dev
 ```

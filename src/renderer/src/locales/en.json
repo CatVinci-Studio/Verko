@@ -14,7 +14,7 @@
     "close": "Close"
   },
   "titlebar": {
-    "appName": "PaperwithAgent",
+    "appName": "Verko",
     "askAgent": "Ask Agent (⌘K)",
     "settings": "Settings (⌘,)"
   },
@@ -93,7 +93,7 @@
       "addExisting": "Add existing library",
       "addDialog": {
         "title": "Add library",
-        "description": "Point to an existing folder. PaperwithAgent will index it on first open.",
+        "description": "Point to an existing folder. Verko will index it on first open.",
         "displayName": "Display name",
         "absolutePath": "Absolute path"
       }

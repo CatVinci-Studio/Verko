@@ -22,7 +22,7 @@ interface CrossRefResponse {
 export async function importFromDoi(doi: string): Promise<PaperDraft> {
   const url = `https://api.crossref.org/works/${encodeURIComponent(doi)}`
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'PaperWithAgent/0.1 (mailto:leonardoshen@icloud.com)' },
+    headers: { 'User-Agent': 'Verko/0.1 (mailto:leonardoshen@icloud.com)' },
   })
   if (!res.ok) {
     throw new Error(`CrossRef request failed: ${res.status} ${res.statusText}`)
@@ -93,7 +93,7 @@ export async function importFromArxiv(input: string): Promise<PaperDraft> {
   const url = `https://export.arxiv.org/abs/${id}`
 
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'PaperWithAgent/0.1 (mailto:leonardoshen@icloud.com)' },
+    headers: { 'User-Agent': 'Verko/0.1 (mailto:leonardoshen@icloud.com)' },
   })
   if (!res.ok) {
     throw new Error(`arXiv request failed: ${res.status} ${res.statusText}`)
@@ -140,7 +140,7 @@ export async function importFromArxiv(input: string): Promise<PaperDraft> {
  */
 async function importFromUrl(url: string): Promise<PaperDraft> {
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'PaperWithAgent/0.1 (mailto:leonardoshen@icloud.com)' },
+    headers: { 'User-Agent': 'Verko/0.1 (mailto:leonardoshen@icloud.com)' },
   })
   if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`)
   const html = await res.text()

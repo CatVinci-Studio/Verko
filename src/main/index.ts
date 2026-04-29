@@ -45,10 +45,10 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
-  electronApp.setAppUserModelId('com.paperwithagent')
+  electronApp.setAppUserModelId('studio.catvinci.verko')
   app.on('browser-window-created', (_, w) => optimizer.watchWindowShortcuts(w))
 
-  const defaultLibPath = join(homedir(), 'PaperwithAgent', 'library')
+  const defaultLibPath = join(homedir(), 'Verko', 'library')
   appState.manager = await LibraryManager.init(defaultLibPath)
   appState.agent   = new AgentSession(appState)
 

@@ -14,7 +14,7 @@
     "close": "关闭"
   },
   "titlebar": {
-    "appName": "PaperwithAgent",
+    "appName": "Verko",
     "askAgent": "问 Agent (⌘K)",
     "settings": "设置 (⌘,)"
   },
@@ -92,7 +92,7 @@
       "addExisting": "添加已有知识库",
       "addDialog": {
         "title": "添加知识库",
-        "description": "指向一个已存在的文件夹,PaperwithAgent 会在首次打开时建立索引。",
+        "description": "指向一个已存在的文件夹,Verko 会在首次打开时建立索引。",
         "displayName": "显示名称",
         "absolutePath": "绝对路径"
       }

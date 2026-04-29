@@ -1,20 +1,20 @@
-# PaperwithAgent
+# Verko
 
 **An agent-first desktop app for managing academic papers.**  
 Plain-file storage (Markdown + CSV), an embedded AI agent that can read and write your library, and a clean interface inspired by tools you already love.
 
 [English](./README.md) · [中文](./README.zh.md)
 
-[![CI](https://github.com/CatVinci-Studio/PaperwithAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/CatVinci-Studio/PaperwithAgent/actions/workflows/ci.yml)
+[![CI](https://github.com/CatVinci-Studio/Verko/actions/workflows/ci.yml/badge.svg)](https://github.com/CatVinci-Studio/Verko/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](https://github.com/CatVinci-Studio/PaperwithAgent/releases)
-[![Version](https://img.shields.io/github/v/release/CatVinci-Studio/PaperwithAgent?include_prereleases)](https://github.com/CatVinci-Studio/PaperwithAgent/releases)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](https://github.com/CatVinci-Studio/Verko/releases)
+[![Version](https://img.shields.io/github/v/release/CatVinci-Studio/Verko?include_prereleases)](https://github.com/CatVinci-Studio/Verko/releases)
 
 ---
 
 ## What is this?
 
-PaperwithAgent is a desktop research companion. Instead of locking your data in a proprietary database, everything lives as readable files on disk — one Markdown file per paper (YAML frontmatter + notes), a derived CSV index, and a `schema.json` for custom columns.
+Verko is a desktop research companion. Instead of locking your data in a proprietary database, everything lives as readable files on disk — one Markdown file per paper (YAML frontmatter + notes), a derived CSV index, and a `schema.json` for custom columns.
 
 The agent sits at the center: it can search, annotate, compare, and organize your papers through natural language, with direct read/write access to your library files.
 
@@ -37,21 +37,21 @@ The agent sits at the center: it can search, annotate, compare, and organize you
 
 ### Pre-built releases
 
-Download the latest installer for your platform from [Releases](https://github.com/CatVinci-Studio/PaperwithAgent/releases).
+Download the latest installer for your platform from [Releases](https://github.com/CatVinci-Studio/Verko/releases).
 
 | Platform | File |
 |----------|------|
-| macOS (Apple Silicon / Intel) | `PaperwithAgent-x.x.x.dmg` |
-| Windows | `PaperwithAgent-Setup-x.x.x.exe` |
-| Linux | `PaperwithAgent-x.x.x.AppImage` |
+| macOS (Apple Silicon / Intel) | `Verko-x.x.x.dmg` |
+| Windows | `Verko-Setup-x.x.x.exe` |
+| Linux | `Verko-x.x.x.AppImage` |
 
 ### Build from source
 
 **Prerequisites:** Node.js 20+, npm 10+
 
 ```bash
-git clone https://github.com/CatVinci-Studio/PaperwithAgent.git
-cd PaperwithAgent
+git clone https://github.com/CatVinci-Studio/Verko.git
+cd Verko
 npm install
 npm run dev       # Start in dev mode (Electron)
 ```
@@ -69,7 +69,7 @@ npm run dist:linux  # Package Linux AppImage
 
 ## Quick Start
 
-1. **Open the app** — it creates a default library in `~/PaperwithAgent` on first launch.
+1. **Open the app** — it creates a default library in `~/Verko` on first launch.
 2. **Add a paper** — click *New paper* at the bottom of the list, or use *Import DOI* to fetch metadata automatically.
 3. **Open Settings → AI Agent** — paste your API key for your preferred OpenAI-compatible provider (OpenAI, DeepSeek, Ollama, OpenRouter, LM Studio, etc.).
 4. **Press ⌘K** — ask the agent anything about your library.

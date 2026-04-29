@@ -1,5 +1,5 @@
-appId: studio.catvinci.paperwithagent
-productName: PaperwithAgent
+appId: studio.catvinci.verko
+productName: Verko
 copyright: Copyright © 2025 CatVinci-Studio
 
 directories:
@@ -54,5 +54,5 @@ linux:
 publish:
   provider: github
   owner: CatVinci-Studio
-  repo: PaperwithAgent
+  repo: Verko
   releaseType: release
