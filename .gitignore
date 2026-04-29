@@ -15,6 +15,9 @@ release/
 /library/
 *.csv.bak
 
+# Claude Code
+.claude/
+
 # Editor
 .vscode/
 .idea/
