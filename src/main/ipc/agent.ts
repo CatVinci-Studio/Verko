@@ -56,7 +56,7 @@ export function registerAgentHandlers(
   ipc.handle('agent:getConfig', async () => getConfig())
   ipc.handle('agent:setProfile', async (_, name: string) => setActiveProfile(name))
   ipc.handle('agent:updateProfile', async (_, name: string, patch: ProfilePatch) => updateProfile(name, patch))
-  ipc.handle('agent:saveKey', async (_, profile: string, key: string) => saveKey(profile, key))
+  ipc.handle('agent:saveKey', async (_, profile: string, key: string, remember: boolean) => saveKey(profile, key, remember))
 
   ipc.handle('agent:testKey', async (_, profile: string) => {
     const config = getConfig()

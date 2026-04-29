@@ -60,7 +60,7 @@ export interface IApi {
     getConfig(): Promise<AgentConfig | null>
     setProfile(name: string): Promise<void>
     updateProfile(name: string, patch: ProfilePatch): Promise<void>
-    saveKey(profile: string, key: string): Promise<void>
+    saveKey(profile: string, key: string, remember: boolean): Promise<void>
     testKey(profile: string): Promise<boolean>
     getProfiles(): Promise<AgentProfile[]>
     onEvent(cb: (envelope: AgentEventEnvelope) => void): UnsubFn

@@ -159,7 +159,7 @@ export function LibraryTab() {
           <div
             key={lib.id}
             className={cn(
-              'flex items-center gap-3 px-4 py-3 rounded-[12px] border transition-colors',
+              'flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors',
               lib.active
                 ? 'bg-[var(--bg-accent-subtle)] border-[var(--accent-color)]/25'
                 : 'bg-[var(--bg-elevated)] border-[var(--border-color)]'
@@ -195,7 +195,7 @@ export function LibraryTab() {
                   onClick={() => switchLibrary(lib.id)}
                   variant="outline"
                   size="sm"
-                  className="rounded-[8px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-focus)]"
+                  className="rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-focus)]"
                 >
                   {t('settings.libraries.switch')}
                 </Button>
@@ -245,7 +245,7 @@ function AddChoice(props: {
     <button
       onClick={props.onClick}
       disabled={props.disabled}
-      className="flex items-center gap-2 w-full px-4 py-2.5 rounded-[10px] border border-dashed border-[var(--border-color)] text-[12px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-focus)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex items-center gap-2 w-full px-4 py-2.5 rounded-full border border-dashed border-[var(--border-color)] text-[12px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-focus)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <span className="text-[var(--accent-color)]">{props.icon}</span>
       {props.label}

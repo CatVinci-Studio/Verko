@@ -316,7 +316,7 @@ export interface IpcChannels {
   'agent:getConfig':     { args: [];                        ret: AgentConfig }
   'agent:setProfile':    { args: [string];                  ret: void }
   'agent:updateProfile': { args: [string, ProfilePatch];    ret: void }
-  'agent:saveKey':       { args: [string, string];          ret: void }
+  'agent:saveKey':       { args: [string, string, boolean]; ret: void } // profile, key, remember
   'agent:testKey':       { args: [string];                  ret: boolean }
   'agent:getProfiles':   { args: [];                        ret: AgentProfile[] }
 

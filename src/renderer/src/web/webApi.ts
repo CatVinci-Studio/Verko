@@ -152,7 +152,7 @@ export const webApi: IApi = {
     abort: () => Promise.resolve(),
     getConfig: () => Promise.resolve(null),
     setProfile: notSupported, updateProfile: notSupported,
-    saveKey: notSupported, testKey: () => Promise.resolve(false),
+    saveKey: () => Promise.reject(new Error('Web build does not support agent yet')), testKey: () => Promise.resolve(false),
     getProfiles: () => Promise.resolve([]),
     onEvent: () => () => {},
   },

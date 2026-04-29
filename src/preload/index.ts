@@ -68,7 +68,7 @@ const api = {
     setProfile: (name: string) => api.invoke('agent:setProfile', name),
     updateProfile: (name: string, patch: import('@shared/types').ProfilePatch) =>
                                                           api.invoke('agent:updateProfile', name, patch),
-    saveKey: (profile: string, key: string) => api.invoke('agent:saveKey', profile, key),
+    saveKey: (profile: string, key: string, remember: boolean) => api.invoke('agent:saveKey', profile, key, remember),
     testKey: (profile: string) => api.invoke('agent:testKey', profile),
     getProfiles: () => api.invoke('agent:getProfiles'),
     onEvent: (cb: (envelope: import('@shared/types').AgentEventEnvelope) => void) => {

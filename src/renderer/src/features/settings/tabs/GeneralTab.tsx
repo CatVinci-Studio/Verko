@@ -11,7 +11,12 @@ import { SettingRow } from '@/components/ui/setting-row'
 import { SettingSection } from '@/components/ui/setting-section'
 import { SettingSegmented } from '@/components/ui/setting-segmented'
 import { cn } from '@/lib/utils'
-import type { AgentProfile } from '@shared/types'
+import {
+  PROVIDER_DEFINITIONS,
+  getProviderDefinition,
+  type ProviderDefinition,
+  type ProviderFieldDefinition,
+} from '@shared/providers'
 
 export function GeneralTab() {
   return (
@@ -64,6 +69,8 @@ function BasicSection() {
 
 // ── Provider ────────────────────────────────────────────────────────────────
 
+const REMEMBER_KEY_LS = 'verko:remember-api-key'
+
 function ProviderSection() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -81,37 +88,58 @@ function ProviderSection() {
   })
 
   const [keyInput, setKeyInput] = useState('')
+  const [modelInput, setModelInput] = useState('')
+  const [baseUrlInput, setBaseUrlInput] = useState('')
+  const [rememberKey, setRememberKey] = useState(() => {
+    return localStorage.getItem(REMEMBER_KEY_LS) !== '0'
+  })
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<boolean | null>(null)
 
   const active = profiles?.find((p) => p.name === activeName) ?? profiles?.[0]
+  const definition = active ? getProviderDefinition(active.name) : undefined
 
-  // Reset transient input state when active provider changes
+  // Reset inputs when switching provider.
   useEffect(() => {
     setKeyInput('')
+    setModelInput(active?.model ?? '')
+    setBaseUrlInput(active?.baseUrl ?? '')
     setTestResult(null)
-  }, [activeName])
+  }, [active?.name, active?.model, active?.baseUrl])
 
-  const switchProvider = async (name: string) => {
-    if (name === activeName) return
-    await api.agent.setProfile(name)
+  useEffect(() => {
+    localStorage.setItem(REMEMBER_KEY_LS, rememberKey ? '1' : '0')
+  }, [rememberKey])
+
+  const switchProvider = async (id: string) => {
+    if (id === activeName) return
+    await api.agent.setProfile(id)
     queryClient.invalidateQueries({ queryKey: ['agent'] })
   }
 
-  const handleSaveKey = async () => {
-    if (!active || !keyInput.trim()) return
+  const handleSave = async () => {
+    if (!active) return
     setSaving(true)
     try {
-      await api.agent.saveKey(active.name, keyInput.trim())
-      setKeyInput('')
-      refetch()
+      // Persist text fields if changed.
+      const patch: { model?: string; baseUrl?: string } = {}
+      if (modelInput.trim() && modelInput.trim() !== active.model) patch.model = modelInput.trim()
+      if (baseUrlInput.trim() !== active.baseUrl) patch.baseUrl = baseUrlInput.trim()
+      if (Object.keys(patch).length > 0) await api.agent.updateProfile(active.name, patch)
+
+      // Persist key if user typed one.
+      if (keyInput.trim()) {
+        await api.agent.saveKey(active.name, keyInput.trim(), rememberKey)
+        setKeyInput('')
+      }
+      await refetch()
     } finally {
       setSaving(false)
     }
   }
 
-  const handleTestKey = async () => {
+  const handleTest = async () => {
     if (!active) return
     setTesting(true)
     setTestResult(null)
@@ -129,107 +157,106 @@ function ProviderSection() {
       description={t('settings.provider.description')}
     >
       <div className="space-y-4 pt-2">
-        {/* Current provider summary */}
+        {/* Summary */}
         {active && (
-          <div className="text-[12px] text-[var(--text-muted)]">
+          <div className="text-[12.5px] text-[var(--text-muted)]">
             {t('settings.provider.current')}:{' '}
             <span className="font-medium text-[var(--text-primary)]">
-              {t(`settings.provider.labels.${active.name}`, { defaultValue: active.name })}
+              {definition?.name ?? active.name}
             </span>
             <span className="ml-1 text-[var(--text-dim)]">/ {active.model}</span>
           </div>
         )}
 
-        {/* Provider pill grid */}
-        {profiles && profiles.length > 0 && (
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-            {profiles.map((p: AgentProfile) => (
+        {/* Pill grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {PROVIDER_DEFINITIONS.map((def) => {
+            const profile = profiles?.find((p) => p.name === def.id)
+            return (
               <ProviderPill
-                key={p.name}
-                profile={p}
-                active={p.name === active?.name}
-                onClick={() => switchProvider(p.name)}
+                key={def.id}
+                definition={def}
+                hasKey={!!profile?.hasKey}
+                active={def.id === active?.name}
+                onClick={() => switchProvider(def.id)}
+              />
+            )
+          })}
+        </div>
+
+        {/* Field grid (declarative from catalog) */}
+        {active && definition && (
+          <div className="space-y-3 pt-2 border-t border-[var(--border-color)]">
+            {definition.fields.map((field) => (
+              <FieldRow
+                key={field.key}
+                field={field}
+                keyInput={keyInput}
+                modelInput={modelInput}
+                baseUrlInput={baseUrlInput}
+                hasKey={!!active.hasKey}
+                onKeyChange={setKeyInput}
+                onModelChange={setModelInput}
+                onBaseUrlChange={setBaseUrlInput}
               />
             ))}
-          </div>
-        )}
 
-        {/* Active provider details */}
-        {active && (
-          <div className="space-y-3 pt-2 border-t border-[var(--border-color)]">
-            <ProfileField
-              label={t('settings.provider.baseUrl')}
-              value={active.baseUrl}
-              placeholder="https://api.example.com/v1"
-              onSave={async (v) => {
-                await api.agent.updateProfile(active.name, { baseUrl: v })
-                await refetch()
-              }}
-            />
-            <ProfileField
-              label={t('settings.provider.model')}
-              value={active.model}
-              placeholder="gpt-4o-mini"
-              onSave={async (v) => {
-                await api.agent.updateProfile(active.name, { model: v })
-                await refetch()
-              }}
-            />
-
-            <div className="space-y-2 pt-1">
-              <label className="text-[11.5px] font-medium text-[var(--text-secondary)]">
-                {t('settings.provider.apiKey')}
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  type="password"
-                  placeholder={active.hasKey ? '••••••••••••••••' : 'sk-...'}
-                  value={keyInput}
-                  onChange={(e) => setKeyInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSaveKey()}
-                  className="flex-1"
+            {/* Remember key toggle */}
+            {definition.fields.some((f) => f.key === 'apiKey') && (
+              <label className="flex items-center gap-2 pt-1 cursor-pointer text-[12px] text-[var(--text-secondary)]">
+                <input
+                  type="checkbox"
+                  checked={rememberKey}
+                  onChange={(e) => setRememberKey(e.target.checked)}
+                  className="accent-[var(--accent-color)]"
                 />
-                <Button
-                  variant="accent"
-                  size="xl"
-                  onClick={handleSaveKey}
-                  disabled={saving || !keyInput.trim()}
-                >
-                  {saving ? <Loader size={12} className="animate-spin" /> : t('common.save')}
-                </Button>
-              </div>
+                <span>{t('settings.provider.rememberKey')}</span>
+                <span className="text-[var(--text-muted)] text-[11px]">
+                  · {t('settings.provider.rememberKeyHint')}
+                </span>
+              </label>
+            )}
 
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={handleTestKey}
-                  disabled={testing || !active.hasKey}
-                  className="rounded-[8px]"
+            {/* Save | Test | status */}
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                variant="accent"
+                size="lg"
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-full"
+              >
+                {saving ? <Loader size={11} className="animate-spin" /> : null}
+                {t('common.save')}
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleTest}
+                disabled={testing || !active.hasKey}
+                className="rounded-full"
+              >
+                {testing ? <Loader size={11} className="animate-spin" /> : <Wifi size={11} />}
+                {t('settings.provider.testConnection')}
+              </Button>
+              {testResult !== null && (
+                <span
+                  className={cn(
+                    'flex items-center gap-1 text-[12px]',
+                    testResult ? 'text-[var(--status-read)]' : 'text-[var(--danger)]'
+                  )}
                 >
-                  {testing ? <Loader size={11} className="animate-spin" /> : <Wifi size={11} />}
-                  {t('settings.provider.testConnection')}
-                </Button>
-
-                {testResult !== null && (
-                  <span
-                    className={cn(
-                      'flex items-center gap-1 text-[11.5px]',
-                      testResult ? 'text-[var(--status-read)]' : 'text-[var(--danger)]'
-                    )}
-                  >
-                    {testResult ? (
-                      <>
-                        <CheckCircle size={11} /> {t('settings.provider.connected')}
-                      </>
-                    ) : (
-                      <>
-                        <XCircle size={11} /> {t('settings.provider.failed')}
-                      </>
-                    )}
-                  </span>
-                )}
-              </div>
+                  {testResult ? (
+                    <>
+                      <CheckCircle size={12} /> {t('settings.provider.connected')}
+                    </>
+                  ) : (
+                    <>
+                      <XCircle size={12} /> {t('settings.provider.failed')}
+                    </>
+                  )}
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -238,43 +265,53 @@ function ProviderSection() {
   )
 }
 
-// ── Editable profile field ──────────────────────────────────────────────────
+// ── Declarative field renderer ──────────────────────────────────────────────
 
-function ProfileField({
-  label,
-  value,
-  placeholder,
-  onSave,
-}: {
-  label: string
-  value: string
-  placeholder?: string
-  onSave: (next: string) => Promise<void>
-}) {
-  const [draft, setDraft] = useState(value)
+interface FieldRowProps {
+  field: ProviderFieldDefinition
+  keyInput: string
+  modelInput: string
+  baseUrlInput: string
+  hasKey: boolean
+  onKeyChange: (v: string) => void
+  onModelChange: (v: string) => void
+  onBaseUrlChange: (v: string) => void
+}
 
-  // Sync draft when active provider changes
-  useEffect(() => {
-    setDraft(value)
-  }, [value])
+function FieldRow({
+  field, keyInput, modelInput, baseUrlInput, hasKey,
+  onKeyChange, onModelChange, onBaseUrlChange,
+}: FieldRowProps) {
+  const { t } = useTranslation()
+  const label = t(`settings.provider.fields.${field.label}`)
 
-  const commit = async () => {
-    const next = draft.trim()
-    if (next === value) return
-    await onSave(next)
+  let value = ''
+  let onChange: (v: string) => void = () => {}
+  let placeholder = field.placeholder ?? ''
+  let inputType: string = field.type
+
+  if (field.key === 'apiKey') {
+    value = keyInput
+    onChange = onKeyChange
+    placeholder = hasKey ? '••••••••••••••••' : (field.placeholder ?? 'sk-...')
+    inputType = 'password'
+  } else if (field.key === 'model') {
+    value = modelInput
+    onChange = onModelChange
+  } else if (field.key === 'baseUrl') {
+    value = baseUrlInput
+    onChange = onBaseUrlChange
   }
 
   return (
-    <div className="grid grid-cols-[80px_1fr] gap-x-3 items-center">
-      <label className="text-[11.5px] font-medium text-[var(--text-secondary)]">{label}</label>
+    <div className="grid grid-cols-[100px_1fr] gap-x-3 items-center">
+      <label className="text-[12px] font-medium text-[var(--text-secondary)]">{label}</label>
       <Input
-        value={draft}
+        type={inputType}
+        value={value}
         placeholder={placeholder}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
-        }}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-full"
       />
     </div>
   )
@@ -283,11 +320,10 @@ function ProfileField({
 // ── Pill ────────────────────────────────────────────────────────────────────
 
 function ProviderPill({
-  profile,
-  active,
-  onClick,
+  definition, hasKey, active, onClick,
 }: {
-  profile: AgentProfile
+  definition: ProviderDefinition
+  hasKey: boolean
   active: boolean
   onClick: () => void
 }) {
@@ -297,16 +333,14 @@ function ProviderPill({
       type="button"
       onClick={onClick}
       className={cn(
-        'group relative px-3 py-2 rounded-full text-[12px] font-medium text-center transition-all duration-150 active:scale-[0.98]',
+        'group relative px-3 py-2 rounded-full text-[13px] font-medium text-center transition-all duration-150 active:scale-[0.98]',
         active
           ? 'bg-[var(--accent-color)] text-[var(--accent-on)]'
           : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
       )}
     >
-      <span className="block truncate">
-        {t(`settings.provider.labels.${profile.name}`, { defaultValue: profile.name })}
-      </span>
-      {profile.hasKey && (
+      <span className="block truncate">{definition.name}</span>
+      {hasKey && (
         <span
           className={cn(
             'absolute -top-1 -right-1 w-2 h-2 rounded-full',
