@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FolderOpen, FolderPlus, Cloud, Library as LibraryIcon, AlertTriangle } from 'lucide-react'
+import { FolderOpen, FolderPlus, Cloud, AlertTriangle } from 'lucide-react'
+import logoUrl from '@/assets/logo.jpg'
 import { useLibraryStore } from '@/store/library'
 import { confirmDialog, promptDialog } from '@/store/dialogs'
 import { api } from '@/lib/ipc'
@@ -102,9 +103,11 @@ export function WelcomeScreen() {
     <div className="flex flex-col items-center justify-center h-full bg-[var(--bg-base)] px-6 py-10 overflow-auto">
       <div className="max-w-[560px] w-full space-y-6">
         <div className="flex flex-col items-center gap-3 text-center">
-          <div className="w-14 h-14 rounded-[14px] bg-[var(--accent-color)]/15 border border-[var(--accent-color)]/25 flex items-center justify-center">
-            <LibraryIcon size={26} className="text-[var(--accent-color)]" />
-          </div>
+          <img
+            src={logoUrl}
+            alt="Verko"
+            className="w-16 h-16 rounded-[14px] shadow-sm"
+          />
           <h1 className="text-[20px] font-semibold text-[var(--text-primary)]">
             {t('welcome.title')}
           </h1>
