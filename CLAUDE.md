@@ -14,6 +14,7 @@ Agent-first academic paper management desktop app. Built with Electron + React 1
 - **Agent**: OpenAI-compatible streaming API via `openai` SDK v6
 - **Tests**: Vitest 4 (main process only, node env)
 - **Package manager**: npm
+- **i18n**: i18next + react-i18next; English + 简体中文 (`src/renderer/src/locales/{en,zh}.json`); language preference persists to localStorage and is forwarded to the agent so the system prompt swaps with the UI
 - **Style enforcement**: `.editorconfig` (indent / EOL) + TypeScript strict mode (`noUnusedLocals`, `noUnusedParameters` on) + ESLint 10 flat config (`eslint.config.js` — JS/TS recommended + `react-hooks/{rules-of-hooks,exhaustive-deps}` + `react-refresh/only-export-components`)
 
 ## Repository Layout
@@ -21,7 +22,7 @@ Agent-first academic paper management desktop app. Built with Electron + React 1
 src/
   main/             # Electron main process (Node.js)
     paperdb/        # Library, schema, CSV, search, import, ID generation
-    agent/          # AgentSession, tool loop, tools, auth, config
+    agent/          # AgentSession, tool loop, tools, auth, config, prompt (EN/ZH)
     ipc/            # IPC handler registration (thin wrappers over paperdb/agent)
     index.ts        # App entry, LibraryManager init, IPC registration
     __tests__/      # Vitest specs for main-process modules
@@ -46,7 +47,8 @@ src/
                     # plus setting-row, setting-section, setting-segmented
       common/       # App-specific shared bits: TitleBar, ChipStatus, ChipTag
     lib/            # ipc.ts (window.api wrapper + web stub), utils.ts (cn, formatYear,
-                    # formatAuthors, debounce)
+                    # formatAuthors, debounce), i18n.ts (i18next config)
+    locales/        # en.json + zh.json — UI translations
     styles/         # globals.css (CSS variables for dark/light theme)
     css.d.ts        # ambient declaration so `import './styles/globals.css'` typechecks
 
@@ -110,6 +112,14 @@ Tabs in `features/settings/tabs/` compose three small primitives from `component
 - `SettingSegmented` — segmented control (typed-generic over the value union)
 
 Use these for any new setting rather than hand-rolling row layouts. Add a `SettingToggle` primitive when you need an actual on/off control (none yet — the prior placeholder was deleted as YAGNI).
+
+## i18n
+The renderer uses i18next:
+
+- `src/renderer/src/lib/i18n.ts` — config + `setLanguage(lang)` / `getCurrentLanguage()` helpers, persists to `localStorage('language')`. Auto-detects from `navigator.language` on first run.
+- `src/renderer/src/locales/{en,zh}.json` — flat-ish translation tree. Add new keys here; both languages must be in sync (lint/typecheck won't catch missing keys, only runtime fallback to English).
+- `src/main/agent/prompt.ts` — `buildSystemPrompt(language, ctx)` returns the EN or ZH system-prompt template for the agent. Tool semantics are identical across languages; only the surface wording changes. The renderer's current language is forwarded via the third arg of `agent:send` so the prompt swaps when the user changes language.
+- Components use `const { t } = useTranslation()` and `t('namespace.key')`. For data-driven labels (e.g. column headers, tab metadata), pass `t` into pure helpers and re-key memoization on `i18n.language` so the labels refresh when the language flips.
 
 ## Library Table
 The papers list is a TanStack Table v8 (headless) instance. The contract:
