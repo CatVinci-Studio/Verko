@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -12,7 +12,10 @@ describe('LocalBackend', () => {
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'verko-local-'))
     be = new LocalBackend(dir)
-    return async () => { await rm(dir, { recursive: true, force: true }) }
+  })
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true })
   })
 
   it('writes and reads back a file', async () => {
