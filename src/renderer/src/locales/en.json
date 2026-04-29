@@ -99,6 +99,68 @@
       }
     }
   },
+  "welcome": {
+    "title": "Welcome to Verko",
+    "subtitle": "Pick or create a paper library to get started. A library is a folder of Markdown files (local) or an S3-compatible bucket (online).",
+    "actions": {
+      "openExisting": {
+        "title": "Open existing folder",
+        "description": "Choose a folder that already contains a Verko library, or one you'd like to convert."
+      },
+      "createLocal": {
+        "title": "Create new local library",
+        "description": "Pick an empty folder. Verko will scaffold the layout."
+      },
+      "connectS3": {
+        "title": "Connect S3 library",
+        "description": "Use an AWS S3, Cloudflare R2, Backblaze B2, or MinIO bucket as the storage backend."
+      }
+    },
+    "namePrompt": {
+      "title": "Name this library",
+      "description": "Used in the sidebar and library switcher. You can rename it later.",
+      "label": "Display name"
+    },
+    "initPrompt": {
+      "title": "Initialize this folder?",
+      "message": "This folder isn't a Verko library yet. We'll create papers/, attachments/, and schema.md inside it. Existing files won't be touched.",
+      "confirm": "Initialize"
+    },
+    "lastFailed": {
+      "title": "Couldn't reopen the last library"
+    },
+    "errors": {
+      "openTitle": "Couldn't open this library",
+      "unknown": "Unknown error"
+    },
+    "s3": {
+      "title": "Connect S3 library",
+      "description": "Verko writes one Markdown file per paper into the bucket. Credentials are stored encrypted on this machine.",
+      "connect": "Connect",
+      "fields": {
+        "preset": "Provider",
+        "name": "Display name",
+        "endpoint": "Endpoint",
+        "endpointHint": "Leave empty for AWS S3. Required for R2, B2, MinIO.",
+        "region": "Region",
+        "bucket": "Bucket",
+        "prefix": "Prefix (optional)",
+        "prefixHint": "Use this if multiple libraries share a bucket.",
+        "accessKeyId": "Access key ID",
+        "secretAccessKey": "Secret access key",
+        "forcePathStyle": "Force path-style URLs (MinIO and similar)"
+      },
+      "initPrompt": {
+        "title": "Initialize this bucket?",
+        "message": "The bucket is reachable but has no schema.md. We'll write schema.md and an empty papers.csv to set it up as a Verko library."
+      },
+      "errors": {
+        "missingTitle": "Missing fields",
+        "missing": "Bucket, access key, and secret key are required.",
+        "probeTitle": "Couldn't reach the bucket"
+      }
+    }
+  },
   "library": {
     "filterPlaceholder": "Filter papers…",
     "newPaper": "New paper",

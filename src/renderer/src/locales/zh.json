@@ -98,6 +98,68 @@
       }
     }
   },
+  "welcome": {
+    "title": "欢迎使用 Verko",
+    "subtitle": "选择一个已有的知识库,或新建一个。知识库可以是本地的 Markdown 文件夹,也可以是 S3 兼容的对象存储。",
+    "actions": {
+      "openExisting": {
+        "title": "打开已有文件夹",
+        "description": "选择一个已经是 Verko 知识库的文件夹,或希望转换成 Verko 知识库的文件夹。"
+      },
+      "createLocal": {
+        "title": "新建本地知识库",
+        "description": "选择一个空文件夹,Verko 会自动创建必要的目录结构。"
+      },
+      "connectS3": {
+        "title": "连接 S3 知识库",
+        "description": "支持 AWS S3、Cloudflare R2、Backblaze B2、MinIO 等任意 S3 兼容服务。"
+      }
+    },
+    "namePrompt": {
+      "title": "为知识库命名",
+      "description": "用于侧边栏和切换菜单,可随时重命名。",
+      "label": "显示名称"
+    },
+    "initPrompt": {
+      "title": "初始化此文件夹?",
+      "message": "该文件夹还不是 Verko 知识库。我们会在其中创建 papers/、attachments/ 和 schema.md,不会修改已有文件。",
+      "confirm": "初始化"
+    },
+    "lastFailed": {
+      "title": "无法重新打开上次的知识库"
+    },
+    "errors": {
+      "openTitle": "无法打开此知识库",
+      "unknown": "未知错误"
+    },
+    "s3": {
+      "title": "连接 S3 知识库",
+      "description": "Verko 会把每篇论文写成 Markdown 文件存到桶中。访问凭据加密保存在本机。",
+      "connect": "连接",
+      "fields": {
+        "preset": "服务商",
+        "name": "显示名称",
+        "endpoint": "Endpoint",
+        "endpointHint": "AWS S3 留空;R2、B2、MinIO 必填。",
+        "region": "区域",
+        "bucket": "Bucket",
+        "prefix": "前缀(可选)",
+        "prefixHint": "如果多个知识库共用一个 bucket,在此区分。",
+        "accessKeyId": "Access Key ID",
+        "secretAccessKey": "Secret Access Key",
+        "forcePathStyle": "使用 path-style URL(MinIO 等)"
+      },
+      "initPrompt": {
+        "title": "初始化此 bucket?",
+        "message": "可以连接,但 bucket 中没有 schema.md。我们会写入 schema.md 和空的 papers.csv 完成初始化。"
+      },
+      "errors": {
+        "missingTitle": "缺少必填字段",
+        "missing": "Bucket、Access Key、Secret Key 必填。",
+        "probeTitle": "无法访问 bucket"
+      }
+    }
+  },
   "library": {
     "filterPlaceholder": "筛选论文…",
     "newPaper": "新建论文",

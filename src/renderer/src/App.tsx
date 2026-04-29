@@ -10,12 +10,13 @@ import { CommandPalette } from './features/command/CommandPalette'
 import { SettingsModal } from './features/settings/SettingsModal'
 import { DialogHost } from './features/dialogs/DialogHost'
 import { TitleBar } from './components/common/TitleBar'
+import { WelcomeScreen } from './features/onboarding/WelcomeScreen'
 import { Button } from './components/ui/button'
 import { api } from './lib/ipc'
 import { useAgentEvents } from './features/agent/useAgent'
 
 export default function App() {
-  const { refreshPapers, refreshLibraries, refreshSchema, refreshCollections } = useLibraryStore()
+  const { refreshAll, status, setStatus } = useLibraryStore()
   const {
     sidebarCollapsed,
     activeView,
@@ -31,20 +32,28 @@ export default function App() {
 
   // Initial data load. Zustand actions are stable; mount-only is intentional.
   useEffect(() => {
-    refreshLibraries().then(() =>
-      Promise.all([refreshPapers(), refreshSchema(), refreshCollections()])
-    )
+    (async () => {
+      const noLibrary = await api.libraries.hasNone()
+      if (noLibrary) {
+        setStatus('none', { reason: 'empty' })
+        return
+      }
+      setStatus('ready')
+      await refreshAll()
+    })().catch(() => setStatus('none', { reason: 'empty' }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Listen for library switch events. Subscription should outlive the
-  // component lifecycle within this mount; do not re-bind on action change.
+  // Listen for library lifecycle events from main.
   useEffect(() => {
-    const unsub = api.libraries.onSwitched(() => {
-      refreshLibraries()
-      refreshPapers()
+    const unsubSwitch = api.libraries.onSwitched(() => {
+      setStatus('ready')
+      refreshAll()
     })
-    return unsub
+    const unsubNone = api.libraries.onNone((payload) => {
+      setStatus('none', payload)
+    })
+    return () => { unsubSwitch(); unsubNone() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -74,6 +83,22 @@ export default function App() {
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [commandOpen, setCommandOpen, toggleSidebar, toggleAgent, setSettingsOpen])
+
+  if (status === 'none') {
+    return (
+      <div className="flex flex-col h-full bg-[var(--bg-base)] overflow-hidden">
+        <TitleBar
+          onOpenCommand={() => setCommandOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <WelcomeScreen />
+        </div>
+        <DialogHost />
+        <SettingsModal />
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-base)] overflow-hidden">
