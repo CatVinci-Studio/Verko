@@ -1,6 +1,6 @@
 {
   "name": "verko",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Agent-first paper management. CSV + Markdown native storage.",
   "main": "./out/main/index.js",
   "private": true,
