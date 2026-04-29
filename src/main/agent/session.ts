@@ -1,131 +1,167 @@
-import OpenAI from 'openai'
-import type { AgentEvent, Language } from '@shared/types'
-import type { Library } from '@main/paperdb/store'
-import type { LibraryManager } from '@main/paperdb/manager'
-import { getConfig, getActiveProfile } from './config'
-import { createClient } from './client'
+import type { AppState } from '../ipc/index'
+import type { AgentEvent, ChatContentPart, ChatMessage, Language, PaperId } from '@shared/types'
+import { getActiveProfile, getConfig } from './config'
+import { TOOL_DEFINITIONS } from './tools'
 import { runAgentLoop } from './loop'
 import { buildSystemPrompt } from './prompt'
-import { TOOL_DEFINITIONS } from './tools'
+import { ConversationStore } from './conversations'
+import { createProvider, type NormalizedMessage, type ToolDef } from './providers'
+
+const TOOL_DEFS_NORMALIZED: ToolDef[] = TOOL_DEFINITIONS.map((t) => {
+  // OpenAI's typing widened ChatCompletionTool to a discriminated union, but
+  // every tool we author is `type: 'function'` — narrow back.
+  const fnTool = t as Extract<typeof t, { type: 'function' }>
+  return {
+    name: fnTool.function.name,
+    description: fnTool.function.description ?? '',
+    parameters: (fnTool.function.parameters as Record<string, unknown> | undefined) ?? {
+      type: 'object', properties: {},
+    },
+  }
+})
 
 /**
- * One conversational session with the AI agent.
+ * Multi-conversation agent gateway.
  *
- * Owns the chat history (kept in memory for the lifetime of the
- * session) and exposes streaming-style messaging via `send`. Each call
- * runs an OpenAI-compatible tool loop that may invoke library tools
- * (search, read, write papers, manage collections) before responding.
- *
- * Streamed output is delivered through the `onEvent` callback as a
- * sequence of `AgentEvent`s, terminated by `{ type: 'done' }`.
+ * - Each conversation is keyed by `id` and persisted to disk via ConversationStore.
+ * - In-memory cache of message arrays keeps streaming hot; on every assistant /
+ *   tool message we write through to disk.
+ * - One AbortController per conversation lets the user cancel one chat without
+ *   killing others.
+ * - The renderer is responsible for choosing which conversation to send into;
+ *   `agent:send` returns the conversationId so a fresh chat from a blank slate
+ *   gets created on demand.
  */
 export class AgentSession {
-  private history: OpenAI.Chat.ChatCompletionMessageParam[] = []
-  private abortController: AbortController | null = null
+  private conversations = new Map<string, NormalizedMessage[]>()
+  private aborts = new Map<string, AbortController>()
+  private store: ConversationStore
 
-  constructor(private appState: { library: Library; manager: LibraryManager | null }) {}
+  constructor(private readonly appState: AppState) {
+    this.store = ConversationStore.fromUserData()
+  }
 
-  /**
-   * Send a user message and stream the agent's response.
-   * Uses the active profile from settings; emits an `error` event if no
-   * key is configured. Safe to call concurrently — each call runs its
-   * own tool loop, but `abort` cancels whichever call is in flight.
-   */
   async send(
-    userMessage: string,
-    onEvent: (event: AgentEvent) => void,
-    currentPaperId?: string,
-    language: Language = 'en',
-  ): Promise<void> {
-    const config = getConfig()
-    let profile: ReturnType<typeof getActiveProfile>
-    try {
-      profile = getActiveProfile()
-    } catch (e) {
-      onEvent({
-        type: 'error',
-        message: e instanceof Error ? e.message : 'Failed to load active profile'
-      })
-      onEvent({ type: 'done' })
-      return
+    userText: string,
+    attachments: ChatContentPart[] | undefined,
+    currentPaperId: PaperId | undefined,
+    language: Language | undefined,
+    conversationId: string | undefined,
+    onEvent: (ev: AgentEvent) => void,
+  ): Promise<string> {
+    // Resolve / create the conversation.
+    let convId = conversationId
+    if (!convId) {
+      const c = await this.store.create()
+      convId = c.id
     }
 
+    const profile = getActiveProfile()
     if (!profile.key) {
-      onEvent({
-        type: 'error',
-        message: `No API key set for profile "${profile.name}". Please add a key in settings.`
-      })
+      onEvent({ type: 'error', message: `No API key set for profile "${profile.name}". Please add a key in settings.` })
       onEvent({ type: 'done' })
-      return
+      return convId
     }
 
-    // Build system prompt in the user's UI language. Tool semantics stay
-    // identical across languages — only the surface wording changes.
-    const systemPrompt = buildSystemPrompt(language, {
+    const config = getConfig()
+    const provider = createProvider({
+      protocol: profile.protocol,
+      baseUrl: profile.baseUrl,
+      apiKey: profile.key,
+      model: profile.model,
+    })
+
+    const systemPrompt = buildSystemPrompt(language ?? 'en', {
       libraryName: this.appState.manager?.activeName ?? 'My Library',
-      libraryRoot: this.appState.library.backend.describe(),
+      libraryRoot: this.appState.manager?.hasActive() ? this.appState.library.backend.describe() : '(no library)',
       currentDate: new Date().toISOString().split('T')[0],
       currentPaperId,
     })
 
-    // Push user message to history
-    this.history.push({ role: 'user', content: userMessage })
+    // Hydrate the in-memory cache from disk on first use.
+    let messages = this.conversations.get(convId)
+    if (!messages) {
+      try {
+        const conv = await this.store.get(convId)
+        messages = conv.messages.map(chatToNormalized)
+      } catch {
+        messages = []
+      }
+      this.conversations.set(convId, messages)
+    }
 
-    // Build messages array: system + full history
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: 'system', content: systemPrompt },
-      ...this.history
+    // Build the user message + persist it.
+    const userParts: ChatContentPart[] = [
+      { type: 'text', text: userText },
+      ...(attachments ?? []),
     ]
+    const userMsg: NormalizedMessage = { role: 'user', content: userParts }
+    messages.push(userMsg)
+    await this.store.append(convId, normalizedToChat(userMsg))
 
-    // Create client
-    const client = createClient(profile.baseUrl, profile.key)
+    // Cancel any in-flight call on this conversation.
+    this.aborts.get(convId)?.abort()
+    const ctrl = new AbortController()
+    this.aborts.set(convId, ctrl)
 
-    // Create abort controller for this request
-    this.abortController = new AbortController()
-
-    // Track how many messages exist before the loop so we can extract assistant turns
-    const historyLengthBefore = this.history.length
-
-    try {
-      await runAgentLoop({
-        client,
-        model: profile.model,
-        messages,
-        tools: TOOL_DEFINITIONS,
-        maxTurns: config.maxTurns,
-        temperature: config.temperature,
-        ctx: {
-          library: this.appState.library,
-          manager: this.appState.manager!
-        },
-        onEvent,
-        abortSignal: this.abortController.signal
-      })
-    } finally {
-      this.abortController = null
+    if (!this.appState.manager?.hasActive()) {
+      onEvent({ type: 'error', message: 'No active library. Open or create one first.' })
+      onEvent({ type: 'done' })
+      return convId
     }
 
-    // The loop mutates `messages` in-place by appending assistant + tool messages.
-    // We need to sync back those new turns into this.history.
-    // messages = [system, ...history_before, ...new_turns]
-    // new_turns start at index: 1 + historyLengthBefore
-    const newTurns = messages.slice(1 + historyLengthBefore)
-    for (const turn of newTurns) {
-      this.history.push(turn)
+    runAgentLoop({
+      provider,
+      systemPrompt,
+      messages,
+      tools: TOOL_DEFS_NORMALIZED,
+      maxTurns: config.maxTurns,
+      temperature: config.temperature,
+      ctx: { library: this.appState.library, manager: this.appState.manager! },
+      onEvent,
+      onMessage: (msg) => { void this.store.append(convId!, normalizedToChat(msg)) },
+      abortSignal: ctrl.signal,
+    }).finally(() => {
+      if (this.aborts.get(convId!) === ctrl) this.aborts.delete(convId!)
+    })
+
+    return convId
+  }
+
+  abort(conversationId?: string): void {
+    if (conversationId) {
+      this.aborts.get(conversationId)?.abort()
+      return
     }
+    for (const c of this.aborts.values()) c.abort()
   }
 
-  abort(): void {
-    if (this.abortController) {
-      this.abortController.abort()
-    }
+  /** Drop in-memory cache when a conversation is deleted. */
+  forget(conversationId: string): void {
+    this.conversations.delete(conversationId)
+    this.aborts.get(conversationId)?.abort()
+    this.aborts.delete(conversationId)
   }
+}
 
-  clearHistory(): void {
-    this.history = []
+// ── Normalization ↔ persistence ────────────────────────────────────────────
+
+function normalizedToChat(m: NormalizedMessage): ChatMessage {
+  return {
+    role: m.role,
+    content: m.content,
+    toolCalls: m.toolCalls,
+    toolCallId: m.toolCallId,
+    toolName: m.toolName,
   }
+}
 
-  getHistory(): OpenAI.Chat.ChatCompletionMessageParam[] {
-    return [...this.history]
+function chatToNormalized(m: ChatMessage): NormalizedMessage {
+  return {
+    role: m.role,
+    content: m.content,
+    toolCalls: m.toolCalls,
+    toolCallId: m.toolCallId,
+    toolName: m.toolName,
   }
 }

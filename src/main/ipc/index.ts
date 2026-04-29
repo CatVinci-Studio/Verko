@@ -6,6 +6,7 @@ import { registerLibraryHandlers } from './libraries'
 import { registerPaperHandlers } from './papers'
 import { registerSchemaHandlers } from './schema'
 import { registerAgentHandlers } from './agent'
+import { registerConversationHandlers } from './conversations'
 import { registerPdfHandlers } from './pdf'
 import { registerCollectionHandlers } from './collections'
 
@@ -28,5 +29,6 @@ export function registerIpcHandlers(
   registerSchemaHandlers(ipc, getLib)
   registerCollectionHandlers(ipc, getLib)
   registerAgentHandlers(ipc, () => appState.agent!, getWindow)
+  registerConversationHandlers(ipc, () => appState.agent!)
   registerPdfHandlers(ipc, getLib)
 }

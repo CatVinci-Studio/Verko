@@ -125,15 +125,19 @@ export type AgentEvent =
   | AgentErrorEvent
   | AgentDoneEvent
 
+/** API protocol the profile speaks. `custom` profiles let the user pick. */
+export type AgentProtocol = 'openai' | 'anthropic' | 'gemini'
+
 export interface AgentProfile {
   name: string
+  protocol: AgentProtocol
   baseUrl: string
   model: string
   hasKey: boolean
 }
 
 /** Editable fields of a provider profile. `name` and `hasKey` are not patchable. */
-export type ProfilePatch = Partial<Pick<AgentProfile, 'baseUrl' | 'model'>>
+export type ProfilePatch = Partial<Pick<AgentProfile, 'baseUrl' | 'model' | 'protocol'>>
 
 /** Supported UI languages — also used to pick the system prompt template. */
 export type Language = 'en' | 'zh'
@@ -144,6 +148,54 @@ export interface AgentConfig {
   maxTurns: number
   temperature: number
   showToolCalls: boolean
+}
+
+export interface AgentEventEnvelope {
+  conversationId: string
+  event: AgentEvent
+}
+
+// ─── Conversations ───────────────────────────────────────────────────────────
+
+export type ChatRole = 'user' | 'assistant' | 'tool'
+
+export interface ChatContentText {
+  type: 'text'
+  text: string
+}
+export interface ChatContentImage {
+  type: 'image'
+  data: string       // base64 (no data: prefix)
+  mimeType: string
+}
+export type ChatContentPart = ChatContentText | ChatContentImage
+
+export interface ChatToolCall {
+  id: string
+  name: string
+  arguments: string
+}
+
+export interface ChatMessage {
+  role: ChatRole
+  content: ChatContentPart[]
+  toolCalls?: ChatToolCall[]
+  toolCallId?: string
+  toolName?: string
+  /** Local timestamp; not sent to the model. */
+  createdAt?: number
+}
+
+export interface ConversationSummary {
+  id: string
+  title: string
+  createdAt: number
+  updatedAt: number
+  messageCount: number
+}
+
+export interface Conversation extends ConversationSummary {
+  messages: ChatMessage[]
 }
 
 // ─── Collections ─────────────────────────────────────────────────────────────
@@ -256,14 +308,22 @@ export interface IpcChannels {
   'schema:renameColumn': { args: [string, string];          ret: void }
 
   // Agent
-  'agent:send':          { args: [string, PaperId?, Language?]; ret: void }
-  'agent:abort':         { args: [];                        ret: void }
+  'agent:send':          { args: [string, ChatContentPart[]?, PaperId?, Language?, string?]; ret: string }
+  // ↑ message text, optional attachments, optional paperId, language, conversationId. Returns conversationId (created on demand).
+  'agent:abort':         { args: [string?];                 ret: void } // optional conversationId
   'agent:getConfig':     { args: [];                        ret: AgentConfig }
   'agent:setProfile':    { args: [string];                  ret: void }
   'agent:updateProfile': { args: [string, ProfilePatch];    ret: void }
   'agent:saveKey':       { args: [string, string];          ret: void }
   'agent:testKey':       { args: [string];                  ret: boolean }
   'agent:getProfiles':   { args: [];                        ret: AgentProfile[] }
+
+  // Conversations
+  'conversations:list':   { args: [];                       ret: ConversationSummary[] }
+  'conversations:get':    { args: [string];                 ret: Conversation }
+  'conversations:create': { args: [string?];                ret: ConversationSummary } // optional title
+  'conversations:rename': { args: [string, string];         ret: void }
+  'conversations:delete': { args: [string];                 ret: void }
 
   // PDF
   'pdf:getPath':         { args: [PaperId];                 ret: string | null }

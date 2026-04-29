@@ -1,29 +1,33 @@
-import OpenAI from 'openai'
 import type { AgentEvent } from '@shared/types'
 import type { Library } from '@main/paperdb/store'
 import type { LibraryManager } from '@main/paperdb/manager'
 import { dispatchTool } from './tools'
-
-interface ToolCallAccum {
-  id: string
-  name: string
-  args: string
-}
+import type { NormalizedMessage, ProviderProtocol, ToolDef } from './providers'
 
 export interface RunAgentLoopOptions {
-  client: OpenAI
-  model: string
-  messages: OpenAI.Chat.ChatCompletionMessageParam[]
-  tools: OpenAI.Chat.ChatCompletionTool[]
+  provider: ProviderProtocol
+  systemPrompt: string
+  /** Mutated in-place: assistant + tool messages are appended as the loop runs. */
+  messages: NormalizedMessage[]
+  tools: ToolDef[]
   maxTurns: number
   temperature: number
   ctx: { library: Library; manager: LibraryManager }
   onEvent: (event: AgentEvent) => void
+  onMessage: (msg: NormalizedMessage) => void  // persistence hook
   abortSignal: AbortSignal
 }
 
+/**
+ * Drive a single user turn through the provider until the model says it is done.
+ * Each iteration: stream a response → if tool calls, execute them → loop.
+ *
+ * `onEvent` streams to the renderer. `onMessage` persists each finalized message
+ * so that history survives crashes mid-turn (the loop may execute many tool calls
+ * before the model writes its final reply).
+ */
 export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
-  const { client, model, messages, tools, maxTurns, temperature, ctx, onEvent, abortSignal } = opts
+  const { provider, systemPrompt, messages, tools, maxTurns, temperature, ctx, onEvent, onMessage, abortSignal } = opts
 
   for (let turn = 0; turn < maxTurns; turn++) {
     if (abortSignal.aborted) {
@@ -31,69 +35,35 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
       return
     }
 
-    // Accumulate tool call fragments across stream chunks
-    const toolCallAccum: Record<number, ToolCallAccum> = {}
-    let finishReason: string | null = null
-    let assistantTextContent = ''
+    let assistantText = ''
+    const toolCalls: Array<{ id: string; name: string; arguments: string }> = []
+    let finishReason: 'stop' | 'tool_calls' | 'length' | 'other' = 'other'
 
     try {
-      const stream = client.chat.completions.stream(
-        {
-          model,
-          messages,
-          tools,
-          tool_choice: 'auto',
-          temperature
-        },
-        { signal: abortSignal }
-      )
-
-      for await (const chunk of stream) {
+      for await (const ev of provider.stream({
+        model: '',  // unused — provider already has it
+        systemPrompt,
+        messages,
+        tools,
+        temperature,
+        signal: abortSignal,
+      })) {
         if (abortSignal.aborted) break
-
-        const choice = chunk.choices[0]
-        if (!choice) continue
-
-        const delta = choice.delta
-
-        // Accumulate text deltas
-        if (delta.content) {
-          assistantTextContent += delta.content
-          onEvent({ type: 'text', delta: delta.content })
-        }
-
-        // Accumulate tool call argument fragments
-        if (delta.tool_calls) {
-          for (const tcDelta of delta.tool_calls) {
-            const idx = tcDelta.index
-            if (!toolCallAccum[idx]) {
-              toolCallAccum[idx] = {
-                id: tcDelta.id ?? '',
-                name: tcDelta.function?.name ?? '',
-                args: ''
-              }
-            }
-            // Update id and name if provided in this chunk (may arrive in first chunk only)
-            if (tcDelta.id) toolCallAccum[idx].id = tcDelta.id
-            if (tcDelta.function?.name) toolCallAccum[idx].name = tcDelta.function.name
-            if (tcDelta.function?.arguments) {
-              toolCallAccum[idx].args += tcDelta.function.arguments
-            }
-          }
-        }
-
-        if (choice.finish_reason) {
-          finishReason = choice.finish_reason
+        if (ev.type === 'text') {
+          assistantText += ev.delta
+          onEvent({ type: 'text', delta: ev.delta })
+        } else if (ev.type === 'tool_call') {
+          toolCalls.push({ id: ev.id, name: ev.name, arguments: ev.arguments })
+        } else if (ev.type === 'finish') {
+          finishReason = ev.reason
         }
       }
-    } catch (e: unknown) {
-      // Check for abort
+    } catch (e) {
       if (abortSignal.aborted) {
         onEvent({ type: 'done' })
         return
       }
-      const msg = e instanceof Error ? e.message : String(e)
-      onEvent({ type: 'error', message: msg })
+      onEvent({ type: 'error', message: e instanceof Error ? e.message : String(e) })
       return
     }
 
@@ -102,78 +72,45 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
       return
     }
 
-    // --- Handle finish_reason ---
+    // Persist the assistant turn (text + any tool_use calls).
+    const assistantMsg: NormalizedMessage = {
+      role: 'assistant',
+      content: assistantText ? [{ type: 'text', text: assistantText }] : [],
+      toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    }
+    messages.push(assistantMsg)
+    onMessage(assistantMsg)
 
-    if (finishReason === 'stop' || finishReason === 'length') {
-      // Push the assistant message to history
-      if (assistantTextContent) {
-        messages.push({ role: 'assistant', content: assistantTextContent })
-      }
+    if (finishReason !== 'tool_calls' && toolCalls.length === 0) {
       onEvent({ type: 'done' })
       return
     }
 
-    if (finishReason === 'tool_calls') {
-      const toolCalls = Object.values(toolCallAccum)
+    // Execute every tool call, append a tool-role message per result.
+    for (const tc of toolCalls) {
+      let parsed: Record<string, unknown> = {}
+      try { parsed = JSON.parse(tc.arguments || '{}') } catch { /* keep {} */ }
 
-      // Build the assistant message with tool_calls
-      const assistantMessage: OpenAI.Chat.ChatCompletionAssistantMessageParam = {
-        role: 'assistant',
-        content: assistantTextContent || null,
-        tool_calls: toolCalls.map((tc) => ({
-          id: tc.id,
-          type: 'function' as const,
-          function: {
-            name: tc.name,
-            arguments: tc.args
-          }
-        }))
+      onEvent({ type: 'tool_start', name: tc.name, args: parsed })
+      let result: string
+      try {
+        result = await dispatchTool(tc.name, parsed, ctx)
+      } catch (e) {
+        result = JSON.stringify({ error: e instanceof Error ? e.message : String(e) })
       }
-      messages.push(assistantMessage)
+      onEvent({ type: 'tool_result', name: tc.name, result })
 
-      // Execute each tool and collect results
-      for (const tc of toolCalls) {
-        let parsedArgs: Record<string, unknown>
-        try {
-          parsedArgs = JSON.parse(tc.args) as Record<string, unknown>
-        } catch {
-          parsedArgs = {}
-        }
-
-        onEvent({ type: 'tool_start', name: tc.name, args: parsedArgs })
-
-        let result: string
-        try {
-          result = await dispatchTool(tc.name, parsedArgs, ctx)
-        } catch (e: unknown) {
-          result = JSON.stringify({
-            error: e instanceof Error ? e.message : String(e)
-          })
-        }
-
-        onEvent({ type: 'tool_result', name: tc.name, result })
-
-        // Push tool result to messages
-        const toolResultMessage: OpenAI.Chat.ChatCompletionToolMessageParam = {
-          role: 'tool',
-          tool_call_id: tc.id,
-          content: result
-        }
-        messages.push(toolResultMessage)
+      const toolMsg: NormalizedMessage = {
+        role: 'tool',
+        toolCallId: tc.id,
+        toolName: tc.name,
+        content: [{ type: 'text', text: result }],
       }
-
-      // Continue the loop for the next turn
-      continue
+      messages.push(toolMsg)
+      onMessage(toolMsg)
     }
-
-    // Unexpected finish_reason or null — treat as done
-    onEvent({ type: 'done' })
-    return
+    // Loop continues for the next turn.
   }
 
-  // Exceeded maxTurns
-  onEvent({
-    type: 'error',
-    message: `Agent exceeded maximum turns (${maxTurns}). Stopping.`
-  })
+  onEvent({ type: 'error', message: `Agent exceeded maximum turns (${maxTurns}). Stopping.` })
 }

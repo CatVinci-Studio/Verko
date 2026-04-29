@@ -8,21 +8,25 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   profiles: [
     {
       name: 'openai',
+      protocol: 'openai',
       baseUrl: 'https://api.openai.com/v1',
       model: 'gpt-4o-mini',
     },
     {
-      name: 'qwen',
-      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-      model: 'qwen-plus',
+      name: 'anthropic',
+      protocol: 'anthropic',
+      baseUrl: '',
+      model: 'claude-sonnet-4-5',
     },
     {
-      name: 'deepseek',
-      baseUrl: 'https://api.deepseek.com/v1',
-      model: 'deepseek-chat',
+      name: 'gemini',
+      protocol: 'gemini',
+      baseUrl: '',
+      model: 'gemini-2.5-flash',
     },
     {
       name: 'custom',
+      protocol: 'openai',
       baseUrl: '',
       model: '',
     },

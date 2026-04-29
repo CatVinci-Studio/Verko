@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { IpcChannels, AgentEvent, LibraryInfo, LibraryNonePayload } from '@shared/types'
+import type { IpcChannels, LibraryInfo, LibraryNonePayload } from '@shared/types'
 
 type UnsubFn = () => void
 
@@ -10,13 +10,6 @@ const api = {
     ...args: IpcChannels[K]['args']
   ): Promise<IpcChannels[K]['ret']> {
     return ipcRenderer.invoke(channel, ...args)
-  },
-
-  // ── Streaming agent events ───────────────────────────────────────────────
-  onAgentEvent(cb: (event: AgentEvent) => void): UnsubFn {
-    const listener = (_: Electron.IpcRendererEvent, event: AgentEvent) => cb(event)
-    ipcRenderer.on('agent:event', listener)
-    return () => ipcRenderer.removeListener('agent:event', listener)
   },
 
   // ── Shortcuts / convenience ──────────────────────────────────────────────
@@ -61,17 +54,34 @@ const api = {
   },
 
   agent: {
-    send:        (message: string, paperId?: string, language?: import('@shared/types').Language) =>
-                                                          api.invoke('agent:send', message, paperId, language),
-    abort:       ()                                   => api.invoke('agent:abort'),
-    getConfig:   ()                                   => api.invoke('agent:getConfig'),
-    setProfile:    (name: string)                       => api.invoke('agent:setProfile', name),
+    send: (
+      message: string,
+      attachments?: import('@shared/types').ChatContentPart[],
+      paperId?: string,
+      language?: import('@shared/types').Language,
+      conversationId?: string,
+    ) => api.invoke('agent:send', message, attachments, paperId, language, conversationId),
+    abort: (conversationId?: string) => api.invoke('agent:abort', conversationId),
+    getConfig: () => api.invoke('agent:getConfig'),
+    setProfile: (name: string) => api.invoke('agent:setProfile', name),
     updateProfile: (name: string, patch: import('@shared/types').ProfilePatch) =>
                                                           api.invoke('agent:updateProfile', name, patch),
-    saveKey:     (profile: string, key: string)       => api.invoke('agent:saveKey', profile, key),
-    testKey:     (profile: string)                    => api.invoke('agent:testKey', profile),
-    getProfiles: ()                                   => api.invoke('agent:getProfiles'),
-    onEvent:     (cb: (event: AgentEvent) => void)    => api.onAgentEvent(cb),
+    saveKey: (profile: string, key: string) => api.invoke('agent:saveKey', profile, key),
+    testKey: (profile: string) => api.invoke('agent:testKey', profile),
+    getProfiles: () => api.invoke('agent:getProfiles'),
+    onEvent: (cb: (envelope: import('@shared/types').AgentEventEnvelope) => void) => {
+      const listener = (_: Electron.IpcRendererEvent, env: import('@shared/types').AgentEventEnvelope) => cb(env)
+      ipcRenderer.on('agent:event', listener)
+      return () => ipcRenderer.removeListener('agent:event', listener)
+    },
+  },
+
+  conversations: {
+    list:   () => api.invoke('conversations:list'),
+    get:    (id: string) => api.invoke('conversations:get', id),
+    create: (title?: string) => api.invoke('conversations:create', title),
+    rename: (id: string, title: string) => api.invoke('conversations:rename', id, title),
+    delete: (id: string) => api.invoke('conversations:delete', id),
   },
 
   collections: {

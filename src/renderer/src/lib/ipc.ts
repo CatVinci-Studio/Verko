@@ -1,8 +1,9 @@
 import type {
   PaperRef, PaperDetail, PaperDraft, PaperPatch, PaperId,
-  Filter, SearchHit, Schema, Column, AgentEvent, AgentConfig,
+  Filter, SearchHit, Schema, Column, AgentEventEnvelope, AgentConfig,
   AgentProfile, ProfilePatch, Language, LibraryInfo, CollectionInfo,
   NewLibraryInput, NewS3LibraryInput, ProbeResult, LibraryNonePayload,
+  ChatContentPart, ConversationSummary, Conversation,
 } from '@shared/types'
 
 type UnsubFn = () => void
@@ -46,15 +47,28 @@ export interface IApi {
     renameColumn(from: string, to: string): Promise<void>
   }
   agent: {
-    send(message: string, paperId?: string, language?: Language): Promise<void>
-    abort(): Promise<void>
+    send(
+      message: string,
+      attachments?: ChatContentPart[],
+      paperId?: string,
+      language?: Language,
+      conversationId?: string,
+    ): Promise<string>
+    abort(conversationId?: string): Promise<void>
     getConfig(): Promise<AgentConfig | null>
     setProfile(name: string): Promise<void>
     updateProfile(name: string, patch: ProfilePatch): Promise<void>
     saveKey(profile: string, key: string): Promise<void>
     testKey(profile: string): Promise<boolean>
     getProfiles(): Promise<AgentProfile[]>
-    onEvent(cb: (event: AgentEvent) => void): UnsubFn
+    onEvent(cb: (envelope: AgentEventEnvelope) => void): UnsubFn
+  }
+  conversations: {
+    list(): Promise<ConversationSummary[]>
+    get(id: string): Promise<Conversation>
+    create(title?: string): Promise<ConversationSummary>
+    rename(id: string, title: string): Promise<void>
+    delete(id: string): Promise<void>
   }
   pdf: {
     getPath(id: PaperId): Promise<string | null>
@@ -223,7 +237,7 @@ const webStub: IApi = {
     renameColumn: () => Promise.resolve(),
   },
   agent: {
-    send: () => Promise.resolve(),
+    send: () => Promise.resolve(''),
     abort: () => Promise.resolve(),
     getConfig: () => Promise.resolve(null),
     setProfile: () => Promise.resolve(),
@@ -232,6 +246,13 @@ const webStub: IApi = {
     testKey: () => Promise.resolve(true),
     getProfiles: () => Promise.resolve([]),
     onEvent: () => () => {},
+  },
+  conversations: {
+    list:   () => Promise.resolve([]),
+    get:    () => Promise.reject(new Error('No conversations in web preview')),
+    create: () => Promise.resolve({ id: 'stub', title: 'Demo', createdAt: Date.now(), updatedAt: Date.now(), messageCount: 0 }),
+    rename: () => Promise.resolve(),
+    delete: () => Promise.resolve(),
   },
   pdf: {
     getPath: () => Promise.resolve(null),
