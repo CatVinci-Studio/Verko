@@ -257,11 +257,11 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
       name: 'read_file',
       description:
         'Read any file within the active library directory. Path is relative to the library root. ' +
-        'Use this to read schema.json, collections.json, or any paper markdown file directly.',
+        'Use this to read schema.md, collections.json, or any paper markdown file directly.',
       parameters: {
         type: 'object',
         properties: {
-          path: { type: 'string', description: 'Relative path from library root, e.g. "schema.json" or "papers/2024-ho-ddpm.md"' }
+          path: { type: 'string', description: 'Relative path from library root, e.g. "schema.md" or "papers/2024-ho-ddpm.md"' }
         },
         required: ['path']
       }

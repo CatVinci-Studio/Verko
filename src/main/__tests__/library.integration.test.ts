@@ -24,9 +24,35 @@ describe('Library.open', () => {
     expect(entries).toContain('attachments')
   })
 
-  it('creates schema.json with defaults', async () => {
+  it('creates schema.md with defaults', async () => {
     const entries = await (await import('fs/promises')).readdir(tmpDir)
-    expect(entries).toContain('schema.json')
+    expect(entries).toContain('schema.md')
+  })
+
+  it('migrates a legacy schema.json to schema.md on first save', async () => {
+    const fs = await import('fs/promises')
+    const legacyDir = await mkdtemp(join(tmpdir(), 'library-legacy-'))
+    try {
+      // Seed a legacy schema.json (custom column added)
+      const legacySchema = {
+        version: 1,
+        columns: [
+          { name: 'id', type: 'text', inCsv: true },
+          { name: 'title', type: 'text', inCsv: true },
+          { name: 'priority', type: 'number', inCsv: true },
+        ],
+      }
+      await fs.writeFile(join(legacyDir, 'schema.json'), JSON.stringify(legacySchema), 'utf-8')
+
+      const legacyLib = await Library.open(legacyDir)
+      // Library.open re-saves on init, which should write .md and remove .json
+      expect(legacyLib.schema().columns.find((c) => c.name === 'priority')).toBeDefined()
+      const after = await fs.readdir(legacyDir)
+      expect(after).toContain('schema.md')
+      expect(after).not.toContain('schema.json')
+    } finally {
+      await rm(legacyDir, { recursive: true, force: true })
+    }
   })
 })
 

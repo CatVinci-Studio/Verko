@@ -50,7 +50,13 @@
       "testConnection": "Test connection",
       "connected": "Connected",
       "failed": "Failed",
-      "keySaved": "API key saved"
+      "keySaved": "API key saved",
+      "labels": {
+        "openai": "OpenAI",
+        "qwen": "Qwen",
+        "deepseek": "DeepSeek",
+        "custom": "Custom"
+      }
     },
     "schema": {
       "customColumns": {

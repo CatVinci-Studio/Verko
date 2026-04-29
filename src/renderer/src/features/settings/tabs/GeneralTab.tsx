@@ -133,7 +133,9 @@ function ProviderSection() {
         {active && (
           <div className="text-[12px] text-[var(--text-muted)]">
             {t('settings.provider.current')}:{' '}
-            <span className="font-medium text-[var(--text-primary)]">{active.name}</span>
+            <span className="font-medium text-[var(--text-primary)]">
+              {t(`settings.provider.labels.${active.name}`, { defaultValue: active.name })}
+            </span>
             <span className="ml-1 text-[var(--text-dim)]">/ {active.model}</span>
           </div>
         )}
@@ -301,7 +303,9 @@ function ProviderPill({
           : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
       )}
     >
-      <span className="block truncate">{profile.name}</span>
+      <span className="block truncate">
+        {t(`settings.provider.labels.${profile.name}`, { defaultValue: profile.name })}
+      </span>
       {profile.hasKey && (
         <span
           className={cn(

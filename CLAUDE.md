@@ -1,7 +1,7 @@
 # PaperwithAgent — Claude Code Guide
 
 ## Project Overview
-Agent-first academic paper management desktop app. Built with Electron + React 19. Storage is plain files: one Markdown per paper (YAML frontmatter + notes body), plus a derived `papers.csv` index and `schema.json` column definition. The AI agent runs in-process and reads/writes papers through the same `Library` abstraction the UI uses.
+Agent-first academic paper management desktop app. Built with Electron + React 19. Storage is plain files: one Markdown per paper (YAML frontmatter + notes body), `schema.md` for column definitions (also YAML frontmatter), and a derived `papers.csv` index. The AI agent runs in-process and reads/writes papers through the same `Library` abstraction the UI uses.
 
 ## Tech Stack
 - **Runtime**: Electron 41 + electron-vite 6 (beta) + Vite 8
@@ -37,7 +37,7 @@ src/
                     #   columns.tsx (ColumnDef builder) + useColumnPersistence (localStorage)
                     #   + FilterBar + Sidebar
       paper/        #   PaperDetail + MarkdownEditor + PdfViewer + usePaper hooks
-      settings/     #   SettingsModal + tabs/{General,Schema,Library}Tab
+      settings/     #   SettingsModal + tabs/{General,Library}Tab
       agent/        #   AgentPage + MessageBubble + ChatInput + ToolCallRow
       command/      #   CommandPalette
       dialogs/      #   ConfirmDialog + PromptDialog + DialogHost
@@ -64,7 +64,7 @@ A library is just a folder:
   papers/             # One .md file per paper, named by ID
   attachments/        # PDF files named <id>.pdf
   papers.csv          # Auto-rebuilt projection (do not edit manually)
-  schema.json         # Column definitions
+  schema.md           # Column definitions (YAML frontmatter + notes body)
   collections.json    # Collection membership
 ```
 Paper IDs are `{year}-{lastname}-{titleword}` (e.g. `2017-vaswani-attention`). Generation falls back to `randomBytes` to avoid timestamp collisions on rapid adds.
@@ -125,7 +125,7 @@ The renderer uses i18next:
 The papers list is a TanStack Table v8 (headless) instance. The contract:
 
 - **Column definitions** (`features/library/columns.tsx`): `buildColumns(extras)` returns `ColumnDef<PaperRef>[]` for the core columns plus any user-defined schema extras. Title is `enableResizing: false, enableHiding: false` (always present, always flexible).
-- **Persistence** (`features/library/useColumnPersistence.ts`): TanStack's `columnSizing` and `columnVisibility` state piped through `localStorage`, scoped per-library. Key prefix is `paperwithagent:column-state:<libraryName>`. **The library schema (`schema.json`, `papers.csv`, `.md` files) intentionally never sees these preferences** — keeping the data layer agent-readable is more important than syncing prefs across machines.
+- **Persistence** (`features/library/useColumnPersistence.ts`): TanStack's `columnSizing` and `columnVisibility` state piped through `localStorage`, scoped per-library. Key prefix is `paperwithagent:column-state:<libraryName>`. **The library schema (`schema.md`, `papers.csv`, paper `.md` files) intentionally never sees these preferences** — keeping the data layer agent-readable is more important than syncing prefs across machines.
 - **Header** (`features/library/ColumnHeader.tsx`): renders sort toggle, drag-to-resize handle (right edge), and ⋮ dropdown on hover (Hide / New column). Hidden columns surface again via the 👁 button at the right end of the header bar.
 - **Add column** flow: a context-menu "New column" opens a `promptDialog` for name + type and calls `api.schema.addColumn`. Schema changes are persisted (they're real data); only sizing/visibility live in localStorage.
 

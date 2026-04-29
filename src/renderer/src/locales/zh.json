@@ -50,7 +50,13 @@
       "testConnection": "测试连接",
       "connected": "已连接",
       "failed": "失败",
-      "keySaved": "已保存 key"
+      "keySaved": "已保存 key",
+      "labels": {
+        "openai": "OpenAI",
+        "qwen": "Qwen",
+        "deepseek": "DeepSeek",
+        "custom": "自定义"
+      }
     },
     "schema": {
       "customColumns": {

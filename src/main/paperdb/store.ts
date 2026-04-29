@@ -25,7 +25,7 @@ import { detectAndImport } from './import'
  * In-memory paper library backed by Markdown files on disk.
  *
  * The on-disk layout is the source of truth: one `.md` file per paper
- * under `papers/`, plus `schema.json` and `collections.json` for
+ * under `papers/`, plus `schema.md` and `collections.json` for
  * metadata. The CSV index at `papers.csv` is a derived projection
  * rebuilt on every write. All mutations go through this class so the
  * cache, search index, and CSV stay in sync.
@@ -47,7 +47,7 @@ export class Library {
   get papersDir(): string       { return join(this.root, 'papers') }
   get attachDir(): string       { return join(this.root, 'attachments') }
   get csvPath(): string         { return join(this.root, 'papers.csv') }
-  get schemaPath(): string      { return join(this.root, 'schema.json') }
+  get schemaPath(): string      { return join(this.root, 'schema.md') }
   get collectionsPath(): string { return join(this.root, 'collections.json') }
 
   /** Open (or create) a library at `root`. Idempotent on existing folders. */

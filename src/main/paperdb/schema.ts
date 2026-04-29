@@ -1,5 +1,6 @@
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, writeFile, unlink } from 'fs/promises'
 import { join } from 'path'
+import matter from 'gray-matter'
 import type { Schema, Column } from '@shared/types'
 
 export const DEFAULT_SCHEMA: Schema = {
@@ -31,22 +32,61 @@ export const DEFAULT_SCHEMA: Schema = {
   ] satisfies Column[],
 }
 
+const SCHEMA_BODY = `# Schema
+
+Column definitions for this library. The frontmatter above describes
+the shape every paper's YAML header is expected to follow:
+
+- \`columns[].name\`  — frontmatter key
+- \`columns[].type\`  — text / number / date / bool / select / multiselect / tags / url
+- \`columns[].inCsv\` — whether this column is projected into \`papers.csv\`
+
+Use this body to leave notes on why specific columns exist; it isn't
+parsed.
+`
+
+const MD_PATH = (root: string) => join(root, 'schema.md')
+const LEGACY_JSON_PATH = (root: string) => join(root, 'schema.json')
+
 /**
- * Load schema.json from the library root.
- * Falls back to DEFAULT_SCHEMA if the file does not exist or is malformed.
+ * Load the schema for a library.
+ *
+ * Resolution order:
+ *   1. `schema.md`    — current format (YAML frontmatter + markdown notes)
+ *   2. `schema.json`  — legacy format from earlier versions
+ *   3. DEFAULT_SCHEMA — fresh / unrecognized libraries
+ *
+ * On a successful legacy fallback, the schema is rewritten as `.md`
+ * (and the old `.json` removed) by the next `saveSchema` call.
  */
 export async function loadSchema(root: string): Promise<Schema> {
-  const schemaPath = join(root, 'schema.json')
+  // 1. schema.md
   try {
-    const raw = await readFile(schemaPath, 'utf-8')
+    const raw = await readFile(MD_PATH(root), 'utf-8')
+    const parsed = matter(raw)
+    return parsed.data as Schema
+  } catch { /* fallthrough */ }
+
+  // 2. legacy schema.json
+  try {
+    const raw = await readFile(LEGACY_JSON_PATH(root), 'utf-8')
     return JSON.parse(raw) as Schema
-  } catch {
-    return structuredClone(DEFAULT_SCHEMA)
-  }
+  } catch { /* fallthrough */ }
+
+  // 3. default
+  return structuredClone(DEFAULT_SCHEMA)
 }
 
-/** Persist schema to schema.json in the library root. */
+/**
+ * Persist schema as `schema.md`. If a legacy `schema.json` is present,
+ * remove it after the new file is written so libraries gradually settle
+ * on a single source of truth.
+ */
 export async function saveSchema(root: string, schema: Schema): Promise<void> {
-  const schemaPath = join(root, 'schema.json')
-  await writeFile(schemaPath, JSON.stringify(schema, null, 2), 'utf-8')
+  const md = matter.stringify(SCHEMA_BODY, schema as unknown as Record<string, unknown>)
+  await writeFile(MD_PATH(root), md, 'utf-8')
+  // Best-effort legacy cleanup; missing-file is fine.
+  try {
+    await unlink(LEGACY_JSON_PATH(root))
+  } catch { /* not present, no-op */ }
 }
