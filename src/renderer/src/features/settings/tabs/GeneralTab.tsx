@@ -23,17 +23,16 @@ export function GeneralTab() {
 // ── Basic ───────────────────────────────────────────────────────────────────
 
 function BasicSection() {
-  const { theme, toggleTheme } = useUIStore()
+  const { theme, setTheme } = useUIStore()
 
   return (
     <SettingSection title="Basic" description="Adjust how the interface looks.">
-      <SettingRow label="Color scheme" description="Affects all surfaces and accent treatment.">
-        <SettingSegmented<'dark' | 'light'>
+      <SettingRow label="Color scheme" description="System tracks the OS preference automatically.">
+        <SettingSegmented<'system' | 'dark' | 'light'>
           value={theme}
-          onValueChange={(t) => {
-            if (theme !== t) toggleTheme()
-          }}
+          onValueChange={setTheme}
           options={[
+            { value: 'system', label: 'System' },
             { value: 'dark', label: 'Dark' },
             { value: 'light', label: 'Light' },
           ]}
