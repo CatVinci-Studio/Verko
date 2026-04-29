@@ -1,0 +1,26 @@
+# Node
+node_modules/
+dist/
+
+# Electron-vite build output
+out/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# electron-builder output
+release/
+
+# User data
+/library/
+*.csv.bak
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Env
+.env
+.env.local

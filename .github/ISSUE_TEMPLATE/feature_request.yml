@@ -1,0 +1,36 @@
+name: "✨ Feature Request"
+description: "Suggest a new feature or improvement"
+labels: ["type:feat"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea? Great! Please describe it clearly so we can evaluate and prioritize it.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "What problem does this solve?"
+      description: "Describe the current workflow and where it falls short"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: "Proposed solution"
+      description: "What would the ideal experience look like? Include UI sketches or API shapes if relevant."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives considered"
+      description: "Any other approaches you considered and why you ruled them out"
+
+  - type: textarea
+    id: context
+    attributes:
+      label: "Additional context"
+      description: "Screenshots, references, or related issues"

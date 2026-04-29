@@ -1,0 +1,51 @@
+area:frontend:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/renderer/**"
+
+area:main:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/main/**"
+
+area:agent:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/main/agent/**"
+
+area:ipc:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/main/ipc/**"
+      - "src/preload/**"
+
+area:ui:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/renderer/src/components/**"
+      - "src/renderer/src/features/**"
+      - "src/renderer/src/styles/**"
+
+area:store:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/renderer/src/store/**"
+
+area:tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/**/__tests__/**"
+      - "**/*.test.ts"
+      - "**/*.test.tsx"
+      - "**/*.spec.ts"
+
+area:ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - ".github/**"
+
+area:deps:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "package.json"
+      - "pnpm-lock.yaml"
