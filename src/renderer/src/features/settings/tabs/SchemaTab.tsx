@@ -3,23 +3,27 @@ import { Plus, Trash2, Loader } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/ipc'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SettingSection } from '@/components/ui/setting-section'
 import { cn } from '@/lib/utils'
 import type { ColumnType } from '@shared/types'
 
 const COLUMN_TYPES: { value: ColumnType; label: string }[] = [
-  { value: 'text',        label: 'Text' },
-  { value: 'number',      label: 'Number' },
-  { value: 'date',        label: 'Date' },
-  { value: 'bool',        label: 'Boolean' },
-  { value: 'select',      label: 'Select' },
+  { value: 'text', label: 'Text' },
+  { value: 'number', label: 'Number' },
+  { value: 'date', label: 'Date' },
+  { value: 'bool', label: 'Boolean' },
+  { value: 'select', label: 'Select' },
   { value: 'multiselect', label: 'Multi-select' },
-  { value: 'tags',        label: 'Tags' },
-  { value: 'url',         label: 'URL' },
+  { value: 'tags', label: 'Tags' },
+  { value: 'url', label: 'URL' },
 ]
 
-const CORE_COLS = new Set(['title','authors','year','venue','doi','url','pdf','tags','status','rating','added_at','updated_at'])
+const CORE_COLS = new Set([
+  'title', 'authors', 'year', 'venue', 'doi', 'url', 'pdf',
+  'tags', 'status', 'rating', 'added_at', 'updated_at',
+])
 
-export function SchemaEditor() {
+export function SchemaTab() {
   const queryClient = useQueryClient()
   const { data: schema, isLoading } = useQuery({
     queryKey: ['schema'],
@@ -59,55 +63,48 @@ export function SchemaEditor() {
     return <div className="text-[12px] text-[var(--text-muted)]">Loading schema…</div>
   }
 
-  const userColumns = schema?.columns.filter(c => !CORE_COLS.has(c.name)) ?? []
+  const userColumns = schema?.columns.filter((c) => !CORE_COLS.has(c.name)) ?? []
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h3 className="text-[13px] font-semibold text-[var(--text-primary)] mb-0.5">Custom Columns</h3>
-        <p className="text-[12px] text-[var(--text-muted)]">
-          Add custom fields to your papers. These appear as columns in the library view.
-        </p>
-      </div>
-
-      {/* Existing columns */}
-      {userColumns.length > 0 ? (
-        <div className="space-y-1.5">
-          {userColumns.map(col => (
-            <div
-              key={col.name}
-              className="flex items-center gap-3 px-4 py-2.5 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-[10px]"
-            >
-              <div className="flex-1 min-w-0">
-                <span className="text-[12.5px] font-medium text-[var(--text-primary)]">{col.name}</span>
-                <span className="ml-2 text-[11px] text-[var(--text-muted)] capitalize">{col.type}</span>
-              </div>
-              <button
-                onClick={() => handleRemoveColumn(col.name)}
-                disabled={removing === col.name}
-                className="p-1.5 rounded-[6px] text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
+    <div className="space-y-6">
+      <SettingSection title="Custom columns" description="Extra fields you've added on top of the core paper schema. They appear in the library view and CSV index.">
+        {userColumns.length > 0 ? (
+          <div className="space-y-1.5 pt-2">
+            {userColumns.map((col) => (
+              <div
+                key={col.name}
+                className="flex items-center gap-3 px-4 py-2.5 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-[10px]"
               >
-                {removing === col.name
-                  ? <Loader size={12} className="animate-spin" />
-                  : <Trash2 size={12} />
-                }
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="text-[12px] text-[var(--text-muted)] italic px-1">No custom columns yet.</p>
-      )}
+                <div className="flex-1 min-w-0">
+                  <span className="text-[12.5px] font-medium text-[var(--text-primary)]">{col.name}</span>
+                  <span className="ml-2 text-[11px] text-[var(--text-muted)] capitalize">{col.type}</span>
+                </div>
+                <button
+                  onClick={() => handleRemoveColumn(col.name)}
+                  disabled={removing === col.name}
+                  className="p-1.5 rounded-[6px] text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
+                >
+                  {removing === col.name ? (
+                    <Loader size={12} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={12} />
+                  )}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[12px] text-[var(--text-muted)] italic px-1 pt-2">No custom columns yet.</p>
+        )}
+      </SettingSection>
 
-      {/* Add column */}
-      <div className="space-y-3 pt-4 border-t border-[var(--border-color)]">
-        <p className="text-[12px] font-medium text-[var(--text-secondary)]">Add Column</p>
-        <div className="flex gap-2">
+      <SettingSection title="Add column" description="New columns become available immediately on every paper.">
+        <div className="flex gap-2 pt-2">
           <input
             placeholder="Column name…"
             value={newColName}
-            onChange={e => setNewColName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleAddColumn()}
+            onChange={(e) => setNewColName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAddColumn()}
             className={cn(
               'flex-1 h-10 px-3 rounded-[10px] border text-[13px] bg-[var(--bg-elevated)]',
               'text-[var(--text-primary)] placeholder:text-[var(--text-dim)]',
@@ -117,13 +114,15 @@ export function SchemaEditor() {
             )}
             style={{ userSelect: 'text' }}
           />
-          <Select value={newColType} onValueChange={v => setNewColType(v as ColumnType)}>
+          <Select value={newColType} onValueChange={(v) => setNewColType(v as ColumnType)}>
             <SelectTrigger className="w-32 h-10 rounded-[10px] border-[var(--border-color)] bg-[var(--bg-elevated)] text-[12.5px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {COLUMN_TYPES.map(t => (
-                <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+              {COLUMN_TYPES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -140,7 +139,7 @@ export function SchemaEditor() {
             {adding ? <Loader size={12} className="animate-spin" /> : <Plus size={13} />}
           </button>
         </div>
-      </div>
+      </SettingSection>
     </div>
   )
 }
