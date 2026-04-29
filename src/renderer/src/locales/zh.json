@@ -45,19 +45,17 @@
       "title": "模型提供商",
       "description": "选择一个提供商,然后配置其 API key。点击提供商即切换为当前使用。",
       "current": "当前",
-      "baseUrl": "Base URL",
-      "model": "模型",
-      "apiKey": "API Key",
+      "fields": {
+        "apiKey": "API Key",
+        "model": "模型",
+        "baseUrl": "Base URL"
+      },
+      "rememberKey": "在当前设备记住 API 密钥",
+      "rememberKeyHint": "关闭则仅在内存中保留,关闭页面后丢失。",
       "testConnection": "测试连接",
       "connected": "已连接",
       "failed": "失败",
-      "keySaved": "已保存 key",
-      "labels": {
-        "openai": "OpenAI",
-        "qwen": "Qwen",
-        "deepseek": "DeepSeek",
-        "custom": "自定义"
-      }
+      "keySaved": "已保存 key"
     },
     "schema": {
       "customColumns": {

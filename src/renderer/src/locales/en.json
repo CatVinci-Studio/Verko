@@ -45,19 +45,17 @@
       "title": "Model provider",
       "description": "Pick a provider, then configure its API key. Clicking a provider switches the active one.",
       "current": "Current",
-      "baseUrl": "Base URL",
-      "model": "Model",
-      "apiKey": "API Key",
+      "fields": {
+        "apiKey": "API Key",
+        "model": "Model",
+        "baseUrl": "Base URL"
+      },
+      "rememberKey": "Remember API key on this device",
+      "rememberKeyHint": "When off, the key stays in memory only and is forgotten on close.",
       "testConnection": "Test connection",
       "connected": "Connected",
       "failed": "Failed",
-      "keySaved": "API key saved",
-      "labels": {
-        "openai": "OpenAI",
-        "qwen": "Qwen",
-        "deepseek": "DeepSeek",
-        "custom": "Custom"
-      }
+      "keySaved": "API key saved"
     },
     "schema": {
       "customColumns": {

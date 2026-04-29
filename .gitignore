@@ -28,3 +28,4 @@ release/
 # Env
 .env
 .env.local
+.claude/
