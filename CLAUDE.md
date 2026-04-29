@@ -4,14 +4,14 @@
 Agent-first academic paper management desktop app. Built with Electron + React 19. Storage is plain files: one Markdown per paper (YAML frontmatter + notes body), plus a derived `papers.csv` index and `schema.json` column definition.
 
 ## Tech Stack
-- **Runtime**: Electron 41 + electron-vite 5
-- **Frontend**: React 19, Tailwind CSS 3, shadcn/ui (Radix UI primitives)
-- **State**: Zustand 5 (ui.ts, library.ts, agent.ts stores)
+- **Runtime**: Electron 41 + electron-vite 6 (beta) + Vite 8
+- **Frontend**: React 19, Tailwind CSS 4, shadcn/ui (Radix UI primitives)
+- **State**: Zustand 5 (ui.ts, library.ts, agent.ts, dialogs.ts stores)
 - **Data fetching**: TanStack Query v5 for IPC calls
 - **Editor**: CodeMirror 6 (Markdown)
 - **Search**: MiniSearch (in-memory full-text)
-- **Agent**: OpenAI-compatible streaming API via `openai` SDK v4
-- **Tests**: Vitest 3 (main process: node env, renderer: happy-dom)
+- **Agent**: OpenAI-compatible streaming API via `openai` SDK v6
+- **Tests**: Vitest 4 (main process only, node env)
 - **Package manager**: npm
 
 ## Repository Layout
@@ -26,8 +26,8 @@ src/
     index.ts      # contextBridge → window.api (typed via IApi in ipc.ts)
   renderer/src/   # React frontend
     store/        # Zustand stores: library.ts, ui.ts, agent.ts
-    features/     # Feature folders: library/, paper/, agent/, command/, settings/
-    components/   # ui/ (shadcn), common/ (ChipStatus, ChipTag)
+    features/     # Feature folders: library/, paper/, agent/, command/, settings/, dialogs/
+    components/   # ui/ (shadcn + setting primitives), common/ (TitleBar, ChipStatus, ChipTag)
     lib/          # ipc.ts (window.api wrapper + web stub), utils.ts
     styles/       # globals.css (CSS variables for dark/light theme)
   shared/
@@ -68,10 +68,9 @@ npm run dist:mac  # Build + package macOS DMG
 
 ## Testing
 - Main process tests live in `src/main/__tests__/`
-- Renderer tests live in `src/renderer/src/__tests__/`
-- Run main tests: `npx vitest run` (uses `vitest.config.ts`)
-- Run renderer tests: `npx vitest run --config vitest.renderer.config.ts`
+- Run with `npm test` (uses `vitest.config.ts`, node env)
 - All 39 main-process tests must pass before committing
+- No renderer tests yet — `vitest.config.ts` includes `src/main/**/*.test.ts` only
 
 ## Key Conventions
 - **No hardcoded colors** in TSX files. Use CSS variables via `bg-[var(--token)]`.

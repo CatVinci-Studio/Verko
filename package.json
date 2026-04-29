@@ -58,9 +58,6 @@
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@tailwindcss/typography": "^0.5.15",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^25.6.0",
     "@types/papaparse": "^5.3.14",
     "@types/react": "^19.0.1",
@@ -72,8 +69,6 @@
     "electron": "^41.3.0",
     "electron-builder": "^26.8.1",
     "electron-vite": "^6.0.0-beta.1",
-    "happy-dom": "^20.9.0",
-    "jsdom": "^29.1.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3",
