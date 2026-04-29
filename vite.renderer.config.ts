@@ -15,10 +15,8 @@ export default defineConfig({
       '@': resolve(__dirname, 'src/renderer/src'),
     }
   },
-  define: {
-    // Provide a stub window.api so the renderer doesn't crash without Electron
-    'window.api': JSON.stringify({})
-  },
+  // No `define` for window.api — let it stay undefined in the browser so the
+  // renderer's ipc.ts fallback (`window.api ?? webStub`) picks up the stub.
   server: {
     port: 5173,
     open: true,
