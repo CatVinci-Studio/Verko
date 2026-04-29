@@ -4,6 +4,7 @@ import { Plus, Upload, Type, Hash, Calendar, CircleDot, Tag, ChevronUp, ChevronD
 import { useLibraryStore } from '@/store/library'
 import { useUIStore } from '@/store/ui'
 import { api } from '@/lib/ipc'
+import { confirmDialog, promptDialog } from '@/store/dialogs'
 import { FilterBar } from './FilterBar'
 import { PaperRow } from './PaperRow'
 import { cn } from '@/lib/utils'
@@ -65,7 +66,13 @@ export function LibraryView() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Delete this paper?')) return
+    const ok = await confirmDialog({
+      title: 'Delete paper?',
+      message: 'This removes the Markdown file and any attachments. The action cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (!ok) return
     await api.papers.delete(id)
     queryClient.invalidateQueries({ queryKey: ['papers'] })
     refreshPapers()
@@ -102,10 +109,15 @@ export function LibraryView() {
   }
 
   const handleImportDoi = async () => {
-    const doi = window.prompt('Enter DOI or arXiv URL:')
-    if (!doi) return
+    const result = await promptDialog({
+      title: 'Import paper',
+      description: 'Enter a DOI (e.g. 10.1145/...) or an arXiv URL.',
+      fields: [{ name: 'doi', label: 'DOI or arXiv URL', placeholder: '10.1145/...', required: true }],
+      confirmLabel: 'Import',
+    })
+    if (!result) return
     try {
-      await api.papers.importDoi(doi.trim())
+      await api.papers.importDoi(result.doi.trim())
       refreshPapers()
     } catch (e) {
       console.error(e)

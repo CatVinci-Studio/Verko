@@ -8,6 +8,7 @@ import { useLibraryStore } from '@/store/library'
 import { useUIStore } from '@/store/ui'
 import { useAgentStore } from '@/store/agent'
 import { api } from '@/lib/ipc'
+import { confirmDialog, promptDialog } from '@/store/dialogs'
 import { cn } from '@/lib/utils'
 import {
   DropdownMenu,
@@ -92,24 +93,38 @@ export function Sidebar() {
 
   // ── Collections ──────────────────────────────────────────────────────────────
   const handleCreateCollection = async () => {
-    const name = window.prompt('Collection name:')
-    if (!name?.trim()) return
-    try { await api.collections.create(name.trim()); await refreshCollections() }
+    const result = await promptDialog({
+      title: 'New collection',
+      fields: [{ name: 'name', label: 'Name', placeholder: 'To read', required: true }],
+      confirmLabel: 'Create',
+    })
+    if (!result) return
+    try { await api.collections.create(result.name.trim()); await refreshCollections() }
     catch (e) { console.error(e) }
   }
 
   const handleRenameCollection = async (oldName: string) => {
-    const newName = window.prompt('New name:', oldName)
-    if (!newName?.trim() || newName === oldName) return
+    const result = await promptDialog({
+      title: `Rename "${oldName}"`,
+      fields: [{ name: 'name', label: 'New name', initialValue: oldName, required: true }],
+      confirmLabel: 'Rename',
+    })
+    if (!result || result.name === oldName) return
     try {
-      await api.collections.rename(oldName, newName.trim())
-      if (activeCollection === oldName) switchCollection(newName.trim())
+      await api.collections.rename(oldName, result.name.trim())
+      if (activeCollection === oldName) switchCollection(result.name.trim())
       await refreshCollections()
     } catch (e) { console.error(e) }
   }
 
   const handleDeleteCollection = async (name: string) => {
-    if (!window.confirm(`Delete collection "${name}"?`)) return
+    const ok = await confirmDialog({
+      title: `Delete collection "${name}"?`,
+      message: 'Papers in this collection will not be deleted, only the collection grouping.',
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (!ok) return
     try {
       await api.collections.delete(name)
       if (activeCollection === name) switchCollection(null)
@@ -119,11 +134,17 @@ export function Sidebar() {
 
   // ── Library ──────────────────────────────────────────────────────────────────
   const handleAddLibrary = async () => {
-    const name = window.prompt('Library name:')
-    if (!name) return
-    const path = window.prompt('Library path (absolute):')
-    if (!path) return
-    try { await api.libraries.add(name, path); await refreshLibraries() }
+    const result = await promptDialog({
+      title: 'Add library',
+      description: 'Point to an existing folder. PaperwithAgent will index it on first open.',
+      fields: [
+        { name: 'name', label: 'Display name', placeholder: 'My research', required: true },
+        { name: 'path', label: 'Absolute path', placeholder: '/Users/you/Papers', required: true },
+      ],
+      confirmLabel: 'Add',
+    })
+    if (!result) return
+    try { await api.libraries.add(result.name, result.path); await refreshLibraries() }
     catch (e) { console.error(e) }
   }
 

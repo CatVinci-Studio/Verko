@@ -8,6 +8,7 @@ import { PaperDetail } from './features/paper/PaperDetail'
 import { AgentPage } from './features/agent/AgentPage'
 import { CommandPalette } from './features/command/CommandPalette'
 import { SettingsModal } from './features/settings/SettingsModal'
+import { DialogHost } from './features/dialogs/DialogHost'
 import { api } from './lib/ipc'
 import { useAgentEvents } from './features/agent/useAgent'
 
@@ -136,6 +137,7 @@ export default function App() {
       {/* Overlays */}
       <CommandPalette />
       <SettingsModal />
+      <DialogHost />
     </div>
   )
 }

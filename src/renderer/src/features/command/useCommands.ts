@@ -2,6 +2,7 @@ import { useUIStore } from '@/store/ui'
 import { useLibraryStore } from '@/store/library'
 import { useAgentStore } from '@/store/agent'
 import { api } from '@/lib/ipc'
+import { promptDialog } from '@/store/dialogs'
 
 export interface CommandItem {
   id: string
@@ -41,10 +42,15 @@ export function useCommands() {
       group: 'action',
       action: async () => {
         setCommandOpen(false)
-        const doi = window.prompt('Enter DOI:')
-        if (!doi) return
+        const result = await promptDialog({
+          title: 'Import paper',
+          description: 'Enter a DOI (e.g. 10.1145/...) or an arXiv URL.',
+          fields: [{ name: 'doi', label: 'DOI or arXiv URL', placeholder: '10.1145/...', required: true }],
+          confirmLabel: 'Import',
+        })
+        if (!result) return
         try {
-          const id = await api.papers.importDoi(doi.trim())
+          const id = await api.papers.importDoi(result.doi.trim())
           await refreshPapers()
           setSelected(id)
           setActiveView('paper')

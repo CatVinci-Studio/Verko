@@ -1,6 +1,7 @@
 import { Check, Plus } from 'lucide-react'
 import { useLibraryStore } from '@/store/library'
 import { api } from '@/lib/ipc'
+import { promptDialog } from '@/store/dialogs'
 import { SettingSection } from '@/components/ui/setting-section'
 import { cn } from '@/lib/utils'
 import type { LibraryInfo } from '@shared/types'
@@ -9,12 +10,18 @@ export function LibraryTab() {
   const { libraries, refreshLibraries, switchLibrary } = useLibraryStore()
 
   const handleAddLibrary = async () => {
-    const name = window.prompt('Library name:')
-    if (!name) return
-    const path = window.prompt('Library path (absolute):')
-    if (!path) return
+    const result = await promptDialog({
+      title: 'Add library',
+      description: 'Point to an existing folder. PaperwithAgent will index it on first open.',
+      fields: [
+        { name: 'name', label: 'Display name', placeholder: 'My research', required: true },
+        { name: 'path', label: 'Absolute path', placeholder: '/Users/you/Papers', required: true },
+      ],
+      confirmLabel: 'Add',
+    })
+    if (!result) return
     try {
-      await api.libraries.add(name, path)
+      await api.libraries.add(result.name, result.path)
       await refreshLibraries()
     } catch (e) {
       console.error(e)

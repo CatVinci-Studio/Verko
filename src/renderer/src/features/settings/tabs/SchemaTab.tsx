@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Plus, Trash2, Loader } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/ipc'
+import { confirmDialog } from '@/store/dialogs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SettingSection } from '@/components/ui/setting-section'
 import { cn } from '@/lib/utils'
@@ -49,7 +50,13 @@ export function SchemaTab() {
   }
 
   const handleRemoveColumn = async (name: string) => {
-    if (!window.confirm(`Remove column "${name}"?`)) return
+    const ok = await confirmDialog({
+      title: `Remove column "${name}"?`,
+      message: 'Existing papers keep their data in the Markdown frontmatter, but the column will no longer appear in the library view or CSV index.',
+      confirmLabel: 'Remove',
+      danger: true,
+    })
+    if (!ok) return
     setRemoving(name)
     try {
       await api.schema.removeColumn(name)
