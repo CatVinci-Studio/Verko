@@ -17,6 +17,7 @@ import { useAgentEvents } from './features/agent/useAgent'
 
 export default function App() {
   const { refreshAll, status, setStatus } = useLibraryStore()
+  const setActiveView = useUIStore((s) => s.setActiveView)
   const {
     sidebarCollapsed,
     activeView,
@@ -39,6 +40,7 @@ export default function App() {
         return
       }
       setStatus('ready')
+      setActiveView('agent')
       await refreshAll()
     })().catch(() => setStatus('none', { reason: 'empty' }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -48,6 +50,7 @@ export default function App() {
   useEffect(() => {
     const unsubSwitch = api.libraries.onSwitched(() => {
       setStatus('ready')
+      setActiveView('agent')
       refreshAll()
     })
     const unsubNone = api.libraries.onNone((payload) => {
