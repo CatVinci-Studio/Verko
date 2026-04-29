@@ -3,11 +3,14 @@ import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { loadSchema, saveSchema, DEFAULT_SCHEMA } from '../paperdb/schema'
+import { LocalBackend } from '../paperdb/backendLocal'
 
 let tmpDir: string
+let backend: LocalBackend
 
 beforeEach(async () => {
   tmpDir = await mkdtemp(join(tmpdir(), 'paperdb-test-'))
+  backend = new LocalBackend(tmpDir)
 })
 
 afterEach(async () => {
@@ -15,8 +18,8 @@ afterEach(async () => {
 })
 
 describe('loadSchema', () => {
-  it('returns DEFAULT_SCHEMA when schema.json missing', async () => {
-    const schema = await loadSchema(tmpDir)
+  it('returns DEFAULT_SCHEMA when schema.md missing', async () => {
+    const schema = await loadSchema(backend)
     expect(schema.columns.length).toBeGreaterThan(0)
     expect(schema.columns.find(c => c.name === 'title')).toBeDefined()
     expect(schema.columns.find(c => c.name === 'status')).toBeDefined()
@@ -24,8 +27,8 @@ describe('loadSchema', () => {
 
   it('round-trips through save + load', async () => {
     const original = { ...DEFAULT_SCHEMA, version: 2 }
-    await saveSchema(tmpDir, original)
-    const loaded = await loadSchema(tmpDir)
+    await saveSchema(backend, original)
+    const loaded = await loadSchema(backend)
     expect(loaded.version).toBe(2)
     expect(loaded.columns).toEqual(original.columns)
   })

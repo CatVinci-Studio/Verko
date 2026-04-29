@@ -1,6 +1,5 @@
-import { mkdir, readdir, readFile, writeFile, rm, copyFile, access } from 'fs/promises'
-import { existsSync } from 'fs'
-import { join, basename } from 'path'
+import { copyFile } from 'fs/promises'
+import { basename } from 'path'
 import MiniSearch from 'minisearch'
 import type {
   PaperRef,
@@ -14,6 +13,7 @@ import type {
   SearchHit,
   CollectionInfo,
 } from '@shared/types'
+import type { StorageBackend } from './backend'
 import { loadSchema, saveSchema } from './schema'
 import { parseFrontmatter, stringifyFrontmatter, normalizePaperData } from './frontmatter'
 import { rebuildCsv } from './csv'
@@ -21,47 +21,47 @@ import { buildIndex, searchIndex } from './search'
 import { generateId } from './id'
 import { detectAndImport } from './import'
 
+const PAPERS_DIR    = 'papers'
+const ATTACH_DIR    = 'attachments'
+const CSV_REL       = 'papers.csv'
+const COLLECTIONS_REL = 'collections.json'
+
+const paperRel    = (id: PaperId) => `${PAPERS_DIR}/${id}.md`
+const attachRel   = (id: PaperId) => `${ATTACH_DIR}/${id}.pdf`
+const collectionCsvRel = (name: string) => `${name}.csv`
+
 /**
- * In-memory paper library backed by Markdown files on disk.
+ * In-memory paper library backed by a `StorageBackend` (filesystem, S3, …).
  *
- * The on-disk layout is the source of truth: one `.md` file per paper
- * under `papers/`, plus `schema.md` and `collections.json` for
- * metadata. The CSV index at `papers.csv` is a derived projection
- * rebuilt on every write. All mutations go through this class so the
- * cache, search index, and CSV stay in sync.
+ * The on-disk/object-store layout is the source of truth: one `.md` file per
+ * paper under `papers/`, plus `schema.md` and `collections.json` for metadata.
+ * The CSV index at `papers.csv` is a derived projection rebuilt on every write.
  *
- * Construct with `Library.open(root)` — the constructor is private
- * because initialization is async (directory creation, cache build).
+ * Construct with `Library.open(backend)` — the constructor is private because
+ * initialization is async (cache build).
  */
 export class Library {
-  readonly root: string
+  readonly backend: StorageBackend
   private _schema!: Schema
   private refs = new Map<PaperId, PaperRef>()
+  private hasPdfCache = new Set<PaperId>()
   private index!: MiniSearch
   private _collections = new Map<string, Set<PaperId>>()
 
-  private constructor(root: string) {
-    this.root = root
+  private constructor(backend: StorageBackend) {
+    this.backend = backend
   }
 
-  get papersDir(): string       { return join(this.root, 'papers') }
-  get attachDir(): string       { return join(this.root, 'attachments') }
-  get csvPath(): string         { return join(this.root, 'papers.csv') }
-  get schemaPath(): string      { return join(this.root, 'schema.md') }
-  get collectionsPath(): string { return join(this.root, 'collections.json') }
-
-  /** Open (or create) a library at `root`. Idempotent on existing folders. */
-  static async open(root: string): Promise<Library> {
-    const lib = new Library(root)
+  /** Open (or initialize) a library on the given backend. Idempotent. */
+  static async open(backend: StorageBackend): Promise<Library> {
+    const lib = new Library(backend)
     await lib._init()
     return lib
   }
 
   private async _init(): Promise<void> {
-    await mkdir(this.papersDir, { recursive: true })
-    await mkdir(this.attachDir, { recursive: true })
-    this._schema = await loadSchema(this.root)
-    await saveSchema(this.root, this._schema)
+    this._schema = await loadSchema(this.backend)
+    await saveSchema(this.backend, this._schema)
     await this._loadCollections()
     await this._rebuildCache()
   }
@@ -70,7 +70,11 @@ export class Library {
 
   private async _loadCollections(): Promise<void> {
     try {
-      const raw = await readFile(this.collectionsPath, 'utf-8')
+      if (!(await this.backend.exists(COLLECTIONS_REL))) {
+        this._collections = new Map()
+        return
+      }
+      const raw = (await this.backend.readFile(COLLECTIONS_REL)).toString('utf-8')
       const data = JSON.parse(raw) as Record<string, string[]>
       this._collections = new Map(
         Object.entries(data).map(([name, ids]) => [name, new Set(ids)])
@@ -85,19 +89,28 @@ export class Library {
     for (const [name, ids] of this._collections) {
       data[name] = Array.from(ids)
     }
-    await writeFile(this.collectionsPath, JSON.stringify(data, null, 2), 'utf-8')
+    await this.backend.writeFile(COLLECTIONS_REL, JSON.stringify(data, null, 2))
   }
 
   private async _rebuildCollectionCsv(name: string): Promise<void> {
     const ids = this._collections.get(name)
     if (!ids) return
     const refs = Array.from(ids).map(id => this.refs.get(id)).filter((r): r is PaperRef => r != null)
-    await rebuildCsv(join(this.root, `${name}.csv`), refs, this._schema)
+    await rebuildCsv(this.backend, collectionCsvRel(name), refs, this._schema)
   }
 
   private async _rebuildCache(): Promise<void> {
     this.refs.clear()
-    const files = await readdir(this.papersDir).catch(() => [] as string[])
+    this.hasPdfCache.clear()
+
+    // Pre-load attachment list once so each ref doesn't have to round-trip.
+    const attachFiles = await this.backend.listFiles(ATTACH_DIR)
+    for (const rel of attachFiles) {
+      const name = rel.split('/').pop() ?? ''
+      if (name.endsWith('.pdf')) this.hasPdfCache.add(name.slice(0, -'.pdf'.length))
+    }
+
+    const allFiles = await this.backend.listFiles(PAPERS_DIR)
     const indexDocs: Array<{
       id: string
       title: string
@@ -106,10 +119,12 @@ export class Library {
       body: string
     }> = []
 
-    for (const file of files.filter(f => f.endsWith('.md'))) {
+    for (const rel of allFiles) {
+      if (!rel.endsWith('.md')) continue
+      const file = rel.slice(`${PAPERS_DIR}/`.length)
       try {
         const id = basename(file, '.md')
-        const content = await readFile(join(this.papersDir, file), 'utf-8')
+        const content = (await this.backend.readFile(rel)).toString('utf-8')
         const { data, body } = parseFrontmatter(content)
         const norm = normalizePaperData(data)
         const ref = this._toRef(id, norm, body)
@@ -128,10 +143,7 @@ export class Library {
 
     this.index = buildIndex(indexDocs)
 
-    // Rebuild CSV if missing
-    try {
-      await access(this.csvPath)
-    } catch {
+    if (!(await this.backend.exists(CSV_REL))) {
       await this._writeCsv()
     }
   }
@@ -152,14 +164,14 @@ export class Library {
       rating:     data.rating as number | undefined,
       added_at:   (data.added_at as string) || new Date().toISOString(),
       updated_at: (data.updated_at as string) || new Date().toISOString(),
-      hasPdf:     existsSync(join(this.attachDir, `${id}.pdf`)),
+      hasPdf:     this.hasPdfCache.has(id),
       doi:        data.doi as string | undefined,
       url:        data.url as string | undefined,
     }
   }
 
   private async _writeCsv(): Promise<void> {
-    await rebuildCsv(this.csvPath, Array.from(this.refs.values()), this._schema)
+    await rebuildCsv(this.backend, CSV_REL, Array.from(this.refs.values()), this._schema)
   }
 
   // ── Collections ─────────────────────────────────────────────────────────────
@@ -175,13 +187,13 @@ export class Library {
     if (this._collections.has(name)) return
     this._collections.set(name, new Set())
     await this._saveCollections()
-    await rebuildCsv(join(this.root, `${name}.csv`), [], this._schema)
+    await rebuildCsv(this.backend, collectionCsvRel(name), [], this._schema)
   }
 
   async deleteCollection(name: string): Promise<void> {
     this._collections.delete(name)
     await this._saveCollections()
-    await rm(join(this.root, `${name}.csv`), { force: true })
+    await this.backend.deleteFile(collectionCsvRel(name))
   }
 
   async renameCollection(oldName: string, newName: string): Promise<void> {
@@ -190,7 +202,7 @@ export class Library {
     this._collections.delete(oldName)
     this._collections.set(newName, ids)
     await this._saveCollections()
-    await rm(join(this.root, `${oldName}.csv`), { force: true })
+    await this.backend.deleteFile(collectionCsvRel(oldName))
     await this._rebuildCollectionCsv(newName)
   }
 
@@ -215,16 +227,15 @@ export class Library {
 
   async addColumn(col: Column): Promise<void> {
     this._schema.columns.push(col)
-    await saveSchema(this.root, this._schema)
+    await saveSchema(this.backend, this._schema)
 
-    // Add default value to all existing MD files
     for (const [id] of this.refs) {
-      const path = join(this.papersDir, `${id}.md`)
-      const content = await readFile(path, 'utf-8')
+      const rel = paperRel(id)
+      const content = (await this.backend.readFile(rel)).toString('utf-8')
       const { data, body } = parseFrontmatter(content)
       if (!(col.name in data)) {
         data[col.name] = col.default ?? null
-        await writeFile(path, stringifyFrontmatter(data, body), 'utf-8')
+        await this.backend.writeFile(rel, stringifyFrontmatter(data, body))
       }
     }
 
@@ -233,25 +244,24 @@ export class Library {
 
   async removeColumn(name: string): Promise<void> {
     this._schema.columns = this._schema.columns.filter(c => c.name !== name)
-    await saveSchema(this.root, this._schema)
+    await saveSchema(this.backend, this._schema)
     await this._writeCsv()
   }
 
   async renameColumn(from: string, to: string): Promise<void> {
     const col = this._schema.columns.find(c => c.name === from)
     if (col) col.name = to
-    await saveSchema(this.root, this._schema)
+    await saveSchema(this.backend, this._schema)
 
-    // Rename key in all MD files
     for (const [id] of this.refs) {
-      const path = join(this.papersDir, `${id}.md`)
-      const content = await readFile(path, 'utf-8')
+      const rel = paperRel(id)
+      const content = (await this.backend.readFile(rel)).toString('utf-8')
       const { data, body } = parseFrontmatter(content)
       if (from in data) {
         data[to] = data[from]
         delete data[from]
       }
-      await writeFile(path, stringifyFrontmatter(data, body), 'utf-8')
+      await this.backend.writeFile(rel, stringifyFrontmatter(data, body))
     }
 
     await this._rebuildCache()
@@ -290,8 +300,7 @@ export class Library {
   }
 
   async get(id: PaperId): Promise<PaperDetail> {
-    const path = join(this.papersDir, `${id}.md`)
-    const content = await readFile(path, 'utf-8')
+    const content = (await this.backend.readFile(paperRel(id))).toString('utf-8')
     const { data, body } = parseFrontmatter(content)
     const norm = normalizePaperData(data)
     const ref = this._toRef(id, norm, body)
@@ -302,7 +311,6 @@ export class Library {
     const id = generateId(draft)
     const now = new Date().toISOString()
 
-    // Separate known fields from custom extras
     const knownKeys = new Set([
       'title', 'authors', 'year', 'venue', 'doi', 'url',
       'tags', 'status', 'rating', 'markdown',
@@ -331,11 +339,7 @@ export class Library {
       draft.markdown ||
       `## TL;DR\n\n## Method\n\n## My Notes\n`
 
-    await writeFile(
-      join(this.papersDir, `${id}.md`),
-      stringifyFrontmatter(data, markdown),
-      'utf-8'
-    )
+    await this.backend.writeFile(paperRel(id), stringifyFrontmatter(data, markdown))
 
     const ref = this._toRef(id, data, markdown)
     this.refs.set(id, ref)
@@ -352,15 +356,15 @@ export class Library {
   }
 
   async update(id: PaperId, patch: PaperPatch): Promise<void> {
-    const path = join(this.papersDir, `${id}.md`)
-    const content = await readFile(path, 'utf-8')
+    const rel = paperRel(id)
+    const content = (await this.backend.readFile(rel)).toString('utf-8')
     const { data, body } = parseFrontmatter(content)
 
     const { markdown: newBody, ...metaPatch } = patch
     Object.assign(data, metaPatch, { updated_at: new Date().toISOString() })
 
     const finalBody = newBody !== undefined ? newBody : body
-    await writeFile(path, stringifyFrontmatter(data, finalBody), 'utf-8')
+    await this.backend.writeFile(rel, stringifyFrontmatter(data, finalBody))
 
     const norm = normalizePaperData(data)
     const ref = this._toRef(id, norm, finalBody)
@@ -379,10 +383,11 @@ export class Library {
   }
 
   async delete(id: PaperId): Promise<void> {
-    await rm(join(this.papersDir, `${id}.md`), { force: true })
+    await this.backend.deleteFile(paperRel(id))
+    await this.backend.deleteFile(attachRel(id))
     this.refs.delete(id)
+    this.hasPdfCache.delete(id)
     this.index.discard(id)
-    // Remove from all collections and rebuild their CSVs
     for (const [name, ids] of this._collections) {
       if (ids.has(id)) {
         ids.delete(id)
@@ -396,28 +401,25 @@ export class Library {
   // ── Notes ────────────────────────────────────────────────────────────────────
 
   async appendNote(id: PaperId, section: string, text: string): Promise<void> {
-    const path = join(this.papersDir, `${id}.md`)
-    const content = await readFile(path, 'utf-8')
+    const rel = paperRel(id)
+    const content = (await this.backend.readFile(rel)).toString('utf-8')
     const { data, body } = parseFrontmatter(content)
 
     const heading = `## ${section}`
     let newBody: string
 
     if (body.includes(heading)) {
-      // Find end of section (next ## heading or EOF), insert before it
       const idx = body.indexOf(heading) + heading.length
       const nextSection = body.indexOf('\n## ', idx)
       const insertAt = nextSection === -1 ? body.length : nextSection
-      newBody =
-        body.slice(0, insertAt) + '\n\n' + text + body.slice(insertAt)
+      newBody = body.slice(0, insertAt) + '\n\n' + text + body.slice(insertAt)
     } else {
       newBody = body + `\n\n${heading}\n\n${text}`
     }
 
     data.updated_at = new Date().toISOString()
-    await writeFile(path, stringifyFrontmatter(data, newBody), 'utf-8')
+    await this.backend.writeFile(rel, stringifyFrontmatter(data, newBody))
 
-    // Sync the updated_at into cache without a full rebuild
     await this.update(id, { updated_at: data.updated_at as string, markdown: newBody })
   }
 
@@ -475,11 +477,28 @@ export class Library {
     return this.add(draft)
   }
 
+  /**
+   * Import a PDF from an absolute filesystem path. The source path is read
+   * from the user's OS filesystem (it is outside the library); the destination
+   * is written through the backend so it lands wherever the library lives.
+   */
   async importPdf(filePath: string): Promise<PaperId> {
     const name = basename(filePath, '.pdf')
     const draft: PaperDraft = { title: name, tags: [] }
     const id = await this.add(draft)
-    await copyFile(filePath, join(this.attachDir, `${id}.pdf`))
+
+    const localTarget = this.backend.localPath(attachRel(id))
+    if (localTarget) {
+      // Same filesystem — use copyFile for a fast, atomic-ish copy and avoid
+      // buffering the whole PDF in memory.
+      await copyFile(filePath, localTarget)
+    } else {
+      const { readFile } = await import('fs/promises')
+      const buf = await readFile(filePath)
+      await this.backend.writeFile(attachRel(id), buf)
+    }
+
+    this.hasPdfCache.add(id)
     await this.update(id, { pdf: `attachments/${id}.pdf` })
     return id
   }
@@ -492,8 +511,18 @@ export class Library {
 
   // ── PDF path ─────────────────────────────────────────────────────────────────
 
+  /**
+   * Local filesystem path to the PDF, or null. S3-backed libraries have no
+   * local path; the renderer falls back to streaming via IPC.
+   */
   pdfPath(id: PaperId): string | null {
-    const p = join(this.attachDir, `${id}.pdf`)
-    return existsSync(p) ? p : null
+    if (!this.hasPdfCache.has(id)) return null
+    return this.backend.localPath(attachRel(id))
+  }
+
+  /** Stream the PDF bytes regardless of backend. Caller is responsible for closing. */
+  pdfStream(id: PaperId): import('node:stream').Readable | null {
+    if (!this.hasPdfCache.has(id)) return null
+    return this.backend.createReadStream(attachRel(id))
   }
 }

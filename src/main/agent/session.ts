@@ -63,7 +63,7 @@ export class AgentSession {
     // identical across languages — only the surface wording changes.
     const systemPrompt = buildSystemPrompt(language, {
       libraryName: this.appState.manager?.activeName ?? 'My Library',
-      libraryRoot: this.appState.library.root,
+      libraryRoot: this.appState.library.backend.describe(),
       currentDate: new Date().toISOString().split('T')[0],
       currentPaperId,
     })

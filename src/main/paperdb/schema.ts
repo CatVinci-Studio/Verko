@@ -1,7 +1,8 @@
-import { readFile, writeFile } from 'fs/promises'
-import { join } from 'path'
 import matter from 'gray-matter'
 import type { Schema, Column } from '@shared/types'
+import type { StorageBackend } from './backend'
+
+export const SCHEMA_REL = 'schema.md'
 
 export const DEFAULT_SCHEMA: Schema = {
   version: 1,
@@ -45,12 +46,11 @@ Use this body to leave notes on why specific columns exist; it isn't
 parsed.
 `
 
-const SCHEMA_PATH = (root: string) => join(root, 'schema.md')
-
-/** Load `schema.md` from the library root, or DEFAULT_SCHEMA if missing. */
-export async function loadSchema(root: string): Promise<Schema> {
+/** Load `schema.md` from the backend, or DEFAULT_SCHEMA if missing. */
+export async function loadSchema(backend: StorageBackend): Promise<Schema> {
+  if (!(await backend.exists(SCHEMA_REL))) return structuredClone(DEFAULT_SCHEMA)
   try {
-    const raw = await readFile(SCHEMA_PATH(root), 'utf-8')
+    const raw = (await backend.readFile(SCHEMA_REL)).toString('utf-8')
     const { data } = matter(raw)
     return data as Schema
   } catch {
@@ -59,7 +59,7 @@ export async function loadSchema(root: string): Promise<Schema> {
 }
 
 /** Persist schema as `schema.md` (YAML frontmatter + notes body). */
-export async function saveSchema(root: string, schema: Schema): Promise<void> {
+export async function saveSchema(backend: StorageBackend, schema: Schema): Promise<void> {
   const md = matter.stringify(SCHEMA_BODY, schema as unknown as Record<string, unknown>)
-  await writeFile(SCHEMA_PATH(root), md, 'utf-8')
+  await backend.writeFile(SCHEMA_REL, md)
 }

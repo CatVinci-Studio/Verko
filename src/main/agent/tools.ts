@@ -1,5 +1,3 @@
-import { promises as fs } from 'fs'
-import { join, resolve } from 'path'
 import OpenAI from 'openai'
 import type { Library } from '@main/paperdb/store'
 import type { LibraryManager } from '@main/paperdb/manager'
@@ -301,18 +299,26 @@ export const TOOL_DEFINITIONS: OpenAI.Chat.ChatCompletionTool[] = [
   }
 ]
 
-function safeLibraryPath(libraryRoot: string, relativePath: string): string | null {
-  const normalized = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath
-  const resolved = resolve(join(libraryRoot, normalized))
-  return resolved.startsWith(libraryRoot) ? resolved : null
+/**
+ * Normalize a user-supplied relative path and reject anything that would
+ * escape the library root (e.g. `..`, absolute paths). Backend-agnostic.
+ */
+function safeRelPath(relativePath: string): string | null {
+  const trimmed = relativePath.replace(/^[/\\]+/, '').trim()
+  if (!trimmed || trimmed === '.') return ''
+  // Reject path-traversal segments.
+  const parts = trimmed.split(/[/\\]+/)
+  for (const p of parts) {
+    if (p === '..' || p === '') return null
+  }
+  return parts.join('/')
 }
 
-async function extractPdfText(filePath: string): Promise<string> {
+async function extractPdfText(data: Buffer): Promise<string> {
   // Use dynamic require to avoid issues with pdfjs-dist in Electron main process
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const pdfjsLib = require('pdfjs-dist/legacy/build/pdf') as typeof import('pdfjs-dist')
 
-  const data = await fs.readFile(filePath)
   const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(data) })
   const pdfDoc = await loadingTask.promise
 
@@ -341,7 +347,7 @@ export async function dispatchTool(
   switch (name) {
     case 'read_library_csv': {
       try {
-        const content = await fs.readFile(library.csvPath, 'utf-8')
+        const content = (await library.backend.readFile('papers.csv')).toString('utf-8')
         return content
       } catch {
         return 'Error: Could not read library CSV. The library may be empty.'
@@ -350,9 +356,8 @@ export async function dispatchTool(
 
     case 'read_paper': {
       const id = args['id'] as string
-      const filePath = join(library.papersDir, `${id}.md`)
       try {
-        const content = await fs.readFile(filePath, 'utf-8')
+        const content = (await library.backend.readFile(`papers/${id}.md`)).toString('utf-8')
         return content
       } catch {
         return `Error: Could not read paper "${id}". File may not exist.`
@@ -361,10 +366,13 @@ export async function dispatchTool(
 
     case 'list_paper_ids': {
       try {
-        const files = await fs.readdir(library.papersDir)
+        const files = await library.backend.listFiles('papers')
         const ids = files
           .filter((f) => f.endsWith('.md'))
-          .map((f) => f.slice(0, -3))
+          .map((f) => {
+            const name = f.split('/').pop() ?? f
+            return name.slice(0, -3)
+          })
         return JSON.stringify(ids)
       } catch {
         return JSON.stringify([])
@@ -373,12 +381,14 @@ export async function dispatchTool(
 
     case 'extract_pdf_text': {
       const id = args['id'] as string
-      const pdfPath = library.pdfPath(id)
-      if (!pdfPath) {
+      const stream = library.pdfStream(id)
+      if (!stream) {
         return `Error: No PDF associated with paper "${id}".`
       }
       try {
-        const text = await extractPdfText(pdfPath)
+        const chunks: Buffer[] = []
+        for await (const c of stream) chunks.push(c as Buffer)
+        const text = await extractPdfText(Buffer.concat(chunks))
         return text
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
@@ -528,42 +538,54 @@ export async function dispatchTool(
     }
 
     case 'read_file': {
-      const relPath = args['path'] as string
-      const absPath = safeLibraryPath(library.root, relPath)
-      if (!absPath) return JSON.stringify({ error: 'Path is outside the library directory.' })
+      const relInput = args['path'] as string
+      const relPath = safeRelPath(relInput)
+      if (relPath == null) return JSON.stringify({ error: 'Path is outside the library directory.' })
       try {
-        const content = await fs.readFile(absPath, 'utf-8')
+        const content = (await library.backend.readFile(relPath)).toString('utf-8')
         return content
       } catch (e) {
-        return JSON.stringify({ error: `Cannot read "${relPath}": ${e instanceof Error ? e.message : String(e)}` })
+        return JSON.stringify({ error: `Cannot read "${relInput}": ${e instanceof Error ? e.message : String(e)}` })
       }
     }
 
     case 'write_file': {
-      const relPath = args['path'] as string
+      const relInput = args['path'] as string
       const content = args['content'] as string
-      const absPath = safeLibraryPath(library.root, relPath)
-      if (!absPath) return JSON.stringify({ error: 'Path is outside the library directory.' })
+      const relPath = safeRelPath(relInput)
+      if (relPath == null) return JSON.stringify({ error: 'Path is outside the library directory.' })
       try {
-        const dir = join(absPath, '..')
-        await fs.mkdir(dir, { recursive: true })
-        await fs.writeFile(absPath, content, 'utf-8')
+        await library.backend.writeFile(relPath, content)
         return JSON.stringify({ success: true, path: relPath })
       } catch (e) {
-        return JSON.stringify({ error: `Cannot write "${relPath}": ${e instanceof Error ? e.message : String(e)}` })
+        return JSON.stringify({ error: `Cannot write "${relInput}": ${e instanceof Error ? e.message : String(e)}` })
       }
     }
 
     case 'list_files': {
-      const relPath = (args['path'] as string | undefined) ?? '.'
-      const absPath = safeLibraryPath(library.root, relPath)
-      if (!absPath) return JSON.stringify({ error: 'Path is outside the library directory.' })
+      const relInput = (args['path'] as string | undefined) ?? '.'
+      const relPath = safeRelPath(relInput)
+      if (relPath == null) return JSON.stringify({ error: 'Path is outside the library directory.' })
       try {
-        const entries = await fs.readdir(absPath, { withFileTypes: true })
-        const items = entries.map(e => ({ name: e.name, type: e.isDirectory() ? 'dir' : 'file' }))
+        const all = await library.backend.listFiles(relPath)
+        // Project to immediate children (files + virtual directories).
+        const prefix = relPath ? `${relPath}/` : ''
+        const seen = new Set<string>()
+        const items: Array<{ name: string; type: 'file' | 'dir' }> = []
+        for (const f of all) {
+          if (prefix && !f.startsWith(prefix)) continue
+          const rest = f.slice(prefix.length)
+          const slash = rest.indexOf('/')
+          if (slash === -1) {
+            if (!seen.has(rest)) { seen.add(rest); items.push({ name: rest, type: 'file' }) }
+          } else {
+            const dir = rest.slice(0, slash)
+            if (!seen.has(dir)) { seen.add(dir); items.push({ name: dir, type: 'dir' }) }
+          }
+        }
         return JSON.stringify(items)
       } catch (e) {
-        return JSON.stringify({ error: `Cannot list "${relPath}": ${e instanceof Error ? e.message : String(e)}` })
+        return JSON.stringify({ error: `Cannot list "${relInput}": ${e instanceof Error ? e.message : String(e)}` })
       }
     }
 

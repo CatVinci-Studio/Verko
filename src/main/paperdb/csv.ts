@@ -1,14 +1,15 @@
-import { writeFile } from 'fs/promises'
 import Papa from 'papaparse'
 import type { PaperRef, Schema } from '@shared/types'
+import type { StorageBackend } from './backend'
 
 /**
- * Rebuild (overwrite) the CSV file at csvPath from the current in-memory refs.
- * Only columns marked inCsv: true in the schema are written.
- * Array values are joined with ';'.
+ * Rebuild (overwrite) the CSV file at `relPath` from the current refs.
+ * Only columns marked `inCsv: true` in the schema are written.
+ * Array values are joined with `;`.
  */
 export async function rebuildCsv(
-  csvPath: string,
+  backend: StorageBackend,
+  relPath: string,
   refs: PaperRef[],
   schema: Schema
 ): Promise<void> {
@@ -32,5 +33,5 @@ export async function rebuildCsv(
   })
 
   const csv = Papa.unparse(rows, { columns: csvColumns })
-  await writeFile(csvPath, csv, 'utf-8')
+  await backend.writeFile(relPath, csv)
 }

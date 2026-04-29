@@ -1,6 +1,7 @@
 import { mkdir } from 'fs/promises'
 import Store from 'electron-store'
 import { Library } from './store'
+import { LocalBackend } from './backendLocal'
 import type { LibraryConfig, LibraryInfo } from '@shared/types'
 
 const store = new Store<{ config: LibraryConfig }>({
@@ -77,7 +78,9 @@ export class LibraryManager {
 
   async add(name: string, path: string): Promise<LibraryInfo> {
     this._assertUnique(name)
-    const lib = await Library.open(path)
+    const be = new LocalBackend(path)
+    await be.ensureRoot()
+    const lib = await Library.open(be)
     this.cache.set(name, lib)
     const cfg = this._config()
     const info = { name, path, createdAt: new Date().toISOString() }
@@ -127,7 +130,9 @@ export class LibraryManager {
     const cfg = this._config()
     const info = cfg.libraries.find((l) => l.name === name)
     if (!info) throw new Error(`Library "${name}" not found`)
-    const lib = await Library.open(info.path)
+    const be = new LocalBackend(info.path)
+    await be.ensureRoot()
+    const lib = await Library.open(be)
     this.cache.set(name, lib)
     return lib
   }

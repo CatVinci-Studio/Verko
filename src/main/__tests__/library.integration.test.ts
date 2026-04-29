@@ -3,13 +3,16 @@ import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { Library } from '../paperdb/store'
+import { LocalBackend } from '../paperdb/backendLocal'
 
 let tmpDir: string
 let lib: Library
 
 beforeEach(async () => {
   tmpDir = await mkdtemp(join(tmpdir(), 'library-test-'))
-  lib = await Library.open(tmpDir)
+  const be = new LocalBackend(tmpDir)
+  await be.ensureRoot()
+  lib = await Library.open(be)
 })
 
 afterEach(async () => {
@@ -17,11 +20,11 @@ afterEach(async () => {
 })
 
 describe('Library.open', () => {
-  it('creates papers/ and attachments/ directories', async () => {
+  it('creates papers/ when the first paper is added', async () => {
+    await lib.add({ title: 'A', tags: [] })
     const { readdir } = await import('fs/promises')
     const entries = await readdir(tmpDir)
     expect(entries).toContain('papers')
-    expect(entries).toContain('attachments')
   })
 
   it('creates schema.md with defaults', async () => {
