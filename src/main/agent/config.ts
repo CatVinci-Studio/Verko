@@ -8,6 +8,41 @@ const store = new Store<{ config: AgentConfig }>({
   defaults: { config: DEFAULT_AGENT_CONFIG }
 })
 
+const KNOWN_PROFILE_NAMES = new Set(DEFAULT_AGENT_CONFIG.profiles.map((p) => p.name))
+
+/**
+ * Reconcile the persisted profile list with the current built-in set.
+ * Keeps user edits to baseUrl/model for surviving profiles; drops
+ * obsolete profiles (e.g. groq / openrouter / ollama / lmstudio from
+ * earlier defaults); fills in any newly-introduced built-ins.
+ */
+function migrate(config: AgentConfig): AgentConfig {
+  const surviving = config.profiles.filter((p) => KNOWN_PROFILE_NAMES.has(p.name))
+  const survivingByName = new Map(surviving.map((p) => [p.name, p]))
+  const reconciled = DEFAULT_AGENT_CONFIG.profiles.map(
+    (def) => survivingByName.get(def.name) ?? def,
+  )
+  const sameList =
+    reconciled.length === config.profiles.length &&
+    reconciled.every((p, i) => p === config.profiles[i])
+  const validDefault = reconciled.some((p) => p.name === config.defaultProfile)
+  if (sameList && validDefault) return config
+
+  return {
+    ...config,
+    profiles: reconciled,
+    defaultProfile: validDefault ? config.defaultProfile : reconciled[0].name,
+  }
+}
+
+// Run once at module load: if the persisted config has stale entries,
+// rewrite it. From this point on, getConfig() returns the clean shape.
+{
+  const current = store.get('config')
+  const next = migrate(current)
+  if (next !== current) store.set('config', next)
+}
+
 export function getConfig(): AgentConfig {
   return store.get('config')
 }
