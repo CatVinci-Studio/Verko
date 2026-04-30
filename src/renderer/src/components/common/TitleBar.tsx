@@ -18,7 +18,7 @@ export function TitleBar({ onOpenCommand, onOpenSettings }: TitleBarProps) {
       {/* App logo + name */}
       <div className="flex-1 flex items-center justify-center gap-2">
         <img src={logoUrl} alt="" className="w-5 h-5 rounded-[5px]" />
-        <span className="text-[12px] font-semibold text-[var(--text-secondary)] tracking-wide">
+        <span className="text-[13.5px] font-semibold text-[var(--text-secondary)] tracking-wide">
           {t('titlebar.appName')}
         </span>
       </div>
@@ -33,7 +33,7 @@ export function TitleBar({ onOpenCommand, onOpenSettings }: TitleBarProps) {
           className="h-7 px-2.5 gap-1.5 text-[var(--text-muted)] rounded-[6px]"
         >
           <Bot size={11} />
-          <span className="text-[10.5px] font-medium">⌘K</span>
+          <span className="text-[12px] font-medium">⌘K</span>
         </Button>
         <Button
           onClick={onOpenSettings}

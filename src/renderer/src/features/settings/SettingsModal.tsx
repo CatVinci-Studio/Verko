@@ -42,7 +42,7 @@ export function SettingsModal() {
         {/* Header */}
         <div className="flex items-center gap-3 px-6 py-4 border-b border-[var(--border-color)] shrink-0">
           <div className="flex-1">
-            <h2 className="text-[14.5px] font-semibold text-[var(--text-primary)] tracking-tight">
+            <h2 className="text-[16px] font-semibold text-[var(--text-primary)] tracking-tight">
               {t('settings.title')}
             </h2>
           </div>
@@ -79,10 +79,10 @@ export function SettingsModal() {
                     className={cn('mt-[3px]', active ? 'text-[var(--accent-color)]' : 'text-[var(--text-muted)]')}
                   />
                   <div className="min-w-0">
-                    <div className="text-[12px] font-medium leading-tight">
+                    <div className="text-[13.5px] font-medium leading-tight">
                       {t(`settings.tabs.${meta.id}`)}
                     </div>
-                    <div className="text-[10.5px] text-[var(--text-muted)] mt-0.5 leading-snug">
+                    <div className="text-[12px] text-[var(--text-muted)] mt-0.5 leading-snug">
                       {t(`settings.tabDescriptions.${meta.id}`)}
                     </div>
                   </div>
@@ -94,10 +94,10 @@ export function SettingsModal() {
           {/* Content */}
           <div className="flex-1 overflow-y-auto">
             <header className="px-6 pt-5 pb-4 border-b border-[var(--border-color)]">
-              <h3 className="text-[14px] font-semibold text-[var(--text-primary)]">
+              <h3 className="text-[15.5px] font-semibold text-[var(--text-primary)]">
                 {t(`settings.tabs.${current.id}`)}
               </h3>
-              <p className="text-[12px] text-[var(--text-muted)] mt-0.5">
+              <p className="text-[13.5px] text-[var(--text-muted)] mt-0.5">
                 {t(`settings.tabDescriptions.${current.id}`)}
               </p>
             </header>

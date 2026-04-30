@@ -127,7 +127,7 @@ export function PaperDetail() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2">
         <FileText size={28} className="text-[var(--bg-active)]" />
-        <p className="text-[13px] text-[var(--text-muted)]">Select a paper to view</p>
+        <p className="text-[14.5px] text-[var(--text-muted)]">Select a paper to view</p>
       </div>
     )
   }
@@ -135,7 +135,7 @@ export function PaperDetail() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <span className="text-[12px] text-[var(--text-muted)]">{t('common.loading')}</span>
+        <span className="text-[13.5px] text-[var(--text-muted)]">{t('common.loading')}</span>
       </div>
     )
   }
@@ -143,7 +143,7 @@ export function PaperDetail() {
   if (error || !paper) {
     return (
       <div className="flex items-center justify-center h-full">
-        <span className="text-[12px] text-[var(--danger)]">Failed to load paper</span>
+        <span className="text-[13.5px] text-[var(--danger)]">Failed to load paper</span>
       </div>
     )
   }
@@ -158,7 +158,7 @@ export function PaperDetail() {
             {editingTitle ? (
               <input
                 autoFocus
-                className="w-full bg-transparent border-none text-[15px] font-semibold text-[var(--text-primary)] focus:outline-none pb-0.5 border-b border-[var(--accent-color)]"
+                className="w-full bg-transparent border-none text-[16px] font-semibold text-[var(--text-primary)] focus:outline-none pb-0.5 border-b border-[var(--accent-color)]"
                 value={titleDraft}
                 onChange={e => setTitleDraft(e.target.value)}
                 onBlur={handleTitleSave}
@@ -170,7 +170,7 @@ export function PaperDetail() {
               />
             ) : (
               <h2
-                className="text-[15px] font-semibold text-[var(--text-primary)] leading-tight cursor-text hover:text-white"
+                className="text-[16px] font-semibold text-[var(--text-primary)] leading-tight cursor-text hover:text-white"
                 onClick={() => { setTitleDraft(paper.title); setEditingTitle(true) }}
                 title={t('paper.actions.editTitle')}
               >
@@ -207,7 +207,7 @@ export function PaperDetail() {
           {editingAuthors ? (
             <input
               autoFocus
-              className="flex-1 bg-transparent border-none text-[12px] text-[var(--text-secondary)] focus:outline-none border-b border-[var(--accent-color)]"
+              className="flex-1 bg-transparent border-none text-[13.5px] text-[var(--text-secondary)] focus:outline-none border-b border-[var(--accent-color)]"
               value={authorsDraft}
               onChange={e => setAuthorsDraft(e.target.value)}
               onBlur={handleAuthorsSave}
@@ -220,7 +220,7 @@ export function PaperDetail() {
             />
           ) : (
             <span
-              className="text-[12px] text-[var(--text-secondary)] cursor-text hover:text-[var(--text-muted)] truncate"
+              className="text-[13.5px] text-[var(--text-secondary)] cursor-text hover:text-[var(--text-muted)] truncate"
               onClick={() => { setAuthorsDraft(paper.authors.join(', ')); setEditingAuthors(true) }}
               title={t('paper.actions.editAuthors')}
             >
@@ -233,7 +233,7 @@ export function PaperDetail() {
           {editingYear ? (
             <input
               autoFocus
-              className="w-14 bg-transparent border-none text-[12px] text-[var(--text-secondary)] focus:outline-none border-b border-[var(--accent-color)] text-center"
+              className="w-14 bg-transparent border-none text-[13.5px] text-[var(--text-secondary)] focus:outline-none border-b border-[var(--accent-color)] text-center"
               value={yearDraft}
               onChange={e => setYearDraft(e.target.value)}
               onBlur={handleYearSave}
@@ -245,7 +245,7 @@ export function PaperDetail() {
             />
           ) : (
             <span
-              className="text-[12px] text-[var(--text-secondary)] cursor-text hover:text-[var(--text-muted)]"
+              className="text-[13.5px] text-[var(--text-secondary)] cursor-text hover:text-[var(--text-muted)]"
               onClick={() => { setYearDraft(String(paper.year ?? '')); setEditingYear(true) }}
               title={t('paper.actions.editYear')}
             >
@@ -256,7 +256,7 @@ export function PaperDetail() {
           {paper.venue && (
             <>
               <span className="text-[var(--bg-active)]">·</span>
-              <span className="text-[12px] text-[var(--text-muted)] truncate max-w-[120px]">{paper.venue}</span>
+              <span className="text-[13.5px] text-[var(--text-muted)] truncate max-w-[120px]">{paper.venue}</span>
             </>
           )}
         </div>
@@ -280,7 +280,7 @@ export function PaperDetail() {
           {addingTag ? (
             <input
               autoFocus
-              className="w-20 bg-[var(--bg-elevated)] border border-[var(--bg-active)] rounded-full px-2 py-0.5 text-[11px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-color)]"
+              className="w-20 bg-[var(--bg-elevated)] border border-[var(--bg-active)] rounded-full px-2 py-0.5 text-[12.5px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-color)]"
               value={tagDraft}
               onChange={e => setTagDraft(e.target.value)}
               onBlur={handleAddTag}
@@ -294,7 +294,7 @@ export function PaperDetail() {
           ) : (
             <button
               onClick={() => setAddingTag(true)}
-              className="inline-flex items-center gap-0.5 rounded-full text-[11px] px-1.5 py-0.5 border border-dashed border-[var(--bg-active)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--text-dim)] transition-colors"
+              className="inline-flex items-center gap-0.5 rounded-full text-[12.5px] px-1.5 py-0.5 border border-dashed border-[var(--bg-active)] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--text-dim)] transition-colors"
             >
               <Plus size={9} />{t('paper.addTag')}
             </button>
@@ -330,7 +330,7 @@ export function PaperDetail() {
             key={tab}
             onClick={() => setActiveDetailTab(tab)}
             className={cn(
-              'px-3 py-2 text-[12px] font-medium border-b-2 transition-colors capitalize',
+              'px-3 py-2 text-[13.5px] font-medium border-b-2 transition-colors capitalize',
               activeDetailTab === tab
                 ? 'border-[var(--accent-color)] text-[var(--text-primary)]'
                 : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]'

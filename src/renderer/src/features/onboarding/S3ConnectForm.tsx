@@ -109,14 +109,14 @@ export function S3ConnectForm({ onCancel, onConnected }: Props) {
       <div className="max-w-[520px] w-full space-y-5">
         <button
           onClick={onCancel}
-          className="flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+          className="flex items-center gap-1.5 text-[13.5px] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
         >
           <ArrowLeft size={12} /> {t('common.cancel')}
         </button>
 
         <div>
           <h2 className="text-[17px] font-semibold text-[var(--text-primary)]">{t('welcome.s3.title')}</h2>
-          <p className="text-[12px] text-[var(--text-muted)] mt-1">{t('welcome.s3.description')}</p>
+          <p className="text-[13.5px] text-[var(--text-muted)] mt-1">{t('welcome.s3.description')}</p>
         </div>
 
         <div className="space-y-4">
@@ -127,7 +127,7 @@ export function S3ConnectForm({ onCancel, onConnected }: Props) {
                   key={p.id}
                   onClick={() => applyPreset(p.id)}
                   className={
-                    'px-2.5 py-1 rounded-[8px] text-[11.5px] border transition-colors ' +
+                    'px-2.5 py-1 rounded-[8px] text-[13px] border transition-colors ' +
                     (preset === p.id
                       ? 'bg-[var(--accent-color)]/15 border-[var(--accent-color)]/35 text-[var(--text-primary)]'
                       : 'border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)]')
@@ -168,7 +168,7 @@ export function S3ConnectForm({ onCancel, onConnected }: Props) {
             <Input value={secretAccessKey} onChange={(e) => setSecretAccessKey(e.target.value)} type="password" autoComplete="off" />
           </Field>
 
-          <label className="flex items-center gap-2 text-[12px] text-[var(--text-muted)]">
+          <label className="flex items-center gap-2 text-[13.5px] text-[var(--text-muted)]">
             <input
               type="checkbox"
               checked={forcePathStyle}
@@ -193,9 +193,9 @@ export function S3ConnectForm({ onCancel, onConnected }: Props) {
 function Field(props: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <label className="text-[11.5px] font-medium text-[var(--text-secondary)]">{props.label}</label>
+      <label className="text-[13px] font-medium text-[var(--text-secondary)]">{props.label}</label>
       {props.children}
-      {props.hint && <div className="text-[10.5px] text-[var(--text-muted)]">{props.hint}</div>}
+      {props.hint && <div className="text-[12px] text-[var(--text-muted)]">{props.hint}</div>}
     </div>
   )
 }

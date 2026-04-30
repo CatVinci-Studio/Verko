@@ -20,7 +20,7 @@ export function ChipStatus({ status, onClick, className, showDot = true }: ChipS
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-md text-[11px] font-medium px-1.5 py-0.5',
+        'inline-flex items-center gap-1.5 rounded-md text-[12.5px] font-medium px-1.5 py-0.5',
         c.bg, c.text,
         onClick && 'cursor-pointer',
         className

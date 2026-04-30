@@ -16,7 +16,7 @@ export function ToolCallRow({ toolCall, msgId, onToggle }: ToolCallRowProps) {
   return (
     <div className="my-1 rounded-[6px] border border-[var(--bg-active)] bg-[var(--bg-surface)] overflow-hidden">
       <button
-        className="w-full flex items-center gap-2 px-3 py-1.5 text-[11px] hover:bg-[var(--bg-elevated)] transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-1.5 text-[12.5px] hover:bg-[var(--bg-elevated)] transition-colors"
         onClick={() => onToggle(msgId, toolCall.id)}
       >
         <div className={cn(
@@ -45,10 +45,10 @@ export function ToolCallRow({ toolCall, msgId, onToggle }: ToolCallRowProps) {
         <div className="border-t border-[var(--bg-active)]">
           {/* Args */}
           <div className="px-3 py-2">
-            <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1">
+            <p className="text-[11.5px] text-[var(--text-muted)] uppercase tracking-wider mb-1">
               {t('agent.tool.input')}
             </p>
-            <pre className="text-[11px] text-[var(--text-secondary)] font-mono whitespace-pre-wrap break-all leading-relaxed">
+            <pre className="text-[12.5px] text-[var(--text-secondary)] font-mono whitespace-pre-wrap break-all leading-relaxed">
               {JSON.stringify(toolCall.args, null, 2)}
             </pre>
           </div>
@@ -56,10 +56,10 @@ export function ToolCallRow({ toolCall, msgId, onToggle }: ToolCallRowProps) {
           {/* Result */}
           {hasResult && (
             <div className="px-3 py-2 border-t border-[var(--bg-elevated)]">
-              <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-1">
+              <p className="text-[11.5px] text-[var(--text-muted)] uppercase tracking-wider mb-1">
                 {t('agent.tool.output')}
               </p>
-              <pre className="text-[11px] text-[var(--status-read)]/80 font-mono whitespace-pre-wrap break-all leading-relaxed">
+              <pre className="text-[12.5px] text-[var(--status-read)]/80 font-mono whitespace-pre-wrap break-all leading-relaxed">
                 {typeof toolCall.result === 'string'
                   ? toolCall.result
                   : JSON.stringify(toolCall.result, null, 2)

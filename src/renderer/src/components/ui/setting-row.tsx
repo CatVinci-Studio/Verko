@@ -12,9 +12,9 @@ export function SettingRow({ label, description, children, className }: SettingR
   return (
     <div className={cn('flex items-center justify-between gap-4 py-3', className)}>
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-medium text-[var(--text-primary)]">{label}</p>
+        <p className="text-[14.5px] font-medium text-[var(--text-primary)]">{label}</p>
         {description && (
-          <p className="text-[11.5px] text-[var(--text-muted)] mt-0.5">{description}</p>
+          <p className="text-[13px] text-[var(--text-muted)] mt-0.5">{description}</p>
         )}
       </div>
       {children && <div className="shrink-0">{children}</div>}

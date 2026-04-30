@@ -52,7 +52,7 @@ export function buildColumns(extras: Column[], t: TFunction): ColumnDef<PaperRef
                 startEditing={meta.editingId === p.id}
                 onEditEnd={meta.clearEditingId}
                 display={
-                  <span className="text-[13px] truncate font-medium text-[var(--text-bright)]">
+                  <span className="text-[14.5px] truncate font-medium text-[var(--text-bright)]">
                     {p.title || (
                       <span className="text-[var(--text-muted)] font-normal italic">
                         {t('paper.untitled')}
@@ -83,7 +83,7 @@ export function buildColumns(extras: Column[], t: TFunction): ColumnDef<PaperRef
             value={p.authors.join('; ')}
             placeholder={t('paper.noAuthors')}
             display={
-              <span className="text-[12px] text-[var(--text-secondary)] truncate">
+              <span className="text-[13.5px] text-[var(--text-secondary)] truncate">
                 {formatAuthors(p.authors)}
               </span>
             }
@@ -113,7 +113,7 @@ export function buildColumns(extras: Column[], t: TFunction): ColumnDef<PaperRef
             value={p.year ? String(p.year) : ''}
             inputType="number"
             display={
-              <span className="text-[12px] text-[var(--text-secondary)] tabular-nums">
+              <span className="text-[13.5px] text-[var(--text-secondary)] tabular-nums">
                 {formatYear(p.year)}
               </span>
             }
@@ -167,7 +167,7 @@ export function buildColumns(extras: Column[], t: TFunction): ColumnDef<PaperRef
                     <ChipTag key={tag} tag={tag} />
                   ))}
                   {p.tags.length > 2 && (
-                    <span className="text-[10px] text-[var(--text-muted)] shrink-0">
+                    <span className="text-[11.5px] text-[var(--text-muted)] shrink-0">
                       +{p.tags.length - 2}
                     </span>
                   )}
@@ -229,13 +229,13 @@ function renderExtraValue(col: Column, value: unknown) {
   }
   if (col.type === 'tags' && Array.isArray(value)) {
     return (
-      <span className="text-[11px] text-[var(--text-muted)] truncate">
+      <span className="text-[12.5px] text-[var(--text-muted)] truncate">
         {(value as string[]).join(', ')}
       </span>
     )
   }
   return (
-    <span className="text-[11px] text-[var(--text-secondary)] truncate">
+    <span className="text-[12.5px] text-[var(--text-secondary)] truncate">
       {String(value)}
     </span>
   )

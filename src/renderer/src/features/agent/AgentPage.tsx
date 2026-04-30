@@ -92,13 +92,13 @@ export function AgentPage() {
           <div className="w-6 h-6 rounded-[8px] bg-[var(--accent-color)]/15 border border-[var(--accent-color)]/25 flex items-center justify-center shrink-0">
             <Bot size={13} className="text-[var(--accent-color)]" />
           </div>
-          <span className="text-[13px] font-medium text-[var(--text-secondary)] truncate flex-1">
+          <span className="text-[14.5px] font-medium text-[var(--text-secondary)] truncate flex-1">
             {activeId ? (conversations.find((c) => c.id === activeId)?.title ?? t('agent.title')) : t('agent.title')}
           </span>
           {contextPaper && (
             <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--accent-color)]/10 border border-[var(--accent-color)]/20">
               <FileText size={10} className="text-[var(--accent-color)]" />
-              <span className="text-[11px] text-[var(--accent-color)] truncate max-w-[180px]">
+              <span className="text-[12.5px] text-[var(--accent-color)] truncate max-w-[180px]">
                 {contextPaper.title}
               </span>
             </div>
@@ -159,15 +159,15 @@ function EmptyState({ title, description, suggestions, onPick }: EmptyStateProps
         <Bot size={22} className="text-[var(--accent-color)]" />
       </div>
       <div className="text-center">
-        <p className="text-[15px] font-medium text-[var(--text-primary)] mb-1">{title}</p>
-        <p className="text-[13px] text-[var(--text-muted)]">{description}</p>
+        <p className="text-[16px] font-medium text-[var(--text-primary)] mb-1">{title}</p>
+        <p className="text-[14.5px] text-[var(--text-muted)]">{description}</p>
       </div>
       <div className="grid grid-cols-1 gap-2 w-full max-w-sm">
         {suggestions.map((s) => (
           <button
             key={s}
             onClick={() => onPick(s)}
-            className="text-left px-4 py-2.5 rounded-[10px] bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[12.5px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-focus)] transition-colors"
+            className="text-left px-4 py-2.5 rounded-[10px] bg-[var(--bg-elevated)] border border-[var(--border-color)] text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-focus)] transition-colors"
           >
             {s}
           </button>

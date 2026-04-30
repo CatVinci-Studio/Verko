@@ -6,6 +6,7 @@ import { LibraryManager } from './paperdb/manager'
 import { LibraryRegistry } from './libraries/registry'
 import { CredentialStore } from './libraries/credentials'
 import { AgentSession } from './agent/session'
+import { buildMacMenu } from './menu'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -20,11 +21,12 @@ export const appState: AppState = {
   }
 }
 
-// On Windows / Linux, Electron auto-creates a stub menu bar (File / Edit / …)
-// that we don't use. Drop it once at app boot. macOS keeps its system menu bar
-// because Mac apps are expected to have one (and titleBarStyle handles the
-// chrome separately).
-if (process.platform !== 'darwin') {
+// macOS keeps a system menu bar (Cut/Copy/Paste shortcuts come from there);
+// give it a curated Verko-specific layout. Windows / Linux drop the menu
+// entirely — we use TitleBar + global keybinds instead.
+if (process.platform === 'darwin') {
+  Menu.setApplicationMenu(buildMacMenu(() => mainWindow))
+} else {
   Menu.setApplicationMenu(null)
 }
 

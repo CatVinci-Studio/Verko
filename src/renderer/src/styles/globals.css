@@ -2,112 +2,116 @@
 @config "../../../../tailwind.config.js";
 
 @layer base {
-  /* ── Dark theme (default) ───────────────────────────────────────────────── */
+  /* ── Dark theme (default) — pure black + white + premium blue ──────────── */
   :root {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 94%;
-    --muted: 0 0% 11%;
-    --muted-foreground: 0 0% 53%;
-    --border: 0 0% 16%;
-    --input: 0 0% 16%;
-    --primary: 46 100% 67%;
-    --primary-foreground: 0 0% 8%;
-    --secondary: 0 0% 10%;
-    --secondary-foreground: 0 0% 94%;
-    --accent: 0 0% 12%;
-    --accent-foreground: 0 0% 94%;
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --muted: 0 0% 8%;
+    --muted-foreground: 0 0% 65%;
+    --border: 0 0% 13%;
+    --input: 0 0% 13%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 7%;
+    --secondary-foreground: 0 0% 100%;
+    --accent: 0 0% 10%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 70% 60%;
     --destructive-foreground: 0 0% 100%;
-    --ring: 46 100% 67%;
-    --radius: 0.375rem;
+    --ring: 217 91% 60%;
+    --radius: 0.5rem;
 
-    --bg-base:           #0a0a0a;
-    --bg-sidebar:        #0e0e0e;
-    --bg-sidebar-hover:  #181818;
-    --bg-surface:        #141414;
-    --bg-elevated:       #1c1c1c;
-    --bg-hover:          #222222;
-    --bg-active:         #282828;
-    --bg-accent-subtle:  rgba(255, 233, 157, 0.08);
+    /* Surfaces — black with very tight elevation steps */
+    --bg-base:           #000000;
+    --bg-sidebar:        #050505;
+    --bg-sidebar-hover:  #131313;
+    --bg-surface:        #0a0a0a;
+    --bg-elevated:       #141414;
+    --bg-hover:          #1a1a1a;
+    --bg-active:         #222222;
+    --bg-accent-subtle:  rgba(59, 130, 246, 0.10);
 
-    --border-color:      #282828;
-    --border-focus:      #3a3a3a;
+    /* Borders — almost invisible to keep the eye on content */
+    --border-color:      #1f1f1f;
+    --border-focus:      rgba(59, 130, 246, 0.5);
 
+    /* Text — high-contrast white scale, no muddy mid-greys */
     --text-primary:      #ffffff;
-    --text-bright:       #e8e8e8;
-    --text-secondary:    #aaaaaa;
-    --text-muted:        #666666;
-    --text-dim:          #444444;
-    --text-link:         #FFE99D;
+    --text-bright:       #ffffff;
+    --text-secondary:    #d4d4d4;
+    --text-muted:        #8a8a8a;
+    --text-dim:          #525252;
+    --text-link:         #60a5fa;
 
-    --accent-color:      #FFE99D;
-    --accent-hover:      #f5d86a;
-    --accent-on:         #1a1200;
-    --accent-dim:        rgba(255, 233, 157, 0.12);
+    /* Accent — premium blue (Linear / Vercel feel) */
+    --accent-color:      #3b82f6;
+    --accent-hover:      #2563eb;
+    --accent-on:         #ffffff;
+    --accent-dim:        rgba(59, 130, 246, 0.14);
 
-    --status-unread:     #666;
-    --status-reading:    #FFE99D;
-    --status-read:       #6abf8a;
-    --status-archived:   #444;
+    --status-unread:     #8a8a8a;
+    --status-reading:    #3b82f6;
+    --status-read:       #22c55e;
+    --status-archived:   #525252;
 
-    --danger:            #e05c5c;
-    --warning:           #FFE99D;
+    --danger:            #ef4444;
+    --warning:           #f59e0b;
 
-    --sidebar-width:     200px;
+    --sidebar-width:     220px;
     --detail-width:      560px;
     --agent-width:       340px;
-    --row-height:        34px;
+    --row-height:        38px;
   }
 
-  /* ── Light theme ────────────────────────────────────────────────────────── */
+  /* ── Light theme — pure white + black + saturated blue ─────────────────── */
   html.light {
     --background: 0 0% 100%;
-    --foreground: 0 0% 7%;
-    --muted: 0 0% 95%;
-    --muted-foreground: 0 0% 40%;
-    --border: 0 0% 88%;
-    --input: 0 0% 88%;
-    --primary: 195 89% 64%;
+    --foreground: 0 0% 0%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 35%;
+    --border: 0 0% 91%;
+    --input: 0 0% 91%;
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 7%;
-    --accent: 195 60% 92%;
-    --accent-foreground: 0 0% 7%;
-    --destructive: 0 70% 50%;
+    --secondary-foreground: 0 0% 0%;
+    --accent: 217 91% 95%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --ring: 195 89% 64%;
+    --ring: 217 91% 60%;
 
-    --bg-base:           #f8f8f8;
-    --bg-sidebar:        #f0f0f0;
-    --bg-sidebar-hover:  #e8e8e8;
+    --bg-base:           #ffffff;
+    --bg-sidebar:        #fafafa;
+    --bg-sidebar-hover:  #f3f4f6;
     --bg-surface:        #ffffff;
-    --bg-elevated:       #eeeeee;
-    --bg-hover:          #e4e4e4;
-    --bg-active:         #dadada;
-    --bg-accent-subtle:  rgba(88, 200, 242, 0.10);
+    --bg-elevated:       #f9fafb;
+    --bg-hover:          #f3f4f6;
+    --bg-active:         #e5e7eb;
+    --bg-accent-subtle:  rgba(59, 130, 246, 0.08);
 
-    --border-color:      #e2e2e2;
-    --border-focus:      #bbb;
+    --border-color:      #e5e7eb;
+    --border-focus:      rgba(59, 130, 246, 0.5);
 
-    --text-primary:      #0f0f0f;
-    --text-bright:       #222222;
-    --text-secondary:    #555555;
-    --text-muted:        #999999;
-    --text-dim:          #bbbbbb;
-    --text-link:         #0ea0c8;
+    --text-primary:      #000000;
+    --text-bright:       #000000;
+    --text-secondary:    #374151;
+    --text-muted:        #6b7280;
+    --text-dim:          #9ca3af;
+    --text-link:         #2563eb;
 
-    --accent-color:      #58C8F2;
-    --accent-hover:      #30b5e8;
-    --accent-on:         #041420;
-    --accent-dim:        rgba(88, 200, 242, 0.15);
+    --accent-color:      #2563eb;
+    --accent-hover:      #1d4ed8;
+    --accent-on:         #ffffff;
+    --accent-dim:        rgba(37, 99, 235, 0.12);
 
-    --status-unread:     #999;
-    --status-reading:    #58C8F2;
-    --status-read:       #3aaa6a;
-    --status-archived:   #bbb;
+    --status-unread:     #6b7280;
+    --status-reading:    #2563eb;
+    --status-read:       #16a34a;
+    --status-archived:   #9ca3af;
 
     --danger:            #dc2626;
-    --warning:           #ca8a04;
+    --warning:           #d97706;
   }
 }
 
@@ -120,11 +124,15 @@ html, body, #app {
 }
 
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 13px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
   color: var(--text-primary);
   background: var(--bg-base);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
   user-select: none;
 }
 

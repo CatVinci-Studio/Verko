@@ -31,7 +31,7 @@ export function SettingSegmented<T extends string>({
           type="button"
           onClick={() => onValueChange(opt.value)}
           className={cn(
-            'px-3.5 py-1 rounded-full text-[12px] font-medium transition-all duration-150',
+            'px-3.5 py-1 rounded-full text-[13.5px] font-medium transition-all duration-150',
             value === opt.value
               ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm'
               : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'

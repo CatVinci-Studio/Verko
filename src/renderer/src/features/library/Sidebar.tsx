@@ -46,7 +46,7 @@ function SectionHeader({
           className={cn('shrink-0 transition-transform duration-150', expanded && 'rotate-90')}
         />
         <Icon size={13} className="shrink-0" />
-        <span className="text-[12px] font-semibold tracking-wide">{label}</span>
+        <span className="text-[13.5px] font-semibold tracking-wide">{label}</span>
       </button>
       {actions && (
         <div className="flex items-center gap-0.5 pr-1.5 opacity-0 group-hover/sh:opacity-100 transition-opacity">
@@ -190,7 +190,7 @@ export function Sidebar() {
               <div className="w-5 h-5 rounded-[6px] bg-[var(--accent-color)]/15 border border-[var(--accent-color)]/25 flex items-center justify-center shrink-0">
                 <Library size={10} className="text-[var(--accent-color)]" />
               </div>
-              <span className="flex-1 min-w-0 text-[13.5px] font-semibold text-[var(--text-primary)] truncate">
+              <span className="flex-1 min-w-0 text-[15px] font-semibold text-[var(--text-primary)] truncate">
                 {activeLibrary?.name ?? 'No Library'}
               </span>
               <ChevronRight size={10} className="text-[var(--text-muted)] shrink-0 rotate-90" />
@@ -201,7 +201,7 @@ export function Sidebar() {
               <DropdownMenuItem key={lib.id} onClick={() => switchLibrary(lib.id)} className="flex items-center gap-2">
                 {lib.active && <Check size={11} className="text-[var(--accent-color)] shrink-0" />}
                 <span className={lib.active ? '' : 'ml-[15px]'}>{lib.name}</span>
-                <span className="ml-auto text-[11px] text-[var(--text-muted)]">{lib.paperCount}</span>
+                <span className="ml-auto text-[12.5px] text-[var(--text-muted)]">{lib.paperCount}</span>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
@@ -247,7 +247,7 @@ export function Sidebar() {
                 onClick={handleNewConversation}
                 className={cn(
                   'w-full text-left px-2 py-1.5 rounded-[6px] transition-colors',
-                  'text-[12.5px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-sidebar-hover)]',
+                  'text-[14px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-sidebar-hover)]',
                 )}
               >
                 <div className="flex items-center gap-2">
@@ -262,7 +262,7 @@ export function Sidebar() {
                 onClick={() => handleSelectConversation(c.id)}
                 className={cn(
                   'group/conv w-full text-left px-2 py-1.5 rounded-[6px] transition-colors flex items-center gap-2',
-                  'text-[13px] hover:bg-[var(--bg-sidebar-hover)]',
+                  'text-[14.5px] hover:bg-[var(--bg-sidebar-hover)]',
                   activeId === c.id && activeView === 'agent'
                     ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]'
                     : 'text-[var(--text-secondary)]',
@@ -312,7 +312,7 @@ export function Sidebar() {
                 setActiveView('library')
               }}
               className={cn(
-                'w-full flex items-center gap-2 pl-6 pr-3 py-1.5 text-[13px] transition-colors',
+                'w-full flex items-center gap-2 pl-6 pr-3 py-1.5 text-[14.5px] transition-colors',
                 activeView === 'library' && activeCollection === null && !filter.tags?.length
                   ? 'text-[var(--text-primary)] bg-[var(--bg-elevated)]'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)]'
@@ -320,7 +320,7 @@ export function Sidebar() {
             >
               <BookOpen size={12} className="shrink-0 text-[var(--text-muted)]" />
               <span className="flex-1 text-left">All Papers</span>
-              <span className="text-[11px] text-[var(--text-muted)]">{papers.length}</span>
+              <span className="text-[12.5px] text-[var(--text-muted)]">{papers.length}</span>
             </button>
 
             {/* Collections */}
@@ -330,7 +330,7 @@ export function Sidebar() {
                 <div
                   key={col.name}
                   className={cn(
-                    'group/col w-full flex items-center gap-2 pl-6 pr-2 py-1.5 text-[13px] transition-colors cursor-pointer',
+                    'group/col w-full flex items-center gap-2 pl-6 pr-2 py-1.5 text-[14.5px] transition-colors cursor-pointer',
                     active
                       ? 'text-[var(--accent-color)] bg-[var(--accent-color)]/10'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)]'
@@ -342,7 +342,7 @@ export function Sidebar() {
                 >
                   <Layers size={11} className="shrink-0 text-[var(--text-muted)]" />
                   <span className="flex-1 truncate">{col.name}</span>
-                  <span className="text-[11px] text-[var(--text-muted)] group-hover/col:hidden">
+                  <span className="text-[12.5px] text-[var(--text-muted)] group-hover/col:hidden">
                     {col.paperCount}
                   </span>
                   <div className="hidden group-hover/col:flex items-center gap-0.5">
@@ -381,7 +381,7 @@ export function Sidebar() {
         {tagsExpanded && (
           <div>
             {tagCounts.length === 0 && (
-              <p className="pl-7 py-1 text-[12px] text-[var(--text-dim)]">No tags yet.</p>
+              <p className="pl-7 py-1 text-[13.5px] text-[var(--text-dim)]">No tags yet.</p>
             )}
             {tagCounts.map(([tag, count]) => {
               const active = filter.tags?.includes(tag)
@@ -390,15 +390,15 @@ export function Sidebar() {
                   key={tag}
                   onClick={() => toggleTagFilter(tag)}
                   className={cn(
-                    'w-full flex items-center gap-2 pl-6 pr-3 py-1.5 text-[13px] transition-colors',
+                    'w-full flex items-center gap-2 pl-6 pr-3 py-1.5 text-[14.5px] transition-colors',
                     active
                       ? 'text-[var(--accent-color)] bg-[var(--accent-color)]/10'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)]'
                   )}
                 >
-                  <span className="text-[11px] text-[var(--text-muted)]">#</span>
+                  <span className="text-[12.5px] text-[var(--text-muted)]">#</span>
                   <span className="flex-1 truncate text-left">{tag}</span>
-                  <span className="text-[11px] text-[var(--text-muted)]">{count}</span>
+                  <span className="text-[12.5px] text-[var(--text-muted)]">{count}</span>
                 </button>
               )
             })}
@@ -410,7 +410,7 @@ export function Sidebar() {
       <div className="shrink-0 border-t border-[var(--border-color)] p-2">
         <button
           onClick={() => setSettingsOpen(true)}
-          className="w-full flex items-center gap-2 px-2 py-2 text-[12.5px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] rounded-[6px] transition-colors"
+          className="w-full flex items-center gap-2 px-2 py-2 text-[14px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] rounded-[6px] transition-colors"
         >
           <Settings size={13} />
           Settings

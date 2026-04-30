@@ -102,7 +102,7 @@ export function PdfViewer({ paperId }: PdfViewerProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <span className="text-[12px] text-[var(--text-muted)]">Loading PDF path…</span>
+        <span className="text-[13.5px] text-[var(--text-muted)]">Loading PDF path…</span>
       </div>
     )
   }
@@ -113,7 +113,7 @@ export function PdfViewer({ paperId }: PdfViewerProps) {
         <div className="w-10 h-10 rounded-lg bg-[var(--bg-elevated)] flex items-center justify-center">
           <span className="text-[18px]">📄</span>
         </div>
-        <p className="text-[13px] text-[var(--text-muted)]">No PDF attached</p>
+        <p className="text-[14.5px] text-[var(--text-muted)]">No PDF attached</p>
       </div>
     )
   }
@@ -121,7 +121,7 @@ export function PdfViewer({ paperId }: PdfViewerProps) {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2">
-        <p className="text-[12px] text-[var(--danger)]">{error}</p>
+        <p className="text-[13.5px] text-[var(--danger)]">{error}</p>
       </div>
     )
   }
@@ -140,7 +140,7 @@ export function PdfViewer({ paperId }: PdfViewerProps) {
           <ChevronLeft size={14} />
         </Button>
 
-        <span className="text-[11px] text-[var(--text-secondary)] tabular-nums">
+        <span className="text-[12.5px] text-[var(--text-secondary)] tabular-nums">
           {currentPage} / {numPages}
         </span>
 
@@ -166,7 +166,7 @@ export function PdfViewer({ paperId }: PdfViewerProps) {
           <ZoomOut size={13} />
         </Button>
 
-        <span className="text-[11px] text-[var(--text-muted)] w-10 text-center tabular-nums">
+        <span className="text-[12.5px] text-[var(--text-muted)] w-10 text-center tabular-nums">
           {Math.round(scale * 100)}%
         </span>
 
@@ -191,7 +191,7 @@ export function PdfViewer({ paperId }: PdfViewerProps) {
         </Button>
 
         {isRendering && (
-          <span className="text-[11px] text-[var(--text-muted)] ml-1">Rendering…</span>
+          <span className="text-[12.5px] text-[var(--text-muted)] ml-1">Rendering…</span>
         )}
       </div>
 

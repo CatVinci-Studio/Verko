@@ -45,7 +45,7 @@ export function FilterModal() {
             onChange={handleSearchChange}
             placeholder={t('library.filterPlaceholder')}
             onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}
-            className="w-full bg-[var(--bg-base)] border border-[var(--border-color)] rounded-[8px] pl-8 pr-8 py-2 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-color)]/40"
+            className="w-full bg-[var(--bg-base)] border border-[var(--border-color)] rounded-[8px] pl-8 pr-8 py-2 text-[14.5px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-color)]/40"
           />
           {searchValue && (
             <button

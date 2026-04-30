@@ -159,7 +159,7 @@ function ProviderSection() {
       <div className="space-y-4 pt-2">
         {/* Summary */}
         {active && (
-          <div className="text-[12.5px] text-[var(--text-muted)]">
+          <div className="text-[14px] text-[var(--text-muted)]">
             {t('settings.provider.current')}:{' '}
             <span className="font-medium text-[var(--text-primary)]">
               {definition?.name ?? active.name}
@@ -203,7 +203,7 @@ function ProviderSection() {
 
             {/* Remember key toggle */}
             {definition.fields.some((f) => f.key === 'apiKey') && (
-              <label className="flex items-center gap-2 pt-1 cursor-pointer text-[12px] text-[var(--text-secondary)]">
+              <label className="flex items-center gap-2 pt-1 cursor-pointer text-[13.5px] text-[var(--text-secondary)]">
                 <input
                   type="checkbox"
                   checked={rememberKey}
@@ -211,7 +211,7 @@ function ProviderSection() {
                   className="accent-[var(--accent-color)]"
                 />
                 <span>{t('settings.provider.rememberKey')}</span>
-                <span className="text-[var(--text-muted)] text-[11px]">
+                <span className="text-[var(--text-muted)] text-[12.5px]">
                   · {t('settings.provider.rememberKeyHint')}
                 </span>
               </label>
@@ -242,7 +242,7 @@ function ProviderSection() {
               {testResult !== null && (
                 <span
                   className={cn(
-                    'flex items-center gap-1 text-[12px]',
+                    'flex items-center gap-1 text-[13.5px]',
                     testResult ? 'text-[var(--status-read)]' : 'text-[var(--danger)]'
                   )}
                 >
@@ -305,7 +305,7 @@ function FieldRow({
 
   return (
     <div className="grid grid-cols-[100px_1fr] gap-x-3 items-center">
-      <label className="text-[12px] font-medium text-[var(--text-secondary)]">{label}</label>
+      <label className="text-[13.5px] font-medium text-[var(--text-secondary)]">{label}</label>
       <Input
         type={inputType}
         value={value}
@@ -333,7 +333,7 @@ function ProviderPill({
       type="button"
       onClick={onClick}
       className={cn(
-        'group relative px-3 py-2 rounded-full text-[13px] font-medium text-center transition-all duration-150 active:scale-[0.98]',
+        'group relative px-3 py-2 rounded-full text-[14.5px] font-medium text-center transition-all duration-150 active:scale-[0.98]',
         active
           ? 'bg-[var(--accent-color)] text-[var(--accent-on)]'
           : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'

@@ -166,9 +166,9 @@ export function LibraryTab() {
             )}
           >
             <div className="flex-1 min-w-0">
-              <div className="text-[12.5px] font-medium text-[var(--text-primary)]">{lib.name}</div>
-              <div className="text-[11px] text-[var(--text-muted)] truncate mt-0.5">{summarize(lib)}</div>
-              <div className="text-[10.5px] text-[var(--text-muted)] mt-0.5">
+              <div className="text-[14px] font-medium text-[var(--text-primary)]">{lib.name}</div>
+              <div className="text-[12.5px] text-[var(--text-muted)] truncate mt-0.5">{summarize(lib)}</div>
+              <div className="text-[12px] text-[var(--text-muted)] mt-0.5">
                 {t('settings.libraries.papers', { count: lib.paperCount })}
               </div>
             </div>
@@ -186,7 +186,7 @@ export function LibraryTab() {
               {lib.active ? (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--accent-color)]/10 border border-[var(--accent-color)]/25">
                   <Check size={10} className="text-[var(--accent-color)]" />
-                  <span className="text-[10.5px] text-[var(--accent-color)] font-medium">
+                  <span className="text-[12px] text-[var(--accent-color)] font-medium">
                     {t('settings.libraries.active')}
                   </span>
                 </div>
@@ -245,7 +245,7 @@ function AddChoice(props: {
     <button
       onClick={props.onClick}
       disabled={props.disabled}
-      className="flex items-center gap-2 w-full px-4 py-2.5 rounded-full border border-dashed border-[var(--border-color)] text-[12px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-focus)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex items-center gap-2 w-full px-4 py-2.5 rounded-full border border-dashed border-[var(--border-color)] text-[13.5px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-focus)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <span className="text-[var(--accent-color)]">{props.icon}</span>
       {props.label}

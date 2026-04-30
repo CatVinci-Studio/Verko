@@ -185,7 +185,7 @@ export function ChatInput({
               {mentionedPapers!.map((p) => (
                 <span
                   key={p.id}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--accent-color)]/10 border border-[var(--accent-color)]/25 text-[11px] text-[var(--accent-color)] max-w-[240px]"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--accent-color)]/10 border border-[var(--accent-color)]/25 text-[12.5px] text-[var(--accent-color)] max-w-[240px]"
                 >
                   <FileText size={10} className="shrink-0" />
                   <span className="truncate">{p.title || p.id}</span>
@@ -236,7 +236,7 @@ export function ChatInput({
               onPaste={handlePaste}
               placeholder={resolvedPlaceholder}
               rows={1}
-              className="flex-1 bg-transparent border-none text-[13.5px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none leading-relaxed"
+              className="flex-1 bg-transparent border-none text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none leading-relaxed"
               style={{ height: '24px', minHeight: '24px', userSelect: 'text' }}
             />
 
@@ -283,7 +283,7 @@ export function ChatInput({
             )}
           </div>
         </div>
-        <p className="text-[11px] text-[var(--text-dim)] text-center mt-2">{t('agent.shortcutHint')}</p>
+        <p className="text-[12.5px] text-[var(--text-dim)] text-center mt-2">{t('agent.shortcutHint')}</p>
       </div>
 
       {mention && (

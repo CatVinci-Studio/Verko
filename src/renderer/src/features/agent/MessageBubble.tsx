@@ -5,12 +5,12 @@ import type { Message } from '@/store/agent'
 const BUBBLE_USER =
   'max-w-[min(85%,600px)] rounded-[18px] rounded-br-[4px] ' +
   'bg-[var(--accent-color)] text-[var(--accent-on)] ' +
-  'px-4 py-2.5 text-[13.5px] leading-[1.65] whitespace-pre-wrap select-text'
+  'px-4 py-2.5 text-[15px] leading-[1.65] whitespace-pre-wrap select-text'
 
 const BUBBLE_ASSISTANT =
   'max-w-[min(85%,680px)] rounded-[18px] rounded-bl-[4px] ' +
   'bg-[var(--bg-elevated)] border border-[var(--border-color)] ' +
-  'text-[var(--text-bright)] px-4 py-3 text-[13.5px] leading-[1.65]'
+  'text-[var(--text-bright)] px-4 py-3 text-[15px] leading-[1.65]'
 
 interface MessageBubbleProps {
   message: Message

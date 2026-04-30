@@ -114,13 +114,13 @@ export function WelcomeScreen() {
           <h1 className="text-[20px] font-semibold text-[var(--text-primary)]">
             {t('welcome.title')}
           </h1>
-          <p className="text-[13px] text-[var(--text-muted)] max-w-[440px]">
+          <p className="text-[14.5px] text-[var(--text-muted)] max-w-[440px]">
             {t('welcome.subtitle')}
           </p>
         </div>
 
         {noneReason?.reason === 'last-failed' && (
-          <div className="flex items-start gap-2.5 px-4 py-3 rounded-[10px] bg-[var(--bg-elevated)] border border-[var(--border-warning,#7a4a1a)] text-[12px] text-[var(--text-secondary)]">
+          <div className="flex items-start gap-2.5 px-4 py-3 rounded-[10px] bg-[var(--bg-elevated)] border border-[var(--border-warning,#7a4a1a)] text-[13.5px] text-[var(--text-secondary)]">
             <AlertTriangle size={14} className="mt-0.5 text-[var(--accent-color)]" />
             <div>
               <div className="font-medium text-[var(--text-primary)]">{t('welcome.lastFailed.title')}</div>
@@ -157,7 +157,7 @@ export function WelcomeScreen() {
           />
         </div>
         {isWeb && (
-          <p className="text-[11px] text-[var(--text-muted)] text-center mt-2">
+          <p className="text-[12.5px] text-[var(--text-muted)] text-center mt-2">
             {t('welcome.webNote')}
           </p>
         )}
@@ -184,8 +184,8 @@ function Choice(props: {
         {props.icon}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-medium text-[var(--text-primary)]">{props.title}</div>
-        <div className="text-[11.5px] text-[var(--text-muted)] mt-0.5 whitespace-normal">{props.description}</div>
+        <div className="text-[14.5px] font-medium text-[var(--text-primary)]">{props.title}</div>
+        <div className="text-[13px] text-[var(--text-muted)] mt-0.5 whitespace-normal">{props.description}</div>
       </div>
     </Button>
   )

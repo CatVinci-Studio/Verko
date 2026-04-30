@@ -224,7 +224,7 @@ export function LibraryView() {
         />
 
         {isLoadingPapers ? (
-          <div className="flex items-center justify-center h-32 text-[12px] text-[var(--text-muted)]">
+          <div className="flex items-center justify-center h-32 text-[13.5px] text-[var(--text-muted)]">
             {t('common.loading')}
           </div>
         ) : (
@@ -249,7 +249,7 @@ export function LibraryView() {
 
             <button
               onClick={handleNewPaper}
-              className="w-full flex items-center gap-2 pl-4 h-9 text-[12px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-sidebar-hover)] transition-colors border-b border-[var(--border-color)]/30 text-left"
+              className="w-full flex items-center gap-2 pl-4 h-9 text-[13.5px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-sidebar-hover)] transition-colors border-b border-[var(--border-color)]/30 text-left"
             >
               <Plus size={13} />
               {t('library.newPaper')}
@@ -259,7 +259,7 @@ export function LibraryView() {
       </div>
 
       <div className="flex items-center justify-between px-3 py-1.5 border-t border-[var(--border-color)] shrink-0">
-        <span className="text-[11px] text-[var(--text-muted)]">
+        <span className="text-[12.5px] text-[var(--text-muted)]">
           {t('library.papers', { count: table.getRowModel().rows.length })}
         </span>
         <Button

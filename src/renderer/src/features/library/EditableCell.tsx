@@ -101,7 +101,7 @@ export function EditableTextCell({
       placeholder={placeholder}
       className={cn(
         'w-full bg-[var(--bg-elevated)] border border-[var(--accent-color)] rounded-[4px]',
-        'px-1 -mx-1 text-[12px] text-[var(--text-primary)] focus:outline-none',
+        'px-1 -mx-1 text-[13.5px] text-[var(--text-primary)] focus:outline-none',
         align === 'right' && 'text-right'
       )}
       style={{ userSelect: 'text' }}

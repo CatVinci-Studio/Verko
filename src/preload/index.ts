@@ -97,7 +97,15 @@ const api = {
 
   pdf: {
     getPath: (id: string) => api.invoke('pdf:getPath', id),
-  }
+  },
+
+  app: {
+    onMenuCommand: (cb: (cmd: string) => void): UnsubFn => {
+      const listener = (_: Electron.IpcRendererEvent, cmd: string) => cb(cmd)
+      ipcRenderer.on('app:menu-command', listener)
+      return () => ipcRenderer.removeListener('app:menu-command', listener)
+    },
+  },
 }
 
 contextBridge.exposeInMainWorld('api', api)
