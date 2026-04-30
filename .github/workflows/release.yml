@@ -9,7 +9,25 @@ permissions:
   contents: write
 
 jobs:
+  # Pre-create the release so the three parallel platform jobs don't race
+  # to create it (electron-builder's create-release path is not idempotent
+  # under concurrency — v0.3.5 lost the macOS DMG to a 422 already_exists).
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Ensure release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --notes "Automated release for $GITHUB_REF_NAME."
+          fi
+
   build:
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
