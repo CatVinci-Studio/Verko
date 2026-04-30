@@ -1,43 +1,17 @@
 import type { ToolRegistry } from './types'
 
-/** Collection management tools — pure Library ops. Browser-safe. */
+/**
+ * Collection-membership mutations. Listing is done via
+ * `read_file('collections.json')` — same data, no extra tool.
+ *
+ * `add_to_collection` auto-creates the collection if it does not exist,
+ * so a separate `create_collection` tool isn't needed.
+ */
 export const collectionTools: ToolRegistry = {
-  list_collections: {
-    def: {
-      name: 'list_collections',
-      description: 'List all collections in the active library with their paper counts.',
-      parameters: { type: 'object', properties: {}, required: [] },
-    },
-    async call(_args, { library }) {
-      return JSON.stringify(library.listCollections())
-    },
-  },
-
-  create_collection: {
-    def: {
-      name: 'create_collection',
-      description: 'Create a new empty collection in the active library.',
-      parameters: {
-        type: 'object',
-        properties: { name: { type: 'string', description: 'Collection name' } },
-        required: ['name'],
-      },
-    },
-    async call(args, { library }) {
-      const name = args['name'] as string
-      try {
-        await library.createCollection(name)
-        return JSON.stringify({ success: true, name })
-      } catch (e) {
-        return JSON.stringify({ success: false, error: e instanceof Error ? e.message : String(e) })
-      }
-    },
-  },
-
   add_to_collection: {
     def: {
       name: 'add_to_collection',
-      description: 'Add a paper to a collection. Creates the collection if it does not exist.',
+      description: 'Add a paper to a collection. Creates the collection on first use.',
       parameters: {
         type: 'object',
         properties: {

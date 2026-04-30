@@ -1,19 +1,23 @@
 import { type ToolRegistry, decodeUtf8, safeRelPath } from './types'
 
-/** Raw file access scoped to the library root. Browser-safe. */
+/**
+ * Read access into the library directory. Mutations go through the
+ * dedicated paper / collection tools — direct writes would bypass the
+ * in-memory index and CSV invariants, so `write_file` is intentionally
+ * not exposed.
+ */
 export const fileTools: ToolRegistry = {
   read_file: {
     def: {
       name: 'read_file',
       description:
-        'Read any file within the active library directory. Path is relative to the library root. ' +
-        'Use this to read schema.md, collections.json, or any paper markdown file directly.',
+        'Read a UTF-8 text file inside the active library. Use to read papers.csv (the canonical field data), papers/<id>.md (a paper\'s notes), schema.md, collections.json, or any per-collection CSV. Not suitable for binary files like PDFs — use extract_pdf_text or view_pdf_page for those.',
       parameters: {
         type: 'object',
         properties: {
           path: {
             type: 'string',
-            description: 'Relative path from library root, e.g. "schema.md" or "papers/2024-ho-ddpm.md"',
+            description: 'Relative path from library root, e.g. "papers.csv" or "papers/2024-ho-ddpm.md"',
           },
         },
         required: ['path'],
@@ -31,39 +35,10 @@ export const fileTools: ToolRegistry = {
     },
   },
 
-  write_file: {
-    def: {
-      name: 'write_file',
-      description:
-        'Write content to a file within the active library directory. Path is relative to the library root. ' +
-        'WARNING: Prefer update_paper / append_note for paper files to keep the index in sync.',
-      parameters: {
-        type: 'object',
-        properties: {
-          path:    { type: 'string', description: 'Relative path from library root' },
-          content: { type: 'string', description: 'Full file content to write' },
-        },
-        required: ['path', 'content'],
-      },
-    },
-    async call(args, { library }) {
-      const relInput = args['path'] as string
-      const content = args['content'] as string
-      const relPath = safeRelPath(relInput)
-      if (relPath == null) return JSON.stringify({ error: 'Path is outside the library directory.' })
-      try {
-        await library.backend.writeFile(relPath, content)
-        return JSON.stringify({ success: true, path: relPath })
-      } catch (e) {
-        return JSON.stringify({ error: `Cannot write "${relInput}": ${e instanceof Error ? e.message : String(e)}` })
-      }
-    },
-  },
-
   list_files: {
     def: {
       name: 'list_files',
-      description: 'List files and folders within the active library directory.',
+      description: 'List files and folders inside the active library directory. Useful for discovering attachment IDs (under attachments/) or per-collection CSVs.',
       parameters: {
         type: 'object',
         properties: {

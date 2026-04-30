@@ -21,7 +21,7 @@ import { buildColumns } from './columns'
 import { useColumnPersistence } from './useColumnPersistence'
 import type { Column, ColumnType, PaperRef } from '@shared/types'
 
-const CORE_COLS = new Set(['id', 'title', 'authors', 'year', 'status', 'tags', 'rating', 'added_at', 'updated_at', 'doi', 'url', 'venue', 'pdf'])
+const CORE_COLS = new Set(['id', 'title', 'authors', 'year', 'status', 'tags', 'rating', 'added_at', 'updated_at', 'doi', 'url', 'venue'])
 
 export function LibraryView() {
   const { t } = useTranslation()

@@ -1,7 +1,7 @@
 # Verko — Claude Code Guide
 
 ## Project Overview
-Agent-first academic paper management desktop app. Built with Electron + React 19. Storage is plain files: one Markdown per paper (YAML frontmatter + notes body), `schema.md` for column definitions (also YAML frontmatter), and a derived `papers.csv` index. The AI agent runs in-process and reads/writes papers through the same `Library` abstraction the UI uses.
+Agent-first academic paper management desktop app. Built with Electron + React 19. Storage is plain files in a CSV-first model: `papers.csv` is the canonical store of field data (title, authors, status, custom columns…), `papers/<id>.md` files hold the notes body only (no frontmatter), `schema.md` defines columns. The AI agent runs in-process and reads/writes papers through the same `Library` abstraction the UI uses.
 
 ## Tech Stack
 - **Runtime**: Electron 41 + electron-vite 6 (beta) + Vite 8
@@ -11,8 +11,8 @@ Agent-first academic paper management desktop app. Built with Electron + React 1
 - **Tables**: TanStack Table v8 (headless) — drives the library paper view
 - **Editor**: CodeMirror 6 (Markdown)
 - **Search**: MiniSearch (in-memory full-text)
-- **Agent**: pluggable provider layer (`src/main/agent/providers/`) speaking OpenAI / Anthropic / Gemini protocols natively; multi-conversation history persisted under `<userData>/conversations/<id>.json`
-- **Tests**: Vitest 4 (main process only, node env)
+- **Agent**: pluggable provider layer (`src/shared/agent/providers/`) speaking OpenAI / Anthropic / Gemini protocols natively; agent loop runs in the renderer; multi-conversation history persisted under `<userData>/conversations/<id>.json`
+- **Tests**: Vitest 4 (Node env; targets `src/{electron,shared}`)
 - **Package manager**: npm
 - **i18n**: i18next + react-i18next; English + 简体中文 (`src/renderer/src/locales/{en,zh}.json`); language preference persists to localStorage and is forwarded to the agent so the system prompt swaps with the UI
 - **Style enforcement**: `.editorconfig` (indent / EOL) + TypeScript strict mode (`noUnusedLocals`, `noUnusedParameters` on) + ESLint 10 flat config (`eslint.config.js` — JS/TS recommended + `react-hooks/{rules-of-hooks,exhaustive-deps}` + `react-refresh/only-export-components`)
@@ -20,88 +20,105 @@ Agent-first academic paper management desktop app. Built with Electron + React 1
 ## Repository Layout
 ```
 src/
-  shared/             # Runtime-neutral code — runs in main, renderer, AND browser
-    paperdb/          # Library + pure helpers (csv/frontmatter/schema/search/id/import)
+  shared/             # Runtime-neutral code — runs in any JS env (Node, browser, webview)
+    paperdb/
       store.ts        #   Library class (operates on the StorageBackend interface)
       backend.ts      #   StorageBackend interface (Uint8Array + ReadableStream)
       backendS3.ts    #   S3-compatible backend (AWS SDK v3, browser-safe)
-    agent/            # Agent loop, system prompt, provider adapters, shared tools
+    agent/
       loop.ts         #   runAgentLoop(provider, dispatchTool, …) — tool-agnostic
+      runtime.ts      #   Agent class — owns subscribers, send orchestration, abort
+      conversationStore.ts  # ConversationStore over StorageBackend (one .json per conv)
       prompt.ts       #   buildSystemPrompt(language, ctx) — EN + ZH
-      providers/      #   openai/anthropic/gemini SDK adapters; dangerouslyAllowBrowser
-                      #   is set in browser so user keys go straight to the LLM provider
-      tools/          #   Modular browser-safe tool registry:
-                      #     paperTools (CRUD + search)
-                      #     collectionTools (list/create/add/remove)
-                      #     fileTools (read_file/write_file/list_files)
-                      #     webTools (web_fetch)
-                      #     index.ts: SHARED_TOOLS + dispatchSharedTool
-    types.ts          # Master type contract (PaperRef, IpcChannels, AgentEvent, …)
-    providers.ts      # PROVIDER_DEFINITIONS catalog (id, name, defaults, fields)
+      providers/      #   openai/anthropic/gemini SDK adapters (dangerouslyAllowBrowser)
+      tools/          #   Single source of truth for tools — runs wherever called from:
+                      #     paperTools / collectionTools / fileTools / webTools
+                      #     pdfTools (OffscreenCanvas)
+                      #     documentTools (mammoth + pdfjs + turndown, via backend.readFile)
+    types.ts          # Master type contract (IpcChannels, AgentEvent, …)
+    providers.ts      # PROVIDER_DEFINITIONS catalog
     presets.ts        # DEFAULT_AGENT_CONFIG derived from the catalog
 
-  main/               # Electron main process (Node.js only)
+  electron/           # Electron main process — zero-trust IO shim (~400 lines)
+    scope.ts          #   allowedRoots + resolveScoped (path validation, symlink-safe)
     paperdb/
-      backendLocal.ts #   fs-backed StorageBackend
-      importPdf.ts    #   PDF copy from arbitrary fs path (uses fs.copyFile)
-      manager.ts      #   LibraryManager: registry + credential store + Library cache
-      zip.ts          #   Library export/import (.zip) via JSZip
-    libraries/        # registry.ts (libraries.json) + credentials.ts (safeStorage)
+      backendLocal.ts #   fs-backed StorageBackend (used by main-side bulk ops only)
+      importPdf.ts    #   (legacy helper, no longer wired)
+      manager.ts      #   LibraryManager — registry + credential store, NO Library cache
+      zip.ts          #   exportLibraryZip(backend, …) / importLibraryZip
+    libraries/        #   registry.ts (libraries.json) + credentials.ts (safeStorage)
     agent/
-      session.ts      #   AgentSession: per-window agent gateway
-      tools/          #   Main-only tool subset, composed onto SHARED_TOOLS:
-                      #     managerTools (list_libraries / switch_library)
-                      #     pdfTools (extract_pdf_text + view_pdf_page)
-                      #     documentTools (read_document via mammoth + pdfjs)
-                      #     index.ts: ALL_TOOLS + dispatchTool
-      conversations.ts#   per-conversation JSON files in userData
       auth.ts         #   API key store: safeStorage (remember=true) or memory (false)
       config.ts       #   electron-store + catalog sync migration
-    ipc/              # Thin handler wrappers over Library + AgentSession + manager
+    ipc/              # Tiny IPC handlers — fs / paths / dialog / agent-config / libraries
     index.ts          # App entry, LibraryManager init, IPC registration
-    __tests__/        # Vitest specs for main-process modules
+    __tests__/        # Vitest specs (Library + scope + zip)
 
   preload/
-    index.ts          # contextBridge → window.api
+    index.ts          # contextBridge → window.api (narrow IPreloadApi surface)
 
-  renderer/src/       # React frontend
-    web/              # Web-build adapter — re-uses shared Library + agent loop
-      webApi.ts       #   Wraps shared Library + WebAgent into the IApi shape
-      webAgent.ts     #   Drives shared runAgentLoop with shared tools
-                      #   and localStorage-backed conversation persistence
+  renderer/src/       # React frontend — owns Library + agent runtime at runtime
+    desktop/          # Desktop adapter
+      backendIpc.ts   #   StorageBackend over fs:* IPC
+      libraryHost.ts  #   Owns active Library, listens for library:switched
+      desktopTools.ts #   Tool registry (SHARED_TOOLS + manager tools using IPC)
+      desktopApi.ts   #   makeDesktopApi(preload) → full IApi
+      preloadApi.ts   #   Type for the narrow preload-bridged surface
+    web/              # Web build (S3-only, single library)
+      webApi.ts       #   Same IApi shape, S3Backend + LocalStorage agent
+      webAgent.ts     #   Web-flavored agent (will fold into shared Agent in time)
       apiKeys.ts      #   Per-provider key store (localStorage / memory)
       credentials.ts  #   S3 credential store (IndexedDB)
     store/            # Zustand stores: library, ui, agent, dialogs
     features/         # library/, paper/, agent/, command/, settings/, dialogs/, onboarding/
     components/ui/    # shadcn primitives (kebab-case)
     components/common/# TitleBar, ChipStatus, ChipTag
-    lib/              # ipc.ts, utils.ts, i18n.ts
+    lib/              # ipc.ts (IApi + pickApi), utils.ts, i18n.ts
     locales/          # en.json + zh.json
     styles/           # globals.css (CSS variables for dark/light theme)
 ```
 
-The hard-fork between desktop and web is **only** the StorageBackend
-implementation (LocalBackend in main; S3Backend works in both) and a
-handful of platform-specific tools (importPdf, view_pdf_page,
-read_document, list_libraries / switch_library — main-only). Library,
-agent loop, providers, prompt, S3Backend are all single-source.
+**Single source of truth for everything except IO.** Library, agent loop,
+all tools, providers, prompts, conversation persistence — all in `shared`,
+all run in the renderer for both web and desktop. Main exists only to
+expose the OS file system and the OS keychain through narrow, scoped IPC
+channels (`fs:read/write/list/exists/delete`, `keychain` via
+`agent:loadKey/saveKey`, `dialog:openPdf`, etc).
+
+This makes the Tauri / Rust port a mechanical exercise: replace `src/electron/`
+with a Rust shim that exposes the same IPC surface. No business logic
+moves.
 
 ## Storage Format
 A library is just a folder:
 ```
 <library-root>/
-  papers/             # One .md file per paper, named by ID
-  attachments/        # PDF files named <id>.pdf
-  papers.csv          # Auto-rebuilt projection (do not edit manually)
+  papers.csv          # CANONICAL field data (title, authors, status, custom cols…)
+  papers/<id>.md      # Notes body only — no frontmatter
+  attachments/<id>.pdf
   schema.md           # Column definitions (YAML frontmatter + notes body)
   collections.json    # Collection membership
+  <Name>.csv          # Per-collection projection (auto-rebuilt)
 ```
+
+**`papers.csv` is the source of truth for fields.** Adding/renaming/removing
+columns only touches the CSV (and schema.md). `.md` files are free-form notes
+and are independent of the row data.
+
+Library bootstrap (`Library._init`) reads CSV in one shot to populate the in-memory
+ref Map; the search index (which needs notes body) is built lazily on first
+search. A library with old-style frontmatter `.md` files is migrated automatically
+on first open: frontmatter is extracted into CSV and stripped from the `.md`.
+
 Paper IDs are `{year}-{lastname}-{titleword}` (e.g. `2017-vaswani-attention`). Generation falls back to `randomBytes` to avoid timestamp collisions on rapid adds.
 
 ## IPC Pattern
-`IpcChannels` in `shared/types.ts` is the single source of truth for IPC channel names, argument types, and return types. The preload script exposes `window.api`; renderer code imports the typed wrapper via `src/renderer/src/lib/ipc.ts`. In web preview mode (`npm run dev:web`) that wrapper falls back to a stub with sample data so the React tree boots without Electron.
+`IpcChannels` in `shared/types.ts` is the single source of truth for IPC channel names, argument types, and return types. The preload script exposes a narrow `window.api` (typed as `IPreloadApi` in `desktop/preloadApi.ts`); renderer code imports the consumer-facing `IApi` via `src/renderer/src/lib/ipc.ts`, where `pickApi()` wraps the preload surface with `makeDesktopApi()` (or returns `webApi` / a stub).
 
-Streaming events (main → renderer) go through `ipcRenderer.on` directly with the channel name `agent:event` or `library:switched`, not through the request/response `IpcChannels` map.
+The IPC surface is small and primitive — file IO, keychain, dialogs, agent config. There is **no** `papers:*`, `schema:*`, `collections:*`, `agent:send`, or streaming `agent:event` IPC: those are renderer-local now. `library:switched` and `library:none` are the only main → renderer events.
+
+### Zero-trust file scope
+`fs:read/write/list/exists/delete` IPC takes `(rootId, relPath)` — never absolute paths. `src/electron/scope.ts` maintains a `rootId → absolute root` map (libraries register on add; the conversation store registers `'conversations'` on boot) and rejects any path that escapes its root via `..` or symlinks. If the renderer is compromised, the blast radius is the union of registered roots.
 
 ## Theme System
 All colors live in CSS variables defined in `src/renderer/src/styles/globals.css`. Two themes:
@@ -147,7 +164,7 @@ The renderer uses i18next:
 
 - `src/renderer/src/lib/i18n.ts` — config + `setLanguage(lang)` / `getCurrentLanguage()` helpers, persists to `localStorage('language')`. Auto-detects from `navigator.language` on first run.
 - `src/renderer/src/locales/{en,zh}.json` — flat-ish translation tree. Add new keys here; both languages must be in sync (lint/typecheck won't catch missing keys, only runtime fallback to English).
-- `src/main/agent/prompt.ts` — `buildSystemPrompt(language, ctx)` returns the EN or ZH system-prompt template for the agent. Tool semantics are identical across languages; only the surface wording changes. The renderer's current language is forwarded via the third arg of `agent:send` so the prompt swaps when the user changes language.
+- `src/shared/agent/prompt.ts` — `buildSystemPrompt(language, ctx)` returns the EN or ZH system-prompt template for the agent. Tool semantics are identical across languages; only the surface wording changes. The renderer-side `Agent` passes the current language when constructing each system prompt.
 - Components use `const { t } = useTranslation()` and `t('namespace.key')`. For data-driven labels (e.g. column headers, tab metadata), pass `t` into pure helpers and re-key memoization on `i18n.language` so the labels refresh when the language flips.
 
 ## Library Table
@@ -173,8 +190,8 @@ npm run dist:linux   # Build + package Linux AppImage
 ```
 
 ## Testing
-- Main process specs live in `src/main/__tests__/`
-- `vitest.config.ts` only picks up `src/main/**/*.test.ts` (no renderer tests yet)
+- Electron-side specs live in `src/electron/__tests__/`; shared specs sit beside their modules under `src/shared/`
+- `vitest.config.ts` picks up `src/{electron,shared}/**/*.test.ts` (no renderer tests yet)
 - All **39 main-process tests** must pass before committing
 - Tests mount a real `Library` against a fresh `mkdtemp` directory — never mock filesystem boundaries; the storage format IS part of the contract
 
@@ -183,7 +200,7 @@ npm run dist:linux   # Build + package Linux AppImage
 - **No `window.confirm` / `window.prompt`** — see Async Dialog API above
 - **No barrel files** for `paperdb/` and `agent/` — import directly from the submodule (`import { Library } from '../paperdb/store'`). Barrels were removed because they added an extra hop without value
 - **CSV is derived**, not source of truth. `.md` files are authoritative; the CSV index is rebuilt on every write
-- **Authors** in frontmatter are **semicolon-separated** (`"Vaswani, A.; Ho, J."`), because author names themselves contain commas
+- **Authors** and **tags** in CSV are **semicolon-separated** (`"Vaswani, A.; Ho, J."`), because author names themselves contain commas
 - **Keep IPC handlers thin** — business logic belongs in `Library` and `AgentSession`, not in IPC wrappers
 - **Two-space indent, single quotes, no semicolons** — locked by `.editorconfig` and existing code; match what's there
 - **Component files**: PascalCase (`SettingsModal.tsx`); UI primitives in `components/ui/`: kebab-case (`dialog.tsx`); hooks: camelCase with `use` prefix (`useAgent.ts`)

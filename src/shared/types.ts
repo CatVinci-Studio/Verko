@@ -44,7 +44,6 @@ export interface Paper {
   venue?: string
   doi?: string
   url?: string
-  pdf?: string              // relative path under library root
   tags: string[]
   status: PaperStatus
   rating?: number           // 0–5
@@ -112,11 +111,12 @@ export interface SearchHit {
 
 // ─── Agent ───────────────────────────────────────────────────────────────────
 
-export interface AgentTextEvent    { type: 'text';        delta: string }
-export interface AgentToolStart    { type: 'tool_start';  name: string; args: unknown }
-export interface AgentToolResult   { type: 'tool_result'; name: string; result: unknown }
-export interface AgentErrorEvent   { type: 'error';       message: string }
-export interface AgentDoneEvent    { type: 'done' }
+export interface AgentTextEvent       { type: 'text';        delta: string }
+export interface AgentToolStart       { type: 'tool_start';  name: string; args: unknown }
+export interface AgentToolResult      { type: 'tool_result'; name: string; result: unknown }
+export interface AgentErrorEvent      { type: 'error';       message: string }
+export interface AgentDoneEvent       { type: 'done' }
+export interface AgentCompactedEvent  { type: 'compacted' }
 
 export type AgentEvent =
   | AgentTextEvent
@@ -124,6 +124,7 @@ export type AgentEvent =
   | AgentToolResult
   | AgentErrorEvent
   | AgentDoneEvent
+  | AgentCompactedEvent
 
 /** API protocol the profile speaks. `custom` profiles let the user pick. */
 export type AgentProtocol = 'openai' | 'anthropic' | 'gemini'
@@ -284,49 +285,28 @@ export interface IpcChannels {
   'libraries:hasNone':    { args: [];                            ret: boolean }
   'libraries:exportZip':  { args: [string];                      ret: string | null } // libraryId → savedPath (null = cancelled)
   'libraries:importZip':  { args: [];                            ret: LibraryInfo | null } // null = cancelled
+  'libraries:s3Creds':    { args: [string]; ret: { accessKeyId: string; secretAccessKey: string } | null }
 
-  // Collections (within active library)
-  'collections:list':    { args: [];                        ret: CollectionInfo[] }
-  'collections:create':  { args: [string];                  ret: void }
-  'collections:delete':  { args: [string];                  ret: void }
-  'collections:rename':  { args: [string, string];          ret: void }
-  'collections:addPaper':    { args: [PaperId, string];     ret: void }
-  'collections:removePaper': { args: [PaperId, string];     ret: void }
-
-  // Papers (operate on active library)
-  'papers:list':         { args: [Filter?, string?];        ret: PaperRef[] }  // optional collection name
-  'papers:get':          { args: [PaperId];                 ret: PaperDetail }
-  'papers:add':          { args: [PaperDraft];              ret: PaperId }
-  'papers:update':       { args: [PaperId, PaperPatch];     ret: void }
-  'papers:delete':       { args: [PaperId];                 ret: void }
-  'papers:search':       { args: [string, Filter?];         ret: SearchHit[] }
-  'papers:importArxiv':  { args: [string];                  ret: PaperId }
-  'papers:importPdf':    { args: [string];                  ret: PaperId }
-
-  // Schema (active library)
-  'schema:get':          { args: [];                        ret: Schema }
-  'schema:addColumn':    { args: [Column];                  ret: void }
-  'schema:removeColumn': { args: [string];                  ret: void }
-  'schema:renameColumn': { args: [string, string];          ret: void }
-
-  // Agent
-  'agent:send':          { args: [string, ChatContentPart[]?, PaperId?, Language?, string?]; ret: string }
-  // ↑ message text, optional attachments, optional paperId, language, conversationId. Returns conversationId (created on demand).
-  'agent:abort':         { args: [string?];                 ret: void } // optional conversationId
+  // Agent — config + key store only. The loop runs in the renderer.
   'agent:getConfig':     { args: [];                        ret: AgentConfig }
   'agent:setProfile':    { args: [string];                  ret: void }
   'agent:updateProfile': { args: [string, ProfilePatch];    ret: void }
   'agent:saveKey':       { args: [string, string, boolean]; ret: void } // profile, key, remember
+  'agent:loadKey':       { args: [string];                  ret: string | null }
   'agent:testKey':       { args: [string];                  ret: boolean }
   'agent:getProfiles':   { args: [];                        ret: AgentProfile[] }
 
-  // Conversations
-  'conversations:list':   { args: [];                       ret: ConversationSummary[] }
-  'conversations:get':    { args: [string];                 ret: Conversation }
-  'conversations:create': { args: [string?];                ret: ConversationSummary } // optional title
-  'conversations:rename': { args: [string, string];         ret: void }
-  'conversations:delete': { args: [string];                 ret: void }
+  // Filesystem (zero-trust scoped). All paths are (rootId, relPath).
+  'fs:read':   { args: [string, string];                            ret: Uint8Array }
+  'fs:write':  { args: [string, string, Uint8Array | string];       ret: void }
+  'fs:delete': { args: [string, string];                            ret: void }
+  'fs:list':   { args: [string, string];                            ret: string[] }
+  'fs:exists': { args: [string, string];                            ret: boolean }
 
-  // PDF
-  'pdf:getPath':         { args: [PaperId];                 ret: string | null }
+  // Path resolution
+  'paths:libraryRoot': { args: [string]; ret: string | null }
+  'paths:userData':    { args: [];       ret: string }
+
+  // Native dialogs that return data (not paths)
+  'dialog:openPdf': { args: []; ret: { filename: string; bytes: Uint8Array } | null }
 }

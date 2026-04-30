@@ -46,6 +46,7 @@ interface AgentStore {
 
   send: (message: string, attachments?: ChatContentPart[], paperId?: string) => Promise<void>
   abort: () => void
+  compact: () => Promise<void>
   handleEnvelope: (env: AgentEventEnvelope) => void
   toggleToolCall: (msgId: string, toolId: string) => void
   setCurrentPaperId: (id: string | undefined) => void
@@ -223,6 +224,19 @@ export const useAgentStore = create<AgentStore>((set, get) => ({
     }
   },
 
+  compact: async () => {
+    const id = get().activeId
+    if (!id) return
+    // Drop local cache so next selectConversation re-pulls the compacted history.
+    await api.agent.compact(id)
+    set((s) => {
+      const { [id]: _, ...rest } = s.byId
+      return { byId: rest }
+    })
+    // Re-hydrate the now-compact conversation into local cache.
+    await get().selectConversation(id)
+  },
+
   handleEnvelope: ({ conversationId, event }) => {
     const id = conversationId || get().activeId
     if (!id) return
@@ -342,6 +356,22 @@ function applyEvent(
           id: newId(),
           role: 'assistant',
           content: `⚠ ${event.message}`,
+          timestamp: new Date(),
+        }],
+      } },
+    }))
+    return
+  }
+
+  if (event.type === 'compacted') {
+    const cur = get().byId[id] ?? emptyState()
+    set((s) => ({
+      byId: { ...s.byId, [id]: {
+        ...cur,
+        messages: [...cur.messages, {
+          id: newId(),
+          role: 'assistant',
+          content: '— earlier conversation compacted —',
           timestamp: new Date(),
         }],
       } },

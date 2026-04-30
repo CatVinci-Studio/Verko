@@ -14,7 +14,6 @@ export const DEFAULT_SCHEMA: Schema = {
     { name: 'venue',      type: 'text',   inCsv: true  },
     { name: 'doi',        type: 'url',    inCsv: true  },
     { name: 'url',        type: 'url',    inCsv: true  },
-    { name: 'pdf',        type: 'text',   inCsv: false },
     { name: 'tags',       type: 'tags',   inCsv: true  },
     {
       name: 'status',

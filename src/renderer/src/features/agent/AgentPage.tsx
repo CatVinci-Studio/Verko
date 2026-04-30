@@ -18,6 +18,7 @@ export function AgentPage() {
   const conversations = useAgentStore((s) => s.conversations)
   const send = useAgentStore((s) => s.send)
   const abort = useAgentStore((s) => s.abort)
+  const compact = useAgentStore((s) => s.compact)
   const refreshConversations = useAgentStore((s) => s.refreshConversations)
   const toggleToolCall = useAgentStore((s) => s.toggleToolCall)
   const currentPaperId = useAgentStore((s) => s.currentPaperId)
@@ -47,6 +48,16 @@ export function AgentPage() {
   const handleSend = async () => {
     const msg = input.trim()
     if ((!msg && attachments.length === 0 && mentionedPapers.length === 0) || isStreaming) return
+
+    // Slash commands. Single-keyword for now; expand later as needed.
+    if (msg === '/compact') {
+      setInput('')
+      setAttachments([])
+      setMentionedPapers([])
+      await compact()
+      return
+    }
+
     setInput('')
     const atts = attachments
     const refs = mentionedPapers

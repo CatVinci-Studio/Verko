@@ -3,7 +3,7 @@ import type {
   Filter, SearchHit, Schema, Column, AgentEventEnvelope, AgentConfig,
   AgentProfile, ProfilePatch, Language, LibraryInfo, CollectionInfo,
   NewLibraryInput, NewS3LibraryInput, ProbeResult, LibraryNonePayload,
-  ChatContentPart, ConversationSummary, Conversation,
+  ChatContentPart, ChatMessage, ConversationSummary, Conversation,
 } from '@shared/types'
 
 type UnsubFn = () => void
@@ -40,7 +40,8 @@ export interface IApi {
     delete(id: PaperId): Promise<void>
     search(q: string, filter?: Filter): Promise<SearchHit[]>
     importArxiv(input: string): Promise<PaperId>
-    importPdf(path: string): Promise<PaperId>
+    /** Show a native picker, copy the chosen PDF into the active library, return the new id. */
+    importPdf(): Promise<PaperId>
   }
   schema: {
     get(): Promise<Schema>
@@ -57,10 +58,12 @@ export interface IApi {
       conversationId?: string,
     ): Promise<string>
     abort(conversationId?: string): Promise<void>
+    compact(conversationId: string): Promise<void>
     getConfig(): Promise<AgentConfig | null>
     setProfile(name: string): Promise<void>
     updateProfile(name: string, patch: ProfilePatch): Promise<void>
     saveKey(profile: string, key: string, remember: boolean): Promise<void>
+    loadKey(profile: string): Promise<string | null>
     testKey(profile: string): Promise<boolean>
     getProfiles(): Promise<AgentProfile[]>
     onEvent(cb: (envelope: AgentEventEnvelope) => void): UnsubFn
@@ -71,9 +74,20 @@ export interface IApi {
     create(title?: string): Promise<ConversationSummary>
     rename(id: string, title: string): Promise<void>
     delete(id: string): Promise<void>
+    append(id: string, msg: ChatMessage): Promise<Conversation>
   }
   pdf: {
     getPath(id: PaperId): Promise<string | null>
+  }
+  fs: {
+    read(rootId: string, rel: string): Promise<Uint8Array>
+    write(rootId: string, rel: string, data: Uint8Array | string): Promise<void>
+    delete(rootId: string, rel: string): Promise<void>
+    list(rootId: string, prefix: string): Promise<string[]>
+    exists(rootId: string, rel: string): Promise<boolean>
+  }
+  paths: {
+    libraryRoot(id: string): Promise<string | null>
   }
   app: {
     platform: NodeJS.Platform
@@ -93,205 +107,23 @@ declare global {
   }
 }
 
-// ── Web preview stub (no Electron preload) ────────────────────────────────────
-const MOCK_PAPERS: PaperRef[] = [
-  {
-    id: '2017-vaswani-attention',
-    title: 'Attention Is All You Need',
-    authors: ['Vaswani, A.', 'Shazeer, N.', 'Parmar, N.'],
-    year: 2017,
-    venue: 'NeurIPS',
-    tags: ['nlp', 'transformer', 'attention'],
-    status: 'read',
-    rating: 5,
-    added_at: '2024-01-10T10:00:00Z',
-    updated_at: '2024-03-15T14:22:00Z',
-    hasPdf: true,
-    doi: '10.48550/arXiv.1706.03762',
-    url: 'https://arxiv.org/abs/1706.03762',
-  },
-  {
-    id: '2020-ho-diffusion',
-    title: 'Denoising Diffusion Probabilistic Models',
-    authors: ['Ho, J.', 'Jain, A.', 'Abbeel, P.'],
-    year: 2020,
-    venue: 'NeurIPS',
-    tags: ['generative', 'diffusion', 'image-synthesis'],
-    status: 'reading',
-    rating: 4,
-    added_at: '2024-02-01T09:00:00Z',
-    updated_at: '2024-04-01T11:00:00Z',
-    hasPdf: false,
-  },
-  {
-    id: '2020-brown-gpt3',
-    title: 'Language Models are Few-Shot Learners',
-    authors: ['Brown, T.', 'Mann, B.', 'Ryder, N.', 'Subbiah, M.'],
-    year: 2020,
-    venue: 'NeurIPS',
-    tags: ['nlp', 'llm', 'few-shot'],
-    status: 'unread',
-    added_at: '2024-03-05T16:30:00Z',
-    updated_at: '2024-03-05T16:30:00Z',
-    hasPdf: false,
-  },
-  {
-    id: '2021-dosovitskiy-vit',
-    title: 'An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale',
-    authors: ['Dosovitskiy, A.', 'Beyer, L.', 'Kolesnikov, A.'],
-    year: 2021,
-    venue: 'ICLR',
-    tags: ['vision', 'transformer', 'vit'],
-    status: 'read',
-    rating: 4,
-    added_at: '2024-01-20T08:00:00Z',
-    updated_at: '2024-02-10T12:00:00Z',
-    hasPdf: true,
-  },
-  {
-    id: '2022-wei-cot',
-    title: 'Chain-of-Thought Prompting Elicits Reasoning in Large Language Models',
-    authors: ['Wei, J.', 'Wang, X.', 'Schuurmans, D.'],
-    year: 2022,
-    venue: 'NeurIPS',
-    tags: ['nlp', 'llm', 'reasoning', 'prompting'],
-    status: 'unread',
-    added_at: '2024-04-10T10:00:00Z',
-    updated_at: '2024-04-10T10:00:00Z',
-    hasPdf: false,
-  },
-]
-
-const MOCK_COLLECTIONS: CollectionInfo[] = [
-  { name: 'NLP', paperCount: 3 },
-  { name: 'Vision', paperCount: 2 },
-]
-
-const STUB_LIBRARY: LibraryInfo = {
-  id: 'stub',
-  name: 'Demo Library',
-  kind: 'local',
-  path: '/demo',
-  active: true,
-  paperCount: MOCK_PAPERS.length,
-}
-
-const webStub: IApi = {
-  collections: {
-    list: () => Promise.resolve(MOCK_COLLECTIONS),
-    create: () => Promise.resolve(),
-    delete: () => Promise.resolve(),
-    rename: () => Promise.resolve(),
-    addPaper: () => Promise.resolve(),
-    removePaper: () => Promise.resolve(),
-  },
-  libraries: {
-    list: () => Promise.resolve([STUB_LIBRARY]),
-    open: () => Promise.resolve(STUB_LIBRARY),
-    add: () => Promise.resolve(STUB_LIBRARY),
-    remove: () => Promise.resolve(),
-    rename: () => Promise.resolve(),
-    pickFolder: () => Promise.resolve(null),
-    probeLocal: () => Promise.resolve({ status: 'ready' }),
-    probeS3: () => Promise.resolve({ status: 'ready' }),
-    hasNone: () => Promise.resolve(false),
-    exportZip: () => Promise.resolve(null),
-    importZip: () => Promise.resolve(null),
-    onSwitched: () => () => {},
-    onNone: () => () => {},
-  },
-  papers: {
-    list: () => Promise.resolve(MOCK_PAPERS),
-    get: (id) => {
-      const p = MOCK_PAPERS.find(x => x.id === id)
-      if (!p) return Promise.reject(new Error('not found'))
-      return Promise.resolve({
-        ...p,
-        markdown: `## TL;DR\n\nThis is a landmark paper. It introduced ideas that are now foundational to modern deep learning.\n\n## Method\n\nThe core mechanism involves attention over input sequences, enabling the model to focus on relevant parts dynamically.\n\n## My Notes\n\nEssential reading. The ideas here have influenced virtually every subsequent architecture.`,
-      })
-    },
-    add: () => Promise.resolve('new-id'),
-    update: () => Promise.resolve(),
-    delete: () => Promise.resolve(),
-    search: (q) => {
-      const lower = q.toLowerCase()
-      const hits = MOCK_PAPERS
-        .filter(p =>
-          p.title.toLowerCase().includes(lower) ||
-          p.tags.some(t => t.includes(lower)) ||
-          p.authors.some(a => a.toLowerCase().includes(lower))
-        )
-        .map(paper => ({ paper, score: 1, terms: [q] }))
-      return Promise.resolve(hits)
-    },
-    importArxiv: () => Promise.resolve('imported-id'),
-    importPdf: () => Promise.resolve('imported-id'),
-  },
-  schema: {
-    get: () => Promise.resolve({
-      version: 1,
-      columns: [
-        { name: 'id',         type: 'text',   inCsv: true },
-        { name: 'title',      type: 'text',   inCsv: true },
-        { name: 'authors',    type: 'tags',   inCsv: true },
-        { name: 'year',       type: 'number', inCsv: true },
-        { name: 'venue',      type: 'text',   inCsv: true },
-        { name: 'tags',       type: 'tags',   inCsv: true },
-        {
-          name: 'status', type: 'select', inCsv: true,
-          options: [{ value: 'unread' }, { value: 'reading' }, { value: 'read' }, { value: 'archived' }],
-        },
-        { name: 'rating',     type: 'number', inCsv: true },
-        { name: 'added_at',   type: 'date',   inCsv: true },
-        { name: 'updated_at', type: 'date',   inCsv: true },
-      ],
-    }),
-    addColumn: () => Promise.resolve(),
-    removeColumn: () => Promise.resolve(),
-    renameColumn: () => Promise.resolve(),
-  },
-  agent: {
-    send: () => Promise.resolve(''),
-    abort: () => Promise.resolve(),
-    getConfig: () => Promise.resolve(null),
-    setProfile: () => Promise.resolve(),
-    updateProfile: () => Promise.resolve(),
-    saveKey: () => Promise.resolve(),
-    testKey: () => Promise.resolve(true),
-    getProfiles: () => Promise.resolve([]),
-    onEvent: () => () => {},
-  },
-  conversations: {
-    list:   () => Promise.resolve([]),
-    get:    () => Promise.reject(new Error('No conversations in web preview')),
-    create: () => Promise.resolve({ id: 'stub', title: 'Demo', createdAt: Date.now(), updatedAt: Date.now(), messageCount: 0 }),
-    rename: () => Promise.resolve(),
-    delete: () => Promise.resolve(),
-  },
-  pdf: {
-    getPath: () => Promise.resolve(null),
-  },
-  app: {
-    platform: 'darwin' as NodeJS.Platform,
-    onMenuCommand: () => () => {},
-  },
-  window: {
-    minimize: () => {},
-    toggleMaximize: () => {},
-    close: () => {},
-    onMaximized: () => () => {},
-  },
-}
-
 import { webApi } from '@/web/webApi'
+import { makeDesktopApi } from '@/desktop/desktopApi'
+import type { IPreloadApi } from '@/desktop/preloadApi'
 
 declare const __WEB_BUILD__: boolean | undefined
 
+/**
+ * Pick the right `IApi` for the runtime:
+ *   - Electron renderer: `window.api` is set by preload → wrap with `makeDesktopApi`
+ *   - Web build: `__WEB_BUILD__` define is true → use S3-backed `webApi`
+ * Anything else throws — there is no third runtime.
+ */
 function pickApi(): IApi {
-  const electronApi = (window as { api?: IApi }).api
-  if (electronApi) return electronApi
+  const electronApi = (window as unknown as { api?: IPreloadApi }).api
+  if (electronApi) return makeDesktopApi(electronApi)
   if (typeof __WEB_BUILD__ !== 'undefined' && __WEB_BUILD__) return webApi
-  return webStub
+  throw new Error('Verko: no IApi backend (neither window.api nor __WEB_BUILD__ available).')
 }
 
 export const api: IApi = pickApi()

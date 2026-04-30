@@ -15,6 +15,17 @@ export interface RunAgentLoopOptions {
   /** Called as each finalized assistant / tool message is appended. */
   onMessage: (msg: NormalizedMessage) => void
   abortSignal: AbortSignal
+  /**
+   * Optional: invoked at the start of every iteration with the current
+   * messages array. Can mutate it (e.g. micro-compact) and/or return a
+   * replacement (e.g. auto-compact when threshold exceeded). Returning
+   * `null`/`undefined` means "keep the existing array".
+   */
+  beforeTurn?: (messages: NormalizedMessage[]) => Promise<NormalizedMessage[] | null | void>
+  /** Tool name that signals "compact after this turn finishes". */
+  compactToolName?: string
+  /** Compaction implementation. Returns the replacement message list. */
+  onCompact?: (messages: NormalizedMessage[]) => Promise<NormalizedMessage[]>
 }
 
 /**
@@ -29,12 +40,29 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
   const {
     provider, systemPrompt, messages, tools, maxTurns, temperature,
     dispatchTool, onEvent, onMessage, abortSignal,
+    beforeTurn, compactToolName, onCompact,
   } = opts
+
+  // Helper: replace `messages` in place with a new array.
+  const replaceMessages = (next: NormalizedMessage[]): void => {
+    messages.length = 0
+    messages.push(...next)
+  }
 
   for (let turn = 0; turn < maxTurns; turn++) {
     if (abortSignal.aborted) {
       onEvent({ type: 'done' })
       return
+    }
+
+    if (beforeTurn) {
+      try {
+        const replaced = await beforeTurn(messages)
+        if (replaced) replaceMessages(replaced)
+      } catch (e) {
+        // Compaction failure is non-fatal — keep going with the original messages.
+        onEvent({ type: 'error', message: `Compaction skipped: ${e instanceof Error ? e.message : String(e)}` })
+      }
     }
 
     let assistantText = ''
@@ -87,6 +115,7 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
       return
     }
 
+    let manualCompactRequested = false
     for (const tc of toolCalls) {
       let parsed: Record<string, unknown> = {}
       try { parsed = JSON.parse(tc.arguments || '{}') } catch { /* keep {} */ }
@@ -108,6 +137,20 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
       }
       messages.push(toolMsg)
       onMessage(toolMsg)
+
+      if (compactToolName && tc.name === compactToolName) {
+        manualCompactRequested = true
+      }
+    }
+
+    if (manualCompactRequested && onCompact) {
+      try {
+        const replaced = await onCompact(messages)
+        replaceMessages(replaced)
+        onEvent({ type: 'compacted' })
+      } catch (e) {
+        onEvent({ type: 'error', message: `Manual compaction failed: ${e instanceof Error ? e.message : String(e)}` })
+      }
     }
   }
 

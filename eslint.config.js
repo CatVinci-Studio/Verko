@@ -62,7 +62,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/main/__tests__/**/*.ts'],
+    files: ['src/electron/__tests__/**/*.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },

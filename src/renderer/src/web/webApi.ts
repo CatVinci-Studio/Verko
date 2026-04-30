@@ -4,17 +4,23 @@ import { PROVIDER_DEFINITIONS } from '@shared/providers'
 import { createProvider } from '@shared/agent/providers'
 import { Library } from '@shared/paperdb/store'
 import { S3Backend, type S3BackendConfig } from '@shared/paperdb/backendS3'
+import { LocalStorageBackend } from '@shared/paperdb/backendLocalStorage'
+import { ConversationStore } from '@shared/agent/conversationStore'
+import { SHARED_TOOLS, dispatchFromRegistry } from '@shared/agent/tools'
+import { buildLibraryFacade } from '@/lib/libraryFacade'
+import { buildAgentFacade } from '@/lib/agentFacade'
 import { clearCreds, loadCreds, saveCreds } from './credentials'
 import { hasApiKey, loadApiKey, saveApiKey } from './apiKeys'
-import { WebAgent } from './webAgent'
 
 type S3Creds = S3BackendConfig
 
 /**
- * Web build adapter for IApi. Read-only — every write op resolves with a
- * "not supported" error so the UI surfaces the limitation. The single active
- * library is whatever S3 connection is stored in IndexedDB; there is no
- * concept of multi-library on the web.
+ * Web build adapter for `IApi`. Single S3-backed library, single agent
+ * runtime over `LocalStorageBackend`. Mirrors `makeDesktopApi` — only the
+ * storage backend choice differs.
+ *
+ * Mutations against the active library do work; only multi-library /
+ * platform-specific operations (`pickFolder`, `exportZip`, …) reject.
  */
 
 let lib: Library | null = null
@@ -33,11 +39,9 @@ function setActiveProfileId(id: string): void {
   localStorage.setItem(ACTIVE_PROFILE_LS, id)
 }
 
-const agent = new WebAgent(
-  () => lib,
-  () => s3Creds?.bucket ?? 'Library',
-  (providerId: string) => loadApiKey(providerId),
-)
+const convStore = new ConversationStore(new LocalStorageBackend('verko:conv'))
+const transcriptBackend = new LocalStorageBackend('verko:transcripts')
+const toolDefs = Object.values(SHARED_TOOLS).map((h) => h.def)
 
 function notSupported(): Promise<never> {
   return Promise.reject(new Error('This action is only available in the desktop app.'))
@@ -79,6 +83,153 @@ async function reload(creds: S3Creds): Promise<LibraryInfo> {
   info = buildInfo(creds, (await l.list()).length)
   for (const cb of switchedListeners) cb(info)
   return info
+}
+
+const libFacade = buildLibraryFacade(() => ensureLib())
+
+const ag = buildAgentFacade({
+  store: convStore,
+  config: {
+    getConfig: async (): Promise<AgentConfig> => ({
+      defaultProfile: getActiveProfileId(),
+      profiles: PROVIDER_DEFINITIONS.map((d) => ({
+        name: d.id,
+        protocol: d.protocol,
+        baseUrl: d.defaults.baseUrl,
+        model: d.defaults.model,
+      })),
+      maxTurns: 10,
+      temperature: 0.3,
+      showToolCalls: true,
+    }),
+    setProfile: async (id) => { setActiveProfileId(id) },
+    updateProfile: async () => {
+      // Models / baseUrls are catalog-driven in the web build.
+    },
+    saveKey: async (profile, key, remember) => { saveApiKey(profile, key, remember) },
+    loadKey: async (profile) => loadApiKey(profile),
+    testKey: async (profile) => {
+      const def = PROVIDER_DEFINITIONS.find((d) => d.id === profile)
+      if (!def) return false
+      const apiKey = loadApiKey(profile)
+      if (!apiKey) return false
+      try {
+        const provider = createProvider({
+          protocol: def.protocol,
+          baseUrl: def.defaults.baseUrl,
+          apiKey,
+          model: def.defaults.model,
+        })
+        return await provider.testConnection()
+      } catch {
+        return false
+      }
+    },
+    getProfiles: async (): Promise<AgentProfile[]> =>
+      PROVIDER_DEFINITIONS.map((d) => ({
+        name: d.id,
+        protocol: d.protocol,
+        baseUrl: d.defaults.baseUrl,
+        model: d.defaults.model,
+        hasKey: hasApiKey(d.id),
+      })),
+  },
+  ports: {
+    async getProvider() {
+      const def = PROVIDER_DEFINITIONS.find((d) => d.id === getActiveProfileId())
+      if (!def) return null
+      const apiKey = loadApiKey(def.id)
+      if (!apiKey) return null
+      const provider = createProvider({
+        protocol: def.protocol,
+        baseUrl: def.defaults.baseUrl,
+        apiKey,
+        model: def.defaults.model,
+      })
+      return { provider, model: def.defaults.model }
+    },
+    describeContext: async () => {
+      const l = await ensureLib()
+      const base = {
+        libraryName: s3Creds?.bucket ?? 'Library',
+        libraryRoot: l?.backend.describe() ?? '(no library)',
+      }
+      if (!l) return { ...base, paperCount: 0, collections: [], customColumns: [], skills: [] }
+      const refs = await l.list()
+      return {
+        ...base,
+        paperCount: refs.length,
+        collections: l.listCollections(),
+        customColumns: l.schema().columns.map((c) => ({ name: c.name, type: c.type })),
+        skills: await l.listSkills(),
+      }
+    },
+    getTools: () => toolDefs,
+    dispatchTool: async (name, args) => {
+      if (!lib) return JSON.stringify({ error: 'No active library.' })
+      return dispatchFromRegistry(SHARED_TOOLS, name, args, { library: lib })
+    },
+    store: convStore,
+    saveTranscript: async (convId, snapshot) => {
+      const key = `${convId}-${Date.now()}.json`
+      try {
+        await transcriptBackend.writeFile(key, JSON.stringify(snapshot))
+        return key
+      } catch {
+        return null
+      }
+    },
+    maxTurns: 10,
+    temperature: 0.3,
+  },
+})
+
+// Web build only supports a subset of paper / collection mutations; override
+// with `notSupported` after the facade so the type is preserved.
+const papers: IApi['papers'] = {
+  ...libFacade.papers,
+  add: notSupported,
+  update: notSupported,
+  delete: notSupported,
+  importPdf: notSupported,
+}
+
+const collections: IApi['collections'] = {
+  ...libFacade.collections,
+  create: notSupported,
+  delete: notSupported,
+  rename: notSupported,
+  addPaper: notSupported,
+  removePaper: notSupported,
+}
+
+const schema: IApi['schema'] = {
+  ...libFacade.schema,
+  addColumn: notSupported,
+  removeColumn: notSupported,
+  renameColumn: notSupported,
+}
+
+const pdf: IApi['pdf'] = {
+  getPath: async (id) => {
+    const l = await ensureLib()
+    if (!l) return null
+    const stream = l.pdfStream(id)
+    if (!stream) return null
+    const reader = stream.getReader()
+    const chunks: Uint8Array[] = []
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) chunks.push(value)
+    }
+    const total = chunks.reduce((n, c) => n + c.length, 0)
+    const bytes = new Uint8Array(total)
+    let off = 0
+    for (const c of chunks) { bytes.set(c, off); off += c.length }
+    const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' })
+    return URL.createObjectURL(blob)
+  },
 }
 
 export const webApi: IApi = {
@@ -134,121 +285,21 @@ export const webApi: IApi = {
     },
     onNone: () => () => {},
   },
-
-  collections: {
-    list: async () => {
-      const l = await ensureLib()
-      return l?.listCollections() ?? []
-    },
-    create: notSupported, delete: notSupported, rename: notSupported,
-    addPaper: notSupported, removePaper: notSupported,
+  papers,
+  schema,
+  collections,
+  agent: ag.agent,
+  conversations: ag.conversations,
+  pdf,
+  fs: {
+    read:   () => Promise.reject(new Error('fs is desktop-only')),
+    write:  () => Promise.reject(new Error('fs is desktop-only')),
+    delete: () => Promise.reject(new Error('fs is desktop-only')),
+    list:   () => Promise.resolve([]),
+    exists: () => Promise.resolve(false),
   },
-
-  papers: {
-    list: async (filter, collection) => {
-      const l = await ensureLib()
-      return l ? l.list(filter, collection) : []
-    },
-    get: async (id) => {
-      const l = await ensureLib()
-      if (!l) throw new Error('No active library')
-      return l.get(id)
-    },
-    add: notSupported, update: notSupported, delete: notSupported,
-    search: async (q) => {
-      const l = await ensureLib()
-      return l ? l.search(q) : []
-    },
-    importArxiv: notSupported, importPdf: notSupported,
-  },
-
-  schema: {
-    get: async () => {
-      const l = await ensureLib()
-      return l?.schema() ?? { version: 1, columns: [] }
-    },
-    addColumn: notSupported, removeColumn: notSupported, renameColumn: notSupported,
-  },
-
-  agent: {
-    send: async (message, attachments, paperId, language, conversationId) => {
-      return agent.send(message, attachments, paperId, language, conversationId, getActiveProfileId())
-    },
-    abort: async (conversationId) => { agent.abort(conversationId) },
-    getConfig: async (): Promise<AgentConfig> => ({
-      defaultProfile: getActiveProfileId(),
-      profiles: PROVIDER_DEFINITIONS.map((d) => ({
-        name: d.id,
-        protocol: d.protocol,
-        baseUrl: d.defaults.baseUrl,
-        model: d.defaults.model,
-      })),
-      maxTurns: 10,
-      temperature: 0.3,
-      showToolCalls: true,
-    }),
-    setProfile: async (id: string) => { setActiveProfileId(id) },
-    updateProfile: async () => {
-      // Models / baseUrls are catalog-driven in the web build.
-    },
-    saveKey: async (profile, key, remember) => { saveApiKey(profile, key, remember) },
-    testKey: async (profile) => {
-      const def = PROVIDER_DEFINITIONS.find((d) => d.id === profile)
-      if (!def) return false
-      const apiKey = loadApiKey(profile)
-      if (!apiKey) return false
-      try {
-        const provider = createProvider({
-          protocol: def.protocol,
-          baseUrl: def.defaults.baseUrl,
-          apiKey,
-          model: def.defaults.model,
-        })
-        return await provider.testConnection()
-      } catch {
-        return false
-      }
-    },
-    getProfiles: async (): Promise<AgentProfile[]> =>
-      PROVIDER_DEFINITIONS.map((d) => ({
-        name: d.id,
-        protocol: d.protocol,
-        baseUrl: d.defaults.baseUrl,
-        model: d.defaults.model,
-        hasKey: hasApiKey(d.id),
-      })),
-    onEvent: (cb) => agent.subscribe(cb),
-  },
-
-  conversations: {
-    list:   async () => agent.listConversations(),
-    get:    async (id: string) => agent.getConversation(id),
-    create: async (title?: string) => agent.createConversation(title),
-    rename: async (id: string, title: string) => agent.renameConversation(id, title),
-    delete: async (id: string) => agent.deleteConversation(id),
-  },
-
-  pdf: {
-    getPath: async (id) => {
-      const l = await ensureLib()
-      if (!l) return null
-      const stream = l.pdfStream(id)
-      if (!stream) return null
-      const reader = stream.getReader()
-      const chunks: Uint8Array[] = []
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        if (value) chunks.push(value)
-      }
-      const total = chunks.reduce((n, c) => n + c.length, 0)
-      const bytes = new Uint8Array(total)
-      let off = 0
-      for (const c of chunks) { bytes.set(c, off); off += c.length }
-      if (!bytes) return null
-      const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' })
-      return URL.createObjectURL(blob)
-    },
+  paths: {
+    libraryRoot: () => Promise.resolve(null),
   },
   app: {
     platform: 'web' as unknown as NodeJS.Platform,

@@ -1,71 +1,17 @@
 import type { PaperDraft, PaperPatch, Filter } from '@shared/types'
-import { type ToolRegistry, decodeUtf8 } from './types'
+import { type ToolRegistry } from './types'
 
-/** Read / write tools that operate purely on a Library. Browser-safe. */
+/**
+ * Paper-level operations. Reads of papers.csv / papers/<id>.md / etc. are
+ * not exposed here — the model uses `read_file` for those. This module
+ * only owns mutations that need Library invariants (id generation, schema
+ * defaults, search-index sync, CSV round-trip safety).
+ */
 export const paperTools: ToolRegistry = {
-  read_library_csv: {
-    def: {
-      name: 'read_library_csv',
-      description:
-        'Read the entire papers.csv index for the active library. Use this first to get an overview of all papers and their metadata.',
-      parameters: { type: 'object', properties: {}, required: [] },
-    },
-    async call(_args, { library }) {
-      try {
-        return decodeUtf8(await library.backend.readFile('papers.csv'))
-      } catch {
-        return 'Error: Could not read library CSV. The library may be empty.'
-      }
-    },
-  },
-
-  read_paper: {
-    def: {
-      name: 'read_paper',
-      description:
-        'Read the full markdown content (including frontmatter and notes) of a specific paper.',
-      parameters: {
-        type: 'object',
-        properties: { id: { type: 'string', description: 'Paper ID' } },
-        required: ['id'],
-      },
-    },
-    async call(args, { library }) {
-      const id = args['id'] as string
-      try {
-        return decodeUtf8(await library.backend.readFile(`papers/${id}.md`))
-      } catch {
-        return `Error: Could not read paper "${id}". File may not exist.`
-      }
-    },
-  },
-
-  list_paper_ids: {
-    def: {
-      name: 'list_paper_ids',
-      description: 'List all paper IDs in the active library by scanning the papers directory.',
-      parameters: { type: 'object', properties: {}, required: [] },
-    },
-    async call(_args, { library }) {
-      try {
-        const files = await library.backend.listFiles('papers')
-        const ids = files
-          .filter((f) => f.endsWith('.md'))
-          .map((f) => {
-            const name = f.split('/').pop() ?? f
-            return name.slice(0, -3)
-          })
-        return JSON.stringify(ids)
-      } catch {
-        return JSON.stringify([])
-      }
-    },
-  },
-
   add_paper: {
     def: {
       name: 'add_paper',
-      description: 'Add a new paper to the active library.',
+      description: 'Add a new paper. Field values land in papers.csv; the `notes` argument seeds the markdown body file.',
       parameters: {
         type: 'object',
         properties: {
@@ -106,7 +52,7 @@ export const paperTools: ToolRegistry = {
   update_paper: {
     def: {
       name: 'update_paper',
-      description: 'Update metadata fields of an existing paper.',
+      description: 'Update field values (writes to papers.csv) or replace the notes body (writes to papers/<id>.md). Pass only the fields you want to change.',
       parameters: {
         type: 'object',
         properties: {
@@ -151,7 +97,7 @@ export const paperTools: ToolRegistry = {
     def: {
       name: 'append_note',
       description:
-        'Append text to a specific section of a paper\'s notes. Prefer this over update_paper for adding notes.',
+        'Append text to a section of a paper\'s notes (body markdown). Creates the section if absent. Prefer this over `update_paper(markdown)` for adding to existing notes — it preserves prior content. Field changes belong in `update_paper`, not here.',
       parameters: {
         type: 'object',
         properties: {
