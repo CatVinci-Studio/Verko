@@ -6,7 +6,7 @@ import { runAgentLoop } from '@shared/agent/loop'
 import { buildSystemPrompt } from '@shared/agent/prompt'
 import { createProvider, type NormalizedMessage, type ToolDef } from '@shared/agent/providers'
 import { getProviderDefinition } from '@shared/providers'
-import { dispatchWebTool, WEB_TOOL_DEFS } from './webTools'
+import { dispatchSharedTool, SHARED_TOOL_DEFS } from '@shared/agent/tools'
 import type { Library } from '@shared/paperdb/store'
 
 const CONV_LS_KEY = 'verko:conversations'
@@ -199,7 +199,7 @@ export class WebAgent {
     const ctrl = new AbortController()
     this.aborts.set(convId, ctrl)
 
-    const tools: ToolDef[] = WEB_TOOL_DEFS
+    const tools: ToolDef[] = SHARED_TOOL_DEFS
 
     void runAgentLoop({
       provider,
@@ -208,7 +208,7 @@ export class WebAgent {
       tools,
       maxTurns: 10,
       temperature: 0.3,
-      dispatchTool: (name, args) => dispatchWebTool(name, args, lib),
+      dispatchTool: (name, args) => dispatchSharedTool(name, args, { library: lib }),
       onEvent: (ev) => this.emit(convId!, ev),
       onMessage: (msg) => this.append(convId!, normalizedToChat(msg)),
       abortSignal: ctrl.signal,

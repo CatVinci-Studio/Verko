@@ -25,11 +25,17 @@ src/
       store.ts        #   Library class (operates on the StorageBackend interface)
       backend.ts      #   StorageBackend interface (Uint8Array + ReadableStream)
       backendS3.ts    #   S3-compatible backend (AWS SDK v3, browser-safe)
-    agent/            # Agent loop, system prompt, provider adapters
+    agent/            # Agent loop, system prompt, provider adapters, shared tools
       loop.ts         #   runAgentLoop(provider, dispatchTool, …) — tool-agnostic
       prompt.ts       #   buildSystemPrompt(language, ctx) — EN + ZH
       providers/      #   openai/anthropic/gemini SDK adapters; dangerouslyAllowBrowser
                       #   is set in browser so user keys go straight to the LLM provider
+      tools/          #   Modular browser-safe tool registry:
+                      #     paperTools (CRUD + search)
+                      #     collectionTools (list/create/add/remove)
+                      #     fileTools (read_file/write_file/list_files)
+                      #     webTools (web_fetch)
+                      #     index.ts: SHARED_TOOLS + dispatchSharedTool
     types.ts          # Master type contract (PaperRef, IpcChannels, AgentEvent, …)
     providers.ts      # PROVIDER_DEFINITIONS catalog (id, name, defaults, fields)
     presets.ts        # DEFAULT_AGENT_CONFIG derived from the catalog
@@ -43,8 +49,11 @@ src/
     libraries/        # registry.ts (libraries.json) + credentials.ts (safeStorage)
     agent/
       session.ts      #   AgentSession: per-window agent gateway
-      tools.ts        #   Full tool registry + dispatch (uses LibraryManager)
-      tools/          #   web_fetch (web.ts), view_pdf_page + read_document (documents.ts)
+      tools/          #   Main-only tool subset, composed onto SHARED_TOOLS:
+                      #     managerTools (list_libraries / switch_library)
+                      #     pdfTools (extract_pdf_text + view_pdf_page)
+                      #     documentTools (read_document via mammoth + pdfjs)
+                      #     index.ts: ALL_TOOLS + dispatchTool
       conversations.ts#   per-conversation JSON files in userData
       auth.ts         #   API key store: safeStorage (remember=true) or memory (false)
       config.ts       #   electron-store + catalog sync migration
@@ -58,8 +67,8 @@ src/
   renderer/src/       # React frontend
     web/              # Web-build adapter — re-uses shared Library + agent loop
       webApi.ts       #   Wraps shared Library + WebAgent into the IApi shape
-      webAgent.ts     #   Drives shared runAgentLoop with localStorage conversations
-      webTools.ts     #   Reduced toolset: read/search/list/web_fetch (S3 read-only)
+      webAgent.ts     #   Drives shared runAgentLoop with shared tools
+                      #   and localStorage-backed conversation persistence
       apiKeys.ts      #   Per-provider key store (localStorage / memory)
       credentials.ts  #   S3 credential store (IndexedDB)
     store/            # Zustand stores: library, ui, agent, dialogs

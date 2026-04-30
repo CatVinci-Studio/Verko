@@ -12,11 +12,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/main/**/*.test.ts'],
+    include: ['src/{main,shared}/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
-      include: ['src/main/**/*.ts'],
+      include: ['src/{main,shared}/**/*.ts'],
       exclude: ['**/*.test.*', '**/__tests__/**'],
     }
   },

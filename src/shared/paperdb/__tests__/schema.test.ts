@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { loadSchema, saveSchema, DEFAULT_SCHEMA } from '@shared/paperdb/schema'
-import { LocalBackend } from '../paperdb/backendLocal'
+import { LocalBackend } from '@main/paperdb/backendLocal'
 
 let tmpDir: string
 let backend: LocalBackend

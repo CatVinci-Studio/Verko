@@ -1,7 +1,10 @@
 import { promises as fs } from 'fs'
 import mammoth from 'mammoth'
 import type { Library } from '@shared/paperdb/store'
-import { turndown } from './web'
+import TurndownService from 'turndown'
+
+const turndown = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
+turndown.remove(['script', 'style', 'noscript', 'iframe'])
 
 interface PdfPageImage {
   type: 'image'
