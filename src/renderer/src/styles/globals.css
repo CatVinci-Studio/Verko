@@ -10,15 +10,15 @@
     --muted-foreground: 0 0% 65%;
     --border: 0 0% 13%;
     --input: 0 0% 13%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 197 86% 65%;
+    --primary-foreground: 0 0% 8%;
     --secondary: 0 0% 7%;
     --secondary-foreground: 0 0% 100%;
     --accent: 0 0% 10%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 70% 60%;
     --destructive-foreground: 0 0% 100%;
-    --ring: 217 91% 60%;
+    --ring: 197 86% 65%;
     --radius: 0.5rem;
 
     /* Surfaces — black with very tight elevation steps */
@@ -29,11 +29,11 @@
     --bg-elevated:       #141414;
     --bg-hover:          #1a1a1a;
     --bg-active:         #222222;
-    --bg-accent-subtle:  rgba(59, 130, 246, 0.10);
+    --bg-accent-subtle:  rgba(88, 200, 242, 0.10);
 
     /* Borders — almost invisible to keep the eye on content */
     --border-color:      #1f1f1f;
-    --border-focus:      rgba(59, 130, 246, 0.5);
+    --border-focus:      rgba(88, 200, 242, 0.5);
 
     /* Text — high-contrast white scale, no muddy mid-greys */
     --text-primary:      #ffffff;
@@ -41,16 +41,16 @@
     --text-secondary:    #d4d4d4;
     --text-muted:        #8a8a8a;
     --text-dim:          #525252;
-    --text-link:         #60a5fa;
+    --text-link:         #58C8F2;
 
-    /* Accent — premium blue (Linear / Vercel feel) */
-    --accent-color:      #3b82f6;
-    --accent-hover:      #2563eb;
-    --accent-on:         #ffffff;
-    --accent-dim:        rgba(59, 130, 246, 0.14);
+    /* Accent — Verko sky blue */
+    --accent-color:      #58C8F2;
+    --accent-hover:      #30b5e8;
+    --accent-on:         #041420;
+    --accent-dim:        rgba(88, 200, 242, 0.14);
 
     --status-unread:     #8a8a8a;
-    --status-reading:    #3b82f6;
+    --status-reading:    #58C8F2;
     --status-read:       #22c55e;
     --status-archived:   #525252;
 
@@ -71,15 +71,15 @@
     --muted-foreground: 0 0% 35%;
     --border: 0 0% 91%;
     --input: 0 0% 91%;
-    --primary: 217 91% 60%;
+    --primary: 197 86% 65%;
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 96%;
     --secondary-foreground: 0 0% 0%;
-    --accent: 217 91% 95%;
+    --accent: 197 60% 92%;
     --accent-foreground: 0 0% 0%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --ring: 217 91% 60%;
+    --ring: 197 86% 65%;
 
     --bg-base:           #ffffff;
     --bg-sidebar:        #fafafa;
@@ -88,25 +88,25 @@
     --bg-elevated:       #f9fafb;
     --bg-hover:          #f3f4f6;
     --bg-active:         #e5e7eb;
-    --bg-accent-subtle:  rgba(59, 130, 246, 0.08);
+    --bg-accent-subtle:  rgba(88, 200, 242, 0.10);
 
     --border-color:      #e5e7eb;
-    --border-focus:      rgba(59, 130, 246, 0.5);
+    --border-focus:      rgba(88, 200, 242, 0.5);
 
     --text-primary:      #000000;
     --text-bright:       #000000;
     --text-secondary:    #374151;
     --text-muted:        #6b7280;
     --text-dim:          #9ca3af;
-    --text-link:         #2563eb;
+    --text-link:         #0ea0c8;
 
-    --accent-color:      #2563eb;
-    --accent-hover:      #1d4ed8;
-    --accent-on:         #ffffff;
-    --accent-dim:        rgba(37, 99, 235, 0.12);
+    --accent-color:      #58C8F2;
+    --accent-hover:      #30b5e8;
+    --accent-on:         #041420;
+    --accent-dim:        rgba(88, 200, 242, 0.15);
 
     --status-unread:     #6b7280;
-    --status-reading:    #2563eb;
+    --status-reading:    #58C8F2;
     --status-read:       #16a34a;
     --status-archived:   #9ca3af;
 
