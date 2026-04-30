@@ -1,9 +1,11 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect } from 'react'
 import { Send, Square, Paperclip, X, FileText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import type { ChatContentPart, PaperRef } from '@shared/types'
 import { MentionPicker } from './MentionPicker'
+import { useMentionPicker } from './hooks/useMentionPicker'
+import { useImageAttachments } from './hooks/useImageAttachments'
 
 interface ChatInputProps {
   value: string
@@ -18,23 +20,6 @@ interface ChatInputProps {
   /** Papers picked via the @-mention picker; expanded into prompt context on send. */
   mentionedPapers?: PaperRef[]
   onMentionedPapersChange?: (next: PaperRef[]) => void
-}
-
-function readFileAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result
-      if (typeof result !== 'string') {
-        reject(new Error('Unexpected FileReader result'))
-        return
-      }
-      const comma = result.indexOf(',')
-      resolve(comma >= 0 ? result.slice(comma + 1) : result)
-    }
-    reader.onerror = () => reject(reader.error ?? new Error('FileReader error'))
-    reader.readAsDataURL(file)
-  })
 }
 
 export function ChatInput({
@@ -53,16 +38,19 @@ export function ChatInput({
   const { t } = useTranslation()
   const resolvedPlaceholder = placeholder ?? t('agent.placeholder')
   const inputRef = useRef<HTMLInputElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // @-mention picker state. `triggerPos` records the index of the `@` in the
-  // textarea value so we can tell where the query ends (caret) and replace
-  // the whole token on selection.
-  const [mention, setMention] = useState<{
-    triggerPos: number
-    coords: { x: number; y: number }
-    query: string
-  } | null>(null)
+  const mention = useMentionPicker({
+    value,
+    onChange,
+    inputRef,
+    mentioned: mentionedPapers ?? [],
+    onMentionedChange: onMentionedPapersChange,
+  })
+
+  const images = useImageAttachments({
+    attachments: attachments ?? [],
+    onChange: onAttachmentsChange,
+  })
 
   useEffect(() => {
     if (!autoFocus) return
@@ -74,6 +62,11 @@ export function ChatInput({
   const hasMentions = !!mentionedPapers && mentionedPapers.length > 0
   const canSend = !!value.trim() || hasAttachments || hasMentions
 
+  const removeMentionedPaper = (id: string) => {
+    if (!onMentionedPapersChange || !mentionedPapers) return
+    onMentionedPapersChange(mentionedPapers.filter((p) => p.id !== id))
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
       e.preventDefault()
@@ -82,96 +75,8 @@ export function ChatInput({
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const next = e.target.value
-    onChange(next)
-    const el = e.target
-
-    // Detect @-mention trigger: the most recent `@` before the caret with
-    // only word/space chars between it and the caret, and either start of
-    // string or whitespace before the `@`.
-    const caret = el.selectionStart ?? next.length
-    const upTo = next.slice(0, caret)
-    const at = upTo.lastIndexOf('@')
-    if (at < 0) { setMention(null); return }
-    const before = at === 0 ? ' ' : upTo[at - 1]
-    if (!/\s/.test(before)) { setMention(null); return }
-    const after = upTo.slice(at + 1)
-    if (/[\n\r]/.test(after)) { setMention(null); return }
-    const rect = el.getBoundingClientRect()
-    setMention({
-      triggerPos: at,
-      coords: { x: rect.left + 16, y: rect.top },
-      query: after,
-    })
-  }
-
-  const handleMentionPick = (paper: PaperRef) => {
-    if (!mention) return
-    const before = value.slice(0, mention.triggerPos)
-    const afterCaret = value.slice(mention.triggerPos + 1 + mention.query.length)
-    const token = `@${paper.title || paper.id}`
-    onChange(before + token + (afterCaret.startsWith(' ') ? '' : ' ') + afterCaret)
-    if (onMentionedPapersChange && !(mentionedPapers ?? []).some((p) => p.id === paper.id)) {
-      onMentionedPapersChange([...(mentionedPapers ?? []), paper])
-    }
-    setMention(null)
-    // Restore textarea focus + caret after the inserted token.
-    requestAnimationFrame(() => {
-      const el = inputRef.current
-      if (!el) return
-      el.focus()
-      const pos = before.length + token.length + 1
-      el.setSelectionRange(pos, pos)
-    })
-  }
-
-  const removeMentionedPaper = (id: string) => {
-    if (!onMentionedPapersChange || !mentionedPapers) return
-    onMentionedPapersChange(mentionedPapers.filter((p) => p.id !== id))
-  }
-
-  const appendImageFiles = async (files: File[]) => {
-    if (!onAttachmentsChange || files.length === 0) return
-    const parts: ChatContentPart[] = []
-    for (const f of files) {
-      try {
-        const data = await readFileAsBase64(f)
-        parts.push({ type: 'image', mimeType: f.type, data })
-      } catch {
-        // ignore individual failures
-      }
-    }
-    if (parts.length > 0) {
-      onAttachmentsChange([...(attachments ?? []), ...parts])
-    }
-  }
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []).filter((f) => f.type.startsWith('image/'))
-    await appendImageFiles(files)
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  const handlePaste = async (e: React.ClipboardEvent<HTMLInputElement>) => {
-    const items = e.clipboardData?.items
-    if (!items) return
-    const files: File[] = []
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i]
-      if (item.kind === 'file' && item.type.startsWith('image/')) {
-        const f = item.getAsFile()
-        if (f) files.push(f)
-      }
-    }
-    if (files.length > 0) {
-      e.preventDefault()
-      await appendImageFiles(files)
-    }
-  }
-
-  const removeAttachment = (index: number) => {
-    if (!onAttachmentsChange || !attachments) return
-    onAttachmentsChange(attachments.filter((_, i) => i !== index))
+    onChange(e.target.value)
+    mention.detect(e.target, e.target.value)
   }
 
   return (
@@ -183,7 +88,7 @@ export function ChatInput({
               {mentionedPapers!.map((p) => (
                 <span
                   key={p.id}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--accent-color)]/10 border border-[var(--accent-color)]/25 text-[12.5px] text-[var(--accent-color)] max-w-[240px]"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--accent-color)]/10 border border-[var(--accent-color)]/25 text-[13.5px] text-[var(--accent-color)] max-w-[240px]"
                 >
                   <FileText size={10} className="shrink-0" />
                   <span className="truncate">{p.title || p.id}</span>
@@ -213,7 +118,7 @@ export function ChatInput({
                     />
                     <button
                       type="button"
-                      onClick={() => removeAttachment(i)}
+                      onClick={() => images.remove(i)}
                       className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       title={t('agent.removeAttachment', { defaultValue: 'Remove' })}
                     >
@@ -232,22 +137,22 @@ export function ChatInput({
               value={value}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
+              onPaste={images.onPaste}
               placeholder={resolvedPlaceholder}
-              className="flex-1 bg-transparent border-none text-[15px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none leading-relaxed"
+              className="flex-1 bg-transparent border-none text-[16px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none leading-relaxed"
               style={{ userSelect: 'text' }}
             />
 
             <input
-              ref={fileInputRef}
+              ref={images.fileInputRef}
               type="file"
               accept="image/*"
               multiple
-              onChange={handleFileChange}
+              onChange={images.onFileInputChange}
               className="hidden"
             />
             <Button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => images.openFilePicker()}
               variant="ghost"
               size="icon"
               title={t('agent.attachImage', { defaultValue: 'Attach image' })}
@@ -283,13 +188,13 @@ export function ChatInput({
         </div>
       </div>
 
-      {mention && (
+      {mention.state && (
         <MentionPicker
-          x={mention.coords.x}
-          y={mention.coords.y}
-          query={mention.query}
-          onPick={handleMentionPick}
-          onCancel={() => setMention(null)}
+          x={mention.state!.coords.x}
+          y={mention.state!.coords.y}
+          query={mention.state!.query}
+          onPick={mention.pick}
+          onCancel={() => mention.cancel()}
         />
       )}
     </div>

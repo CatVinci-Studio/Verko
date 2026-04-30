@@ -12,9 +12,9 @@ export function SettingSection({ title, description, children, className }: Sett
   return (
     <section className={cn('space-y-2', className)}>
       <header>
-        <h4 className="text-[14px] font-semibold text-[var(--text-primary)]">{title}</h4>
+        <h4 className="text-[15px] font-semibold text-[var(--text-primary)]">{title}</h4>
         {description && (
-          <p className="text-[13px] text-[var(--text-muted)] mt-0.5">{description}</p>
+          <p className="text-[14px] text-[var(--text-muted)] mt-0.5">{description}</p>
         )}
       </header>
       <div className="divide-y divide-[var(--border-color)]">{children}</div>

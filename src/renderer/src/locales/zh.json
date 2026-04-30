@@ -96,6 +96,12 @@
       },
       "export": "导出为 .zip",
       "import": "从 .zip 导入",
+      "action": {
+        "open": "打开文件夹",
+        "new": "新建知识库",
+        "s3": "连接 S3",
+        "import": "导入 .zip"
+      },
       "exportDone": {
         "title": "知识库已导出",
         "message": "已保存至 {{path}}"

@@ -97,6 +97,12 @@
       },
       "export": "Export to .zip",
       "import": "Import from .zip",
+      "action": {
+        "open": "Open Folder",
+        "new": "New Library",
+        "s3": "Connect S3",
+        "import": "Import .zip"
+      },
       "exportDone": {
         "title": "Library exported",
         "message": "Saved to {{path}}"

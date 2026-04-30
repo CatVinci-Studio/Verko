@@ -13,7 +13,7 @@ export function ChipTag({ tag, onRemove, onClick, active, className }: ChipTagPr
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-0.5 rounded-md text-[12.5px] font-medium px-1.5 py-0.5 transition-colors',
+        'inline-flex items-center gap-0.5 rounded-md text-[13.5px] font-medium px-1.5 py-0.5 transition-colors',
         active
           ? 'bg-[var(--accent-color)]/15 text-[var(--accent-color)]'
           : 'bg-[var(--bg-active)] text-[var(--text-secondary)]',

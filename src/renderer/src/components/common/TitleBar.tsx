@@ -19,7 +19,7 @@ export function TitleBar() {
       {/* App logo + name */}
       <div className="flex-1 flex items-center justify-center gap-2">
         <img src={logoUrl} alt="" className="w-5 h-5 rounded-[5px]" />
-        <span className="text-[14.5px] font-semibold text-[var(--text-secondary)] tracking-wide">
+        <span className="text-[15.5px] font-semibold text-[var(--text-secondary)] tracking-wide">
           {t('titlebar.appName')}
         </span>
       </div>

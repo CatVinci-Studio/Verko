@@ -57,7 +57,7 @@ export function PromptDialog({
         <div className="space-y-3">
           {fields.map((f, i) => (
             <div key={f.name} className="space-y-1.5">
-              <label className="block text-[13px] font-medium text-[var(--text-secondary)]">
+              <label className="block text-[14px] font-medium text-[var(--text-secondary)]">
                 {f.label}
                 {f.required && <span className="text-[var(--danger)] ml-0.5">*</span>}
               </label>
@@ -72,7 +72,7 @@ export function PromptDialog({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') submit()
                 }}
-                className="h-9 text-[14.5px]"
+                className="h-9 text-[15.5px]"
                 style={{ userSelect: 'text' }}
               />
             </div>

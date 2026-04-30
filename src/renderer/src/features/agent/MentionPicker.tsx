@@ -105,14 +105,14 @@ export function MentionPicker({ x, y, query, onPick, onCancel }: MentionPickerPr
       className="bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-[10px] shadow-lg overflow-hidden flex flex-col"
       onMouseDown={(e) => e.preventDefault()}  // keep textarea focus
     >
-      <div className="px-3 py-1.5 text-[12px] uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border-color)]">
+      <div className="px-3 py-1.5 text-[13px] uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border-color)]">
         {collection == null
           ? t('agent.mention.title')
           : <>{collection} <span className="text-[var(--text-dim)] normal-case lowercase">{t('agent.mention.papersIn')}</span></>}
       </div>
       <div className="flex-1 overflow-y-auto py-1">
         {items.length === 0 && (
-          <div className="px-3 py-6 text-center text-[13px] text-[var(--text-muted)]">
+          <div className="px-3 py-6 text-center text-[14px] text-[var(--text-muted)]">
             {t('agent.mention.empty')}
           </div>
         )}
@@ -126,7 +126,7 @@ export function MentionPicker({ x, y, query, onPick, onCancel }: MentionPickerPr
             onClick={() => choose(i)}
             onMouseEnter={() => setHighlight(i)}
             className={
-              'w-full flex items-center gap-2 px-3 py-1.5 text-left text-[13.5px] transition-colors '
+              'w-full flex items-center gap-2 px-3 py-1.5 text-left text-[14.5px] transition-colors '
               + (highlight === i
                 ? 'bg-[var(--bg-sidebar-hover)] text-[var(--text-primary)]'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--bg-sidebar-hover)]')
@@ -150,7 +150,7 @@ export function MentionPicker({ x, y, query, onPick, onCancel }: MentionPickerPr
                 <div className="flex-1 min-w-0">
                   <div className="truncate">{item.paper.title || item.paper.id}</div>
                   {item.paper.authors.length > 0 && (
-                    <div className="text-[12px] text-[var(--text-muted)] truncate">
+                    <div className="text-[13px] text-[var(--text-muted)] truncate">
                       {item.paper.authors.slice(0, 3).join('; ')}{item.paper.year ? ` · ${item.paper.year}` : ''}
                     </div>
                   )}

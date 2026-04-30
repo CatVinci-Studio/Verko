@@ -42,7 +42,7 @@ export function SettingsModal() {
         {/* Header */}
         <div className="flex items-center gap-3 px-6 py-4 border-b border-[var(--border-color)] shrink-0">
           <div className="flex-1">
-            <h2 className="text-[16px] font-semibold text-[var(--text-primary)] tracking-tight">
+            <h2 className="text-[17px] font-semibold text-[var(--text-primary)] tracking-tight">
               {t('settings.title')}
             </h2>
           </div>
@@ -77,7 +77,7 @@ export function SettingsModal() {
                     size={14}
                     className={active ? 'text-[var(--accent-color)]' : 'text-[var(--text-muted)]'}
                   />
-                  <span className="text-[14px] font-medium">
+                  <span className="text-[15px] font-medium">
                     {t(`settings.tabs.${meta.id}`)}
                   </span>
                 </button>
@@ -88,7 +88,7 @@ export function SettingsModal() {
           {/* Content */}
           <div className="flex-1 overflow-y-auto">
             <header className="px-6 pt-5 pb-4 border-b border-[var(--border-color)]">
-              <h3 className="text-[16px] font-semibold text-[var(--text-primary)]">
+              <h3 className="text-[17px] font-semibold text-[var(--text-primary)]">
                 {t(`settings.tabs.${current.id}`)}
               </h3>
             </header>

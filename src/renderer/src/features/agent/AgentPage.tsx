@@ -5,6 +5,7 @@ import { useAgentStore } from '@/store/agent'
 import { useLibraryStore } from '@/store/library'
 import { MessageBubble, StreamingBubble } from './MessageBubble'
 import { ChatInput } from './ChatInput'
+import { expandMentionsToContent } from './expandMentions'
 import { api } from '@/lib/ipc'
 import logoUrl from '@/assets/logo.jpg'
 import type { ChatContentPart, PaperRef } from '@shared/types'
@@ -52,29 +53,7 @@ export function AgentPage() {
     setAttachments([])
     setMentionedPapers([])
 
-    // Inline-expand each @-mentioned paper as a text content part so the
-    // model sees the paper's full markdown without needing a tool call.
-    const expanded: ChatContentPart[] = []
-    for (const p of refs) {
-      try {
-        const detail = await api.papers.get(p.id)
-        const meta = [
-          `id: ${detail.id}`,
-          `title: ${detail.title}`,
-          detail.authors.length ? `authors: ${detail.authors.join('; ')}` : '',
-          detail.year ? `year: ${detail.year}` : '',
-          detail.venue ? `venue: ${detail.venue}` : '',
-          detail.doi ? `doi: ${detail.doi}` : '',
-        ].filter(Boolean).join('\n')
-        expanded.push({
-          type: 'text',
-          text: `[Attached paper @${detail.title || detail.id}]\n${meta}\n\n${detail.markdown}`,
-        })
-      } catch {
-        // ignore — fall back to whatever the model can do with the @-token in the message
-      }
-    }
-
+    const expanded = await expandMentionsToContent(refs, api.papers.get)
     const finalAtts: ChatContentPart[] | undefined = (expanded.length || atts.length)
       ? [...expanded, ...atts]
       : undefined
@@ -92,13 +71,13 @@ export function AgentPage() {
           <div className="w-6 h-6 rounded-[8px] bg-[var(--accent-color)]/15 border border-[var(--accent-color)]/25 flex items-center justify-center shrink-0">
             <Bot size={13} className="text-[var(--accent-color)]" />
           </div>
-          <span className="text-[14.5px] font-medium text-[var(--text-secondary)] truncate flex-1">
+          <span className="text-[15.5px] font-medium text-[var(--text-secondary)] truncate flex-1">
             {activeId ? (conversations.find((c) => c.id === activeId)?.title ?? t('agent.title')) : t('agent.title')}
           </span>
           {contextPaper && (
             <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--accent-color)]/10 border border-[var(--accent-color)]/20">
               <FileText size={10} className="text-[var(--accent-color)]" />
-              <span className="text-[12.5px] text-[var(--accent-color)] truncate max-w-[180px]">
+              <span className="text-[13.5px] text-[var(--accent-color)] truncate max-w-[180px]">
                 {contextPaper.title}
               </span>
             </div>
@@ -145,10 +124,10 @@ function EmptyState() {
     <div className="h-full flex flex-col items-center justify-center gap-4 px-6">
       <img src={logoUrl} alt="" className="w-16 h-16 rounded-[18px] shadow-sm" />
       <div className="text-center">
-        <p className="text-[20px] font-semibold text-[var(--text-primary)] tracking-tight">
+        <p className="text-[22px] font-semibold text-[var(--text-primary)] tracking-tight">
           {t('agent.welcomeTitle')}
         </p>
-        <p className="text-[14px] text-[var(--text-muted)] mt-1">
+        <p className="text-[15px] text-[var(--text-muted)] mt-1">
           {t('agent.welcomeSubtitle')}
         </p>
       </div>

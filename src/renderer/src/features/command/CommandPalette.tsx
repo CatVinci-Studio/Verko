@@ -109,17 +109,17 @@ export function CommandPalette() {
             <Bot size={14} className="text-[var(--accent-color)]" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[12.5px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+            <p className="text-[13.5px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
               {t('command.label')}
             </p>
           </div>
-          <kbd className="text-[11.5px] text-[var(--text-muted)] bg-[var(--bg-elevated)] border border-[var(--bg-active)] rounded px-1.5 py-0.5">esc</kbd>
+          <kbd className="text-[12.5px] text-[var(--text-muted)] bg-[var(--bg-elevated)] border border-[var(--bg-active)] rounded px-1.5 py-0.5">esc</kbd>
         </div>
 
         {/* Context pill (if paper selected as context) */}
         {contextPaperId && (
           <div className="px-4 pb-2">
-            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--accent-color)]/10 border border-[var(--accent-color)]/20 text-[12.5px] text-[var(--accent-color)]">
+            <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--accent-color)]/10 border border-[var(--accent-color)]/20 text-[13.5px] text-[var(--accent-color)]">
               <FileText size={10} />
               <span className="truncate max-w-[240px]">
                 {paperHits.find(h => h.paper.id === contextPaperId)?.paper.title ?? contextPaperId}
@@ -142,7 +142,7 @@ export function CommandPalette() {
               onKeyDown={handleKeyDown}
               placeholder={t('command.placeholder')}
               rows={1}
-              className="flex-1 bg-transparent border-none text-[14.5px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none leading-relaxed min-h-[22px]"
+              className="flex-1 bg-transparent border-none text-[15.5px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none leading-relaxed min-h-[22px]"
               style={{ height: '22px', userSelect: 'text' }}
             />
             <button
@@ -159,7 +159,7 @@ export function CommandPalette() {
               <Send size={11} />
             </button>
           </div>
-          <p className="text-[11.5px] text-[var(--text-dim)] mt-1.5">
+          <p className="text-[12.5px] text-[var(--text-dim)] mt-1.5">
             {t('command.shortcutHintBase')}
             {paperHits.length > 0 ? t('command.shortcutHintWithPaper') : ''}
           </p>
@@ -168,7 +168,7 @@ export function CommandPalette() {
         {/* Paper suggestions */}
         {paperHits.length > 0 && (
           <div className="py-2">
-            <p className="px-4 pb-1 text-[11.5px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <p className="px-4 pb-1 text-[12.5px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               {t('command.papersHeading')}
             </p>
             {paperHits.map((hit, i) => (
@@ -187,8 +187,8 @@ export function CommandPalette() {
                   <FileText size={10} className="text-[var(--text-muted)]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13.5px] text-[var(--text-bright)] font-medium truncate">{hit.paper.title}</p>
-                  <p className="text-[12.5px] text-[var(--text-muted)] truncate">
+                  <p className="text-[14.5px] text-[var(--text-bright)] font-medium truncate">{hit.paper.title}</p>
+                  <p className="text-[13.5px] text-[var(--text-muted)] truncate">
                     {hit.paper.authors.slice(0, 2).join(', ')}
                     {hit.paper.year ? ` · ${hit.paper.year}` : ''}
                   </p>
@@ -209,7 +209,7 @@ export function CommandPalette() {
                 className="w-full flex items-center gap-2 text-left px-3 py-2 rounded-md hover:bg-[var(--bg-elevated)] transition-colors group"
               >
                 <Bot size={11} className="text-[var(--text-dim)] shrink-0 group-hover:text-[var(--accent-color)] transition-colors" />
-                <span className="text-[13.5px] text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] transition-colors">{hint}</span>
+                <span className="text-[14.5px] text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] transition-colors">{hint}</span>
               </button>
             ))}
           </div>

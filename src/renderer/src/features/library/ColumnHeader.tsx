@@ -79,7 +79,7 @@ export function ColumnHeader({ header, onAddColumn }: ColumnHeaderProps) {
         setMenu({ x: e.clientX, y: e.clientY })
       }}
       className={cn(
-        'group/header relative flex items-center h-8 px-3 text-[12.5px] font-medium select-none',
+        'group/header relative flex items-center h-8 px-3 text-[13.5px] font-medium select-none',
         'border-r border-[var(--border-color)]',
         'data-[resizing]:bg-[var(--bg-elevated)]',
         'data-[drag-over]:bg-[var(--accent-color)]/10',

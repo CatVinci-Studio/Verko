@@ -1,6 +1,22 @@
 @import "tailwindcss";
 @config "../../../../tailwind.config.js";
 
+/* ── Geist variable fonts (Vercel, OFL) ─────────────────────────────────── */
+@font-face {
+  font-family: 'Geist';
+  src: url('../assets/fonts/Geist-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../assets/fonts/GeistMono-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   /* ── Dark theme (default) — pure black + white + premium blue ──────────── */
   :root {
@@ -124,15 +140,15 @@ html, body, #app {
 }
 
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
+  font-family: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
   color: var(--text-primary);
   background: var(--bg-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  font-feature-settings: 'ss01', 'ss03', 'cv11';
   user-select: none;
 }
 
@@ -149,7 +165,8 @@ body {
 /* ── CodeMirror dark overrides ──────────────────────────────────────────────── */
 .cm-editor {
   height: 100%;
-  font-size: 13px;
+  font-family: 'Geist Mono', 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 14px;
 }
 .cm-editor.cm-focused { outline: none; }
 .cm-scroller { overflow: auto; }
@@ -157,8 +174,8 @@ body {
 /* ── Prose / markdown content ───────────────────────────────────────────────── */
 .prose-paper {
   color: var(--text-primary);
-  font-family: 'Charter', 'Georgia', serif;
-  font-size: 14px;
+  font-family: 'Geist', 'Charter', 'Georgia', serif;
+  font-size: 15px;
   line-height: 1.75;
   user-select: text;
 }
@@ -173,7 +190,7 @@ body {
 .prose-paper h3 { font-size: 1.05em; }
 .prose-paper p { margin: 0.75em 0; }
 .prose-paper code {
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  font-family: 'Geist Mono', 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 0.85em;
   background: var(--bg-elevated);
   padding: 1px 5px;
