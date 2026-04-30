@@ -50,7 +50,7 @@ parsed.
 export async function loadSchema(backend: StorageBackend): Promise<Schema> {
   if (!(await backend.exists(SCHEMA_REL))) return structuredClone(DEFAULT_SCHEMA)
   try {
-    const raw = (await backend.readFile(SCHEMA_REL)).toString('utf-8')
+    const raw = new TextDecoder('utf-8').decode(await backend.readFile(SCHEMA_REL))
     const { data } = matter(raw)
     return data as Schema
   } catch {

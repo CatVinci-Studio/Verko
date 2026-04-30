@@ -1,16 +1,19 @@
-import type { Readable } from 'node:stream'
-
 /**
  * Storage abstraction for a paper library. All paths are POSIX-style relative
  * paths from the library root (e.g. `papers/2017-vaswani.md`). Each backend
  * (local filesystem, S3, future targets) maps these onto its own naming.
+ *
+ * The interface uses Web-standard primitives (`Uint8Array`, `ReadableStream`)
+ * so that the same `Library` class can run in Node main process or directly
+ * in the browser. Node-side callers can adapt via `Buffer.from(bytes)` and
+ * `Readable.fromWeb(stream)` when they need Node-flavored values.
  */
 export interface StorageBackend {
   /** Read a file's bytes. Rejects with BackendNotFoundError if missing. */
-  readFile(relPath: string): Promise<Buffer>
+  readFile(relPath: string): Promise<Uint8Array>
 
   /** Write a file, creating parent "directories" as needed. */
-  writeFile(relPath: string, data: Buffer | string): Promise<void>
+  writeFile(relPath: string, data: Uint8Array | string): Promise<void>
 
   /** Delete a file. No-op if it does not exist. */
   deleteFile(relPath: string): Promise<void>
@@ -22,7 +25,7 @@ export interface StorageBackend {
   exists(relPath: string): Promise<boolean>
 
   /** Streaming read, used by the PDF viewer and other large reads. */
-  createReadStream(relPath: string): Readable
+  createReadStream(relPath: string): ReadableStream<Uint8Array>
 
   /**
    * Resolve a relative path to a real local filesystem path if one exists, or

@@ -1,9 +1,9 @@
 import { mkdir, readFile, writeFile, rm, readdir, stat, access } from 'fs/promises'
 import { createReadStream as fsCreateReadStream } from 'fs'
+import { Readable } from 'node:stream'
 import { join, dirname, relative, sep, posix } from 'path'
-import type { Readable } from 'node:stream'
-import type { StorageBackend } from './backend'
-import { BackendError, BackendNotFoundError } from './backend'
+import type { StorageBackend } from '@shared/paperdb/backend'
+import { BackendError, BackendNotFoundError } from '@shared/paperdb/backend'
 
 /** Filesystem-backed StorageBackend. Root is an absolute path on disk. */
 export class LocalBackend implements StorageBackend {
@@ -15,7 +15,7 @@ export class LocalBackend implements StorageBackend {
     return join(this.root, ...safe.split('/'))
   }
 
-  async readFile(relPath: string): Promise<Buffer> {
+  async readFile(relPath: string): Promise<Uint8Array> {
     try {
       return await readFile(this.resolve(relPath))
     } catch (e) {
@@ -26,7 +26,7 @@ export class LocalBackend implements StorageBackend {
     }
   }
 
-  async writeFile(relPath: string, data: Buffer | string): Promise<void> {
+  async writeFile(relPath: string, data: Uint8Array | string): Promise<void> {
     const full = this.resolve(relPath)
     try {
       await mkdir(dirname(full), { recursive: true })
@@ -79,8 +79,10 @@ export class LocalBackend implements StorageBackend {
     }
   }
 
-  createReadStream(relPath: string): Readable {
-    return fsCreateReadStream(this.resolve(relPath))
+  createReadStream(relPath: string): ReadableStream<Uint8Array> {
+    // Adapt Node's Readable to a Web ReadableStream so the StorageBackend
+    // interface stays platform-neutral.
+    return Readable.toWeb(fsCreateReadStream(this.resolve(relPath))) as ReadableStream<Uint8Array>
   }
 
   localPath(relPath: string): string | null {

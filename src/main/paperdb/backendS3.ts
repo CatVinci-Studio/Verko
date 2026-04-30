@@ -7,14 +7,13 @@ import {
   HeadObjectCommand,
   HeadBucketCommand,
 } from '@aws-sdk/client-s3'
-import { Readable, PassThrough } from 'node:stream'
-import type { StorageBackend } from './backend'
+import type { StorageBackend } from '@shared/paperdb/backend'
 import {
   BackendAuthError,
   BackendError,
   BackendNetworkError,
   BackendNotFoundError,
-} from './backend'
+} from '@shared/paperdb/backend'
 
 export interface S3BackendConfig {
   endpoint?: string
@@ -71,24 +70,22 @@ export class S3Backend implements StorageBackend {
     return buildKey(this.prefix, relPath)
   }
 
-  async readFile(relPath: string): Promise<Buffer> {
+  async readFile(relPath: string): Promise<Uint8Array> {
     try {
       const out = await this.client.send(
         new GetObjectCommand({ Bucket: this.bucket, Key: this.key(relPath) })
       )
-      const body = out.Body as Readable | undefined
-      if (!body) throw new BackendNotFoundError(relPath)
-      const chunks: Buffer[] = []
-      for await (const c of body) chunks.push(c as Buffer)
-      return Buffer.concat(chunks)
+      const body = out.Body as { transformToByteArray?: () => Promise<Uint8Array> } | undefined
+      if (!body?.transformToByteArray) throw new BackendNotFoundError(relPath)
+      return await body.transformToByteArray()
     } catch (e) {
       throw normalizeError(e, relPath)
     }
   }
 
-  async writeFile(relPath: string, data: Buffer | string): Promise<void> {
+  async writeFile(relPath: string, data: Uint8Array | string): Promise<void> {
     try {
-      const body = typeof data === 'string' ? Buffer.from(data, 'utf-8') : data
+      const body = typeof data === 'string' ? new TextEncoder().encode(data) : data
       await this.client.send(
         new PutObjectCommand({
           Bucket: this.bucket,
@@ -159,21 +156,31 @@ export class S3Backend implements StorageBackend {
     }
   }
 
-  createReadStream(relPath: string): Readable {
-    const out = new PassThrough()
-    this.client
-      .send(new GetObjectCommand({ Bucket: this.bucket, Key: this.key(relPath) }))
-      .then((res) => {
-        const body = res.Body as Readable | undefined
-        if (!body) {
-          out.destroy(new BackendNotFoundError(relPath))
-          return
+  createReadStream(relPath: string): ReadableStream<Uint8Array> {
+    const key = this.key(relPath)
+    const client = this.client
+    const bucket = this.bucket
+    return new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          const res = await client.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
+          const body = res.Body as { transformToWebStream?: () => ReadableStream<Uint8Array> } | undefined
+          if (!body?.transformToWebStream) {
+            controller.error(new BackendNotFoundError(relPath))
+            return
+          }
+          const reader = body.transformToWebStream().getReader()
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            if (value) controller.enqueue(value)
+          }
+          controller.close()
+        } catch (e) {
+          controller.error(normalizeError(e, relPath))
         }
-        body.on('error', (err) => out.destroy(normalizeError(err, relPath)))
-        body.pipe(out)
-      })
-      .catch((err) => out.destroy(normalizeError(err, relPath)))
-    return out
+      },
+    })
   }
 
   localPath(): string | null {

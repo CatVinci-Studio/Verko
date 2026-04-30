@@ -13,13 +13,13 @@ import type {
   SearchHit,
   CollectionInfo,
 } from '@shared/types'
-import type { StorageBackend } from './backend'
-import { loadSchema, saveSchema } from './schema'
-import { parseFrontmatter, stringifyFrontmatter, normalizePaperData } from './frontmatter'
-import { rebuildCsv } from './csv'
-import { buildIndex, searchIndex } from './search'
-import { generateId } from './id'
-import { detectAndImport } from './import'
+import type { StorageBackend } from '@shared/paperdb/backend'
+import { loadSchema, saveSchema } from '@shared/paperdb/schema'
+import { parseFrontmatter, stringifyFrontmatter, normalizePaperData } from '@shared/paperdb/frontmatter'
+import { rebuildCsv } from '@shared/paperdb/csv'
+import { buildIndex, searchIndex } from '@shared/paperdb/search'
+import { generateId } from '@shared/paperdb/id'
+import { detectAndImport } from '@shared/paperdb/import'
 
 const PAPERS_DIR    = 'papers'
 const ATTACH_DIR    = 'attachments'
@@ -29,6 +29,9 @@ const COLLECTIONS_REL = 'collections.json'
 const paperRel    = (id: PaperId) => `${PAPERS_DIR}/${id}.md`
 const attachRel   = (id: PaperId) => `${ATTACH_DIR}/${id}.pdf`
 const collectionCsvRel = (name: string) => `${name}.csv`
+
+const decoder = new TextDecoder('utf-8')
+const decode = (bytes: Uint8Array): string => decoder.decode(bytes)
 
 /**
  * In-memory paper library backed by a `StorageBackend` (filesystem, S3, …).
@@ -74,7 +77,7 @@ export class Library {
         this._collections = new Map()
         return
       }
-      const raw = (await this.backend.readFile(COLLECTIONS_REL)).toString('utf-8')
+      const raw = decode(await this.backend.readFile(COLLECTIONS_REL))
       const data = JSON.parse(raw) as Record<string, string[]>
       this._collections = new Map(
         Object.entries(data).map(([name, ids]) => [name, new Set(ids)])
@@ -124,7 +127,7 @@ export class Library {
       const file = rel.slice(`${PAPERS_DIR}/`.length)
       try {
         const id = basename(file, '.md')
-        const content = (await this.backend.readFile(rel)).toString('utf-8')
+        const content = decode(await this.backend.readFile(rel))
         const { data, body } = parseFrontmatter(content)
         const norm = normalizePaperData(data)
         const ref = this._toRef(id, norm, body)
@@ -231,7 +234,7 @@ export class Library {
 
     for (const [id] of this.refs) {
       const rel = paperRel(id)
-      const content = (await this.backend.readFile(rel)).toString('utf-8')
+      const content = decode(await this.backend.readFile(rel))
       const { data, body } = parseFrontmatter(content)
       if (!(col.name in data)) {
         data[col.name] = col.default ?? null
@@ -255,7 +258,7 @@ export class Library {
 
     for (const [id] of this.refs) {
       const rel = paperRel(id)
-      const content = (await this.backend.readFile(rel)).toString('utf-8')
+      const content = decode(await this.backend.readFile(rel))
       const { data, body } = parseFrontmatter(content)
       if (from in data) {
         data[to] = data[from]
@@ -300,7 +303,7 @@ export class Library {
   }
 
   async get(id: PaperId): Promise<PaperDetail> {
-    const content = (await this.backend.readFile(paperRel(id))).toString('utf-8')
+    const content = decode(await this.backend.readFile(paperRel(id)))
     const { data, body } = parseFrontmatter(content)
     const norm = normalizePaperData(data)
     const ref = this._toRef(id, norm, body)
@@ -308,7 +311,7 @@ export class Library {
   }
 
   async add(draft: PaperDraft): Promise<PaperId> {
-    const id = generateId(draft)
+    const id = await generateId(draft)
     const now = new Date().toISOString()
 
     const knownKeys = new Set([
@@ -357,7 +360,7 @@ export class Library {
 
   async update(id: PaperId, patch: PaperPatch): Promise<void> {
     const rel = paperRel(id)
-    const content = (await this.backend.readFile(rel)).toString('utf-8')
+    const content = decode(await this.backend.readFile(rel))
     const { data, body } = parseFrontmatter(content)
 
     const { markdown: newBody, ...metaPatch } = patch
@@ -402,7 +405,7 @@ export class Library {
 
   async appendNote(id: PaperId, section: string, text: string): Promise<void> {
     const rel = paperRel(id)
-    const content = (await this.backend.readFile(rel)).toString('utf-8')
+    const content = decode(await this.backend.readFile(rel))
     const { data, body } = parseFrontmatter(content)
 
     const heading = `## ${section}`
@@ -520,8 +523,8 @@ export class Library {
     return this.backend.localPath(attachRel(id))
   }
 
-  /** Stream the PDF bytes regardless of backend. Caller is responsible for closing. */
-  pdfStream(id: PaperId): import('node:stream').Readable | null {
+  /** Stream the PDF bytes regardless of backend. Caller closes the reader. */
+  pdfStream(id: PaperId): ReadableStream<Uint8Array> | null {
     if (!this.hasPdfCache.has(id)) return null
     return this.backend.createReadStream(attachRel(id))
   }

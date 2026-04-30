@@ -24,13 +24,21 @@ export async function viewPdfPage(
   const stream = library.pdfStream(paperId)
   if (!stream) return JSON.stringify({ error: `No PDF associated with paper "${paperId}".` })
 
-  const chunks: Buffer[] = []
-  for await (const c of stream) chunks.push(c as Buffer)
-  const data = Buffer.concat(chunks)
+  const chunks: Uint8Array[] = []
+  const reader = stream.getReader()
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (value) chunks.push(value)
+  }
+  const total = chunks.reduce((n, c) => n + c.length, 0)
+  const data = new Uint8Array(total)
+  let off = 0
+  for (const c of chunks) { data.set(c, off); off += c.length }
 
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const pdfjs = require('pdfjs-dist/legacy/build/pdf') as typeof import('pdfjs-dist')
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(data) }).promise
+  const doc = await pdfjs.getDocument({ data }).promise
   if (page < 1 || page > doc.numPages) {
     return JSON.stringify({ error: `Page ${page} out of range (1-${doc.numPages}).` })
   }

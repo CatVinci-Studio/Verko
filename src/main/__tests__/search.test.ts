@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildIndex, searchIndex } from '../paperdb/search'
+import { buildIndex, searchIndex } from '@shared/paperdb/search'
 
 const DOCS = [
   { id: 'ddpm', title: 'Denoising Diffusion Probabilistic Models', authors: 'Ho Jain Abbeel', tags: 'diffusion generative', body: 'We present a model...' },

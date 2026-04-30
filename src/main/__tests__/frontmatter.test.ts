@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseFrontmatter, stringifyFrontmatter, normalizePaperData } from '../paperdb/frontmatter'
+import { parseFrontmatter, stringifyFrontmatter, normalizePaperData } from '@shared/paperdb/frontmatter'
 
 describe('parseFrontmatter', () => {
   it('parses yaml frontmatter and body', () => {

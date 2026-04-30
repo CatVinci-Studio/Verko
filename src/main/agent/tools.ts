@@ -290,12 +290,12 @@ function safeRelPath(relativePath: string): string | null {
   return parts.join('/')
 }
 
-async function extractPdfText(data: Buffer): Promise<string> {
+async function extractPdfText(data: Uint8Array): Promise<string> {
   // Use dynamic require to avoid issues with pdfjs-dist in Electron main process
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const pdfjsLib = require('pdfjs-dist/legacy/build/pdf') as typeof import('pdfjs-dist')
 
-  const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(data) })
+  const loadingTask = pdfjsLib.getDocument({ data })
   const pdfDoc = await loadingTask.promise
 
   const maxPages = Math.min(pdfDoc.numPages, 50)
@@ -323,7 +323,7 @@ export async function dispatchTool(
   switch (name) {
     case 'read_library_csv': {
       try {
-        const content = (await library.backend.readFile('papers.csv')).toString('utf-8')
+        const content = new TextDecoder().decode(await library.backend.readFile('papers.csv'))
         return content
       } catch {
         return 'Error: Could not read library CSV. The library may be empty.'
@@ -333,7 +333,7 @@ export async function dispatchTool(
     case 'read_paper': {
       const id = args['id'] as string
       try {
-        const content = (await library.backend.readFile(`papers/${id}.md`)).toString('utf-8')
+        const content = new TextDecoder().decode(await library.backend.readFile(`papers/${id}.md`))
         return content
       } catch {
         return `Error: Could not read paper "${id}". File may not exist.`
@@ -362,9 +362,18 @@ export async function dispatchTool(
         return `Error: No PDF associated with paper "${id}".`
       }
       try {
-        const chunks: Buffer[] = []
-        for await (const c of stream) chunks.push(c as Buffer)
-        const text = await extractPdfText(Buffer.concat(chunks))
+        const chunks: Uint8Array[] = []
+        const reader = stream.getReader()
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          if (value) chunks.push(value)
+        }
+        const total = chunks.reduce((n, c) => n + c.length, 0)
+        const data = new Uint8Array(total)
+        let off = 0
+        for (const c of chunks) { data.set(c, off); off += c.length }
+        const text = await extractPdfText(data)
         return text
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
@@ -521,7 +530,7 @@ export async function dispatchTool(
       const relPath = safeRelPath(relInput)
       if (relPath == null) return JSON.stringify({ error: 'Path is outside the library directory.' })
       try {
-        const content = (await library.backend.readFile(relPath)).toString('utf-8')
+        const content = new TextDecoder().decode(await library.backend.readFile(relPath))
         return content
       } catch (e) {
         return JSON.stringify({ error: `Cannot read "${relInput}": ${e instanceof Error ? e.message : String(e)}` })

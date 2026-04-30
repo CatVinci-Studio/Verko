@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { loadSchema, saveSchema, DEFAULT_SCHEMA } from '../paperdb/schema'
+import { loadSchema, saveSchema, DEFAULT_SCHEMA } from '@shared/paperdb/schema'
 import { LocalBackend } from '../paperdb/backendLocal'
 
 let tmpDir: string

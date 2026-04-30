@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { LocalBackend } from '../paperdb/backendLocal'
-import { BackendNotFoundError } from '../paperdb/backend'
+import { BackendNotFoundError } from '@shared/paperdb/backend'
 
 describe('LocalBackend', () => {
   let dir: string
