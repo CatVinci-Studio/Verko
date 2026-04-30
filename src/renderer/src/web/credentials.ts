@@ -1,4 +1,4 @@
-import type { S3Creds } from './s3client'
+import type { S3BackendConfig as S3Creds } from '@shared/paperdb/backendS3'
 
 /**
  * Single-record credential store backed by IndexedDB. Origin-scoped, so

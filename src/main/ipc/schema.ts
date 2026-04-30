@@ -1,5 +1,5 @@
 import type { IpcMain } from 'electron'
-import type { Library } from '../paperdb/store'
+import type { Library } from '@shared/paperdb/store'
 import type { Column } from '@shared/types'
 
 export function registerSchemaHandlers(ipc: IpcMain, getLibrary: () => Library): void {

@@ -7,7 +7,7 @@ import { buildSystemPrompt } from '@shared/agent/prompt'
 import { createProvider, type NormalizedMessage, type ToolDef } from '@shared/agent/providers'
 import { getProviderDefinition } from '@shared/providers'
 import { dispatchWebTool, WEB_TOOL_DEFS } from './webTools'
-import type { WebLibrary } from './webLibrary'
+import type { Library } from '@shared/paperdb/store'
 
 const CONV_LS_KEY = 'verko:conversations'
 
@@ -57,7 +57,8 @@ export class WebAgent {
   private subscribers = new Set<(env: { conversationId: string; event: AgentEvent }) => void>()
 
   constructor(
-    private getLibrary: () => WebLibrary | null,
+    private getLibrary: () => Library | null,
+    private getDescribe: () => string,
     private getApiKey: (providerId: string) => string | null,
   ) {}
 
@@ -179,8 +180,8 @@ export class WebAgent {
     })
 
     const systemPrompt = buildSystemPrompt(language ?? 'en', {
-      libraryName: lib.s3.cfg.bucket,
-      libraryRoot: `s3://${lib.s3.cfg.bucket}${lib.s3.cfg.prefix ? '/' + lib.s3.cfg.prefix : ''}`,
+      libraryName: this.getDescribe(),
+      libraryRoot: lib.backend.describe(),
       currentDate: new Date().toISOString().split('T')[0],
       currentPaperId,
     })

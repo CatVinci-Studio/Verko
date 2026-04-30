@@ -20,48 +20,62 @@ Agent-first academic paper management desktop app. Built with Electron + React 1
 ## Repository Layout
 ```
 src/
-  main/             # Electron main process (Node.js)
-    paperdb/        # Library, schema, CSV, search, import, ID generation; zip.ts (export/import); Local + S3 backends
-    libraries/      # registry.ts (libraries.json) + credentials.ts (safeStorage)
-    agent/          # AgentSession + multi-conversation registry, tool loop, tools, auth, config, prompt (EN/ZH)
-      providers/    #   protocol adapters: openai.ts, anthropic.ts, gemini.ts (createProvider() picks one)
-      conversations.ts # per-conversation JSON files in userData
-      tools/        #   web.ts (web_fetch) + documents.ts (view_pdf_page, read_document)
-    ipc/            # IPC handler registration (thin wrappers over paperdb/agent/conversations)
-    index.ts        # App entry, LibraryManager init, IPC registration
-    __tests__/      # Vitest specs for main-process modules
+  shared/             # Runtime-neutral code — runs in main, renderer, AND browser
+    paperdb/          # Library + pure helpers (csv/frontmatter/schema/search/id/import)
+      store.ts        #   Library class (operates on the StorageBackend interface)
+      backend.ts      #   StorageBackend interface (Uint8Array + ReadableStream)
+      backendS3.ts    #   S3-compatible backend (AWS SDK v3, browser-safe)
+    agent/            # Agent loop, system prompt, provider adapters
+      loop.ts         #   runAgentLoop(provider, dispatchTool, …) — tool-agnostic
+      prompt.ts       #   buildSystemPrompt(language, ctx) — EN + ZH
+      providers/      #   openai/anthropic/gemini SDK adapters; dangerouslyAllowBrowser
+                      #   is set in browser so user keys go straight to the LLM provider
+    types.ts          # Master type contract (PaperRef, IpcChannels, AgentEvent, …)
+    providers.ts      # PROVIDER_DEFINITIONS catalog (id, name, defaults, fields)
+    presets.ts        # DEFAULT_AGENT_CONFIG derived from the catalog
+
+  main/               # Electron main process (Node.js only)
+    paperdb/
+      backendLocal.ts #   fs-backed StorageBackend
+      importPdf.ts    #   PDF copy from arbitrary fs path (uses fs.copyFile)
+      manager.ts      #   LibraryManager: registry + credential store + Library cache
+      zip.ts          #   Library export/import (.zip) via JSZip
+    libraries/        # registry.ts (libraries.json) + credentials.ts (safeStorage)
+    agent/
+      session.ts      #   AgentSession: per-window agent gateway
+      tools.ts        #   Full tool registry + dispatch (uses LibraryManager)
+      tools/          #   web_fetch (web.ts), view_pdf_page + read_document (documents.ts)
+      conversations.ts#   per-conversation JSON files in userData
+      auth.ts         #   API key store: safeStorage (remember=true) or memory (false)
+      config.ts       #   electron-store + catalog sync migration
+    ipc/              # Thin handler wrappers over Library + AgentSession + manager
+    index.ts          # App entry, LibraryManager init, IPC registration
+    __tests__/        # Vitest specs for main-process modules
 
   preload/
-    index.ts        # contextBridge → window.api (renderer-side type lives in lib/ipc.ts)
+    index.ts          # contextBridge → window.api
 
-  renderer/src/     # React frontend
-    store/          # Zustand stores: library.ts, ui.ts, agent.ts, dialogs.ts
-    features/       # Feature folders: library/, paper/, agent/, command/, settings/, dialogs/
-      library/      #   LibraryView (TanStack Table host) + PaperRow + ColumnHeader +
-                    #   columns.tsx (ColumnDef builder) + useColumnPersistence (localStorage)
-                    #   + FilterBar + Sidebar
-      paper/        #   PaperDetail + MarkdownEditor + PdfViewer + usePaper hooks
-      settings/     #   SettingsModal + tabs/{General,Library}Tab
-      agent/        #   AgentPage + MessageBubble + ChatInput + ToolCallRow
-      command/      #   CommandPalette
-      dialogs/      #   ConfirmDialog + PromptDialog + DialogHost
-    components/
-      ui/           # shadcn primitives (kebab-case): dialog, button, input, select,
-                    # popover, tooltip, dropdown-menu, scroll-area, separator, badge,
-                    # plus setting-row, setting-section, setting-segmented
-      common/       # App-specific shared bits: TitleBar, ChipStatus, ChipTag
-    lib/            # ipc.ts (window.api wrapper + web stub), utils.ts (cn, formatYear,
-                    # formatAuthors, debounce), i18n.ts (i18next config)
-    web/            # Web-build only: webApi (IApi adapter), webLibrary (read-only S3
-                    # paper store), s3client (browser AWS SDK), credentials (IndexedDB)
-    locales/        # en.json + zh.json — UI translations
-    styles/         # globals.css (CSS variables for dark/light theme)
-    css.d.ts        # ambient declaration so `import './styles/globals.css'` typechecks
-
-  shared/
-    types.ts        # Master type contract (PaperRef, IpcChannels, AgentEvent, Filter, …)
-    presets.ts      # DEFAULT_AGENT_CONFIG with built-in provider profiles
+  renderer/src/       # React frontend
+    web/              # Web-build adapter — re-uses shared Library + agent loop
+      webApi.ts       #   Wraps shared Library + WebAgent into the IApi shape
+      webAgent.ts     #   Drives shared runAgentLoop with localStorage conversations
+      webTools.ts     #   Reduced toolset: read/search/list/web_fetch (S3 read-only)
+      apiKeys.ts      #   Per-provider key store (localStorage / memory)
+      credentials.ts  #   S3 credential store (IndexedDB)
+    store/            # Zustand stores: library, ui, agent, dialogs
+    features/         # library/, paper/, agent/, command/, settings/, dialogs/, onboarding/
+    components/ui/    # shadcn primitives (kebab-case)
+    components/common/# TitleBar, ChipStatus, ChipTag
+    lib/              # ipc.ts, utils.ts, i18n.ts
+    locales/          # en.json + zh.json
+    styles/           # globals.css (CSS variables for dark/light theme)
 ```
+
+The hard-fork between desktop and web is **only** the StorageBackend
+implementation (LocalBackend in main; S3Backend works in both) and a
+handful of platform-specific tools (importPdf, view_pdf_page,
+read_document, list_libraries / switch_library — main-only). Library,
+agent loop, providers, prompt, S3Backend are all single-source.
 
 ## Storage Format
 A library is just a folder:

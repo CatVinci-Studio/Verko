@@ -2,11 +2,13 @@ import type { IApi } from '@/lib/ipc'
 import type { LibraryInfo, S3LibraryInfo, AgentConfig, AgentProfile } from '@shared/types'
 import { PROVIDER_DEFINITIONS } from '@shared/providers'
 import { createProvider } from '@shared/agent/providers'
-import { WebS3, type S3Creds } from './s3client'
-import { WebLibrary } from './webLibrary'
+import { Library } from '@shared/paperdb/store'
+import { S3Backend, type S3BackendConfig } from '@shared/paperdb/backendS3'
 import { clearCreds, loadCreds, saveCreds } from './credentials'
 import { hasApiKey, loadApiKey, saveApiKey } from './apiKeys'
 import { WebAgent } from './webAgent'
+
+type S3Creds = S3BackendConfig
 
 /**
  * Web build adapter for IApi. Read-only — every write op resolves with a
@@ -15,7 +17,8 @@ import { WebAgent } from './webAgent'
  * concept of multi-library on the web.
  */
 
-let lib: WebLibrary | null = null
+let lib: Library | null = null
+let s3Creds: S3Creds | null = null
 let info: LibraryInfo | null = null
 
 const switchedListeners = new Set<(info: LibraryInfo) => void>()
@@ -32,6 +35,7 @@ function setActiveProfileId(id: string): void {
 
 const agent = new WebAgent(
   () => lib,
+  () => s3Creds?.bucket ?? 'Library',
   (providerId: string) => loadApiKey(providerId),
 )
 
@@ -53,25 +57,25 @@ function buildInfo(creds: S3Creds, paperCount: number): S3LibraryInfo {
   }
 }
 
-async function ensureLib(): Promise<WebLibrary | null> {
+async function ensureLib(): Promise<Library | null> {
   if (lib) return lib
-  const creds = await loadCreds()
+  const creds = await loadCreds() as S3Creds | null
   if (!creds) return null
-  const s3 = new WebS3(creds)
-  const l = new WebLibrary(s3)
-  await l.load()
+  const backend = new S3Backend(creds)
+  const l = await Library.open(backend)
   lib = l
+  s3Creds = creds
   info = buildInfo(creds, (await l.list()).length)
   return l
 }
 
 async function reload(creds: S3Creds): Promise<LibraryInfo> {
-  const s3 = new WebS3(creds)
-  await s3.ping()
-  const l = new WebLibrary(s3)
-  await l.load()
+  const backend = new S3Backend(creds)
+  await backend.probe()
+  const l = await Library.open(backend)
   await saveCreds(creds)
   lib = l
+  s3Creds = creds
   info = buildInfo(creds, (await l.list()).length)
   for (const cb of switchedListeners) cb(info)
   return info
@@ -110,9 +114,9 @@ export const webApi: IApi = {
     probeLocal: () => Promise.resolve({ status: 'error', message: 'Local libraries are desktop-only.' }),
     probeS3: async (cfg) => {
       try {
-        const s3 = new WebS3(cfg)
-        await s3.ping()
-        const hasSchema = await s3.exists('schema.md')
+        const backend = new S3Backend(cfg as S3Creds)
+        await backend.probe()
+        const hasSchema = await backend.exists('schema.md')
         return { status: hasSchema ? 'ready' : 'uninitialized' }
       } catch (e) {
         return { status: 'error', message: e instanceof Error ? e.message : String(e) }
@@ -228,7 +232,19 @@ export const webApi: IApi = {
     getPath: async (id) => {
       const l = await ensureLib()
       if (!l) return null
-      const bytes = await l.pdfBytes(id)
+      const stream = l.pdfStream(id)
+      if (!stream) return null
+      const reader = stream.getReader()
+      const chunks: Uint8Array[] = []
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        if (value) chunks.push(value)
+      }
+      const total = chunks.reduce((n, c) => n + c.length, 0)
+      const bytes = new Uint8Array(total)
+      let off = 0
+      for (const c of chunks) { bytes.set(c, off); off += c.length }
       if (!bytes) return null
       const blob = new Blob([new Uint8Array(bytes)], { type: 'application/pdf' })
       return URL.createObjectURL(blob)

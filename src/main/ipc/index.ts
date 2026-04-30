@@ -1,6 +1,6 @@
 import type { IpcMain, BrowserWindow } from 'electron'
 import type { LibraryManager } from '../paperdb/manager'
-import type { Library } from '../paperdb/store'
+import type { Library } from '@shared/paperdb/store'
 import type { AgentSession } from './agent'
 import { registerLibraryHandlers } from './libraries'
 import { registerPaperHandlers } from './papers'

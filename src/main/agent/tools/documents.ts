@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
 import mammoth from 'mammoth'
-import type { Library } from '@main/paperdb/store'
+import type { Library } from '@shared/paperdb/store'
 import { turndown } from './web'
 
 interface PdfPageImage {

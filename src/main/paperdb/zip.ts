@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs'
 import { dirname, join } from 'path'
 import JSZip from 'jszip'
-import type { Library } from './store'
+import type { Library } from '@shared/paperdb/store'
 
 /**
  * Export the entire contents of a library to a single .zip archive.

@@ -1,5 +1,5 @@
 import type { IpcMain } from 'electron'
-import type { Library } from '../paperdb/store'
+import type { Library } from '@shared/paperdb/store'
 import type { Filter, PaperId, PaperDraft, PaperPatch } from '@shared/types'
 
 export function registerPaperHandlers(ipc: IpcMain, getLibrary: () => Library): void {
@@ -68,8 +68,8 @@ export function registerPaperHandlers(ipc: IpcMain, getLibrary: () => Library): 
 
   ipc.handle('papers:importPdf', async (_, filePath: string) => {
     try {
-      const lib = getLibrary()
-      return await lib.importPdf(filePath)
+      const { importPdfFromFile } = await import('../paperdb/importPdf')
+      return await importPdfFromFile(getLibrary(), filePath)
     } catch (e) {
       throw new Error(e instanceof Error ? e.message : String(e))
     }

@@ -1,5 +1,5 @@
 import type { IpcMain } from 'electron'
-import type { Library } from '../paperdb/store'
+import type { Library } from '@shared/paperdb/store'
 import type { PaperId } from '@shared/types'
 
 export function registerPdfHandlers(ipc: IpcMain, getLibrary: () => Library): void {

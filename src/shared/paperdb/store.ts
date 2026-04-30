@@ -1,5 +1,3 @@
-import { copyFile } from 'fs/promises'
-import { basename } from 'path'
 import MiniSearch from 'minisearch'
 import type {
   PaperRef,
@@ -126,7 +124,8 @@ export class Library {
       if (!rel.endsWith('.md')) continue
       const file = rel.slice(`${PAPERS_DIR}/`.length)
       try {
-        const id = basename(file, '.md')
+        // file is `<id>.md` after slicing off the prefix.
+        const id = file.endsWith('.md') ? file.slice(0, -3) : file
         const content = decode(await this.backend.readFile(rel))
         const { data, body } = parseFrontmatter(content)
         const norm = normalizePaperData(data)
@@ -481,29 +480,11 @@ export class Library {
   }
 
   /**
-   * Import a PDF from an absolute filesystem path. The source path is read
-   * from the user's OS filesystem (it is outside the library); the destination
-   * is written through the backend so it lands wherever the library lives.
+   * Mark a paper as having a PDF attachment. Used by the platform-specific
+   * importPdf helpers after they finish writing the file.
    */
-  async importPdf(filePath: string): Promise<PaperId> {
-    const name = basename(filePath, '.pdf')
-    const draft: PaperDraft = { title: name, tags: [] }
-    const id = await this.add(draft)
-
-    const localTarget = this.backend.localPath(attachRel(id))
-    if (localTarget) {
-      // Same filesystem — use copyFile for a fast, atomic-ish copy and avoid
-      // buffering the whole PDF in memory.
-      await copyFile(filePath, localTarget)
-    } else {
-      const { readFile } = await import('fs/promises')
-      const buf = await readFile(filePath)
-      await this.backend.writeFile(attachRel(id), buf)
-    }
-
+  async markPdfPresent(id: PaperId): Promise<void> {
     this.hasPdfCache.add(id)
-    await this.update(id, { pdf: `attachments/${id}.pdf` })
-    return id
   }
 
   // ── CSV ──────────────────────────────────────────────────────────────────────

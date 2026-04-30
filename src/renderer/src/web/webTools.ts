@@ -1,12 +1,12 @@
 import type { ToolDef } from '@shared/agent/providers'
-import type { WebLibrary } from './webLibrary'
+import type { Library } from '@shared/paperdb/store'
 
 /**
  * Reduced tool subset for the web build.
  *
- * Read-only operations only — no add/update/delete/import (S3 read-only),
- * no library switching (single-library web), no PDF rasterization (would
- * require porting @napi-rs/canvas to the browser; punted to v0.3.2).
+ * Read-only operations only — no add/update/delete/import (web is S3
+ * read-only), no library switching (single-library web), no PDF
+ * rasterization (would need OffscreenCanvas wiring; punted).
  */
 
 export const WEB_TOOL_DEFS: ToolDef[] = [
@@ -64,16 +64,17 @@ export const WEB_TOOL_DEFS: ToolDef[] = [
   },
 ]
 
+const decoder = new TextDecoder('utf-8')
+
 export async function dispatchWebTool(
   name: string,
   args: Record<string, unknown>,
-  lib: WebLibrary,
+  lib: Library,
 ): Promise<string> {
   switch (name) {
     case 'read_library_csv': {
       try {
-        const csv = await lib.s3.readText('papers.csv')
-        return csv
+        return decoder.decode(await lib.backend.readFile('papers.csv'))
       } catch (e) {
         return JSON.stringify({ error: e instanceof Error ? e.message : String(e) })
       }
@@ -83,22 +84,15 @@ export async function dispatchWebTool(
       const id = String(args.id ?? '')
       if (!id) return JSON.stringify({ error: 'id required' })
       try {
-        return await lib.s3.readText(`papers/${id}.md`)
+        return decoder.decode(await lib.backend.readFile(`papers/${id}.md`))
       } catch {
         return JSON.stringify({ error: `Paper "${id}" not found` })
       }
     }
 
     case 'list_paper_ids': {
-      try {
-        const all = await lib.s3.listFiles('papers/')
-        const ids = all
-          .filter((p) => p.endsWith('.md'))
-          .map((p) => p.slice('papers/'.length, -'.md'.length))
-        return JSON.stringify(ids)
-      } catch (e) {
-        return JSON.stringify({ error: e instanceof Error ? e.message : String(e) })
-      }
+      const refs = await lib.list()
+      return JSON.stringify(refs.map((r) => r.id))
     }
 
     case 'search_papers': {
