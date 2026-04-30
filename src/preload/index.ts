@@ -100,10 +100,22 @@ const api = {
   },
 
   app: {
+    platform: process.platform as NodeJS.Platform,
     onMenuCommand: (cb: (cmd: string) => void): UnsubFn => {
       const listener = (_: Electron.IpcRendererEvent, cmd: string) => cb(cmd)
       ipcRenderer.on('app:menu-command', listener)
       return () => ipcRenderer.removeListener('app:menu-command', listener)
+    },
+  },
+
+  window: {
+    minimize:       () => ipcRenderer.send('window:minimize'),
+    toggleMaximize: () => ipcRenderer.send('window:toggle-maximize'),
+    close:          () => ipcRenderer.send('window:close'),
+    onMaximized: (cb: (maximized: boolean) => void): UnsubFn => {
+      const listener = (_: Electron.IpcRendererEvent, max: boolean) => cb(max)
+      ipcRenderer.on('window:maximized', listener)
+      return () => ipcRenderer.removeListener('window:maximized', listener)
     },
   },
 }

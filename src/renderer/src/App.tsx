@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { PanelLeft } from 'lucide-react'
+import { PanelLeft, Settings } from 'lucide-react'
 import { useLibraryStore } from './store/library'
 import { useUIStore } from './store/ui'
 import { Sidebar } from './features/library/Sidebar'
@@ -95,10 +95,7 @@ export default function App() {
   if (status === 'none') {
     return (
       <div className="flex flex-col h-full bg-[var(--bg-base)] overflow-hidden">
-        <TitleBar
-          onOpenCommand={() => setCommandOpen(true)}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
+        <TitleBar />
         <div className="flex-1 min-h-0 overflow-hidden">
           <WelcomeScreen />
         </div>
@@ -110,10 +107,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-base)] overflow-hidden">
-      <TitleBar
-        onOpenCommand={() => setCommandOpen(true)}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
+      <TitleBar />
 
       {/* Main layout */}
       <div className="flex flex-1 overflow-hidden min-h-0">
@@ -124,9 +118,9 @@ export default function App() {
           </div>
         )}
 
-        {/* Collapsed sidebar — show re-open button */}
+        {/* Collapsed sidebar — expand at top, settings at bottom */}
         {sidebarCollapsed && (
-          <div className="w-9 shrink-0 flex flex-col items-center pt-2 border-r border-[var(--border-color)]">
+          <div className="w-9 shrink-0 flex flex-col items-center pt-2 pb-2 border-r border-[var(--border-color)]">
             <Button
               onClick={toggleSidebar}
               variant="ghost"
@@ -135,6 +129,16 @@ export default function App() {
               className="h-7 w-7 text-[var(--text-muted)] rounded-[6px]"
             >
               <PanelLeft size={13} />
+            </Button>
+            <div className="flex-1" />
+            <Button
+              onClick={() => setSettingsOpen(true)}
+              variant="ghost"
+              size="icon-sm"
+              title="Settings (⌘,)"
+              className="h-7 w-7 text-[var(--text-muted)] rounded-[6px]"
+            >
+              <Settings size={13} />
             </Button>
           </div>
         )}

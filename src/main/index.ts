@@ -37,7 +37,8 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 600,
     show: false,
-    titleBarStyle: 'hiddenInset',
+    // macOS: traffic lights inset; Windows/Linux: frameless (we draw our own controls)
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
     autoHideMenuBar: true,
     backgroundColor: '#0f0f0f',
     webPreferences: {
@@ -81,6 +82,21 @@ app.whenReady().then(async () => {
   appState.agent   = new AgentSession(appState)
 
   registerIpcHandlers(ipcMain, appState, mainWindow)
+
+  // Frameless window controls — used by the custom titlebar on Windows/Linux.
+  ipcMain.on('window:minimize',        () => mainWindow?.minimize())
+  ipcMain.on('window:toggle-maximize', () => {
+    if (!mainWindow) return
+    mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize()
+  })
+  ipcMain.on('window:close',           () => mainWindow?.close())
+
+  // Push maximize state to the renderer so the maximize icon can swap.
+  const sendMaxState = () => mainWindow?.webContents.send('window:maximized', mainWindow?.isMaximized() ?? false)
+  app.on('browser-window-created', (_, w) => {
+    w.on('maximize',   sendMaxState)
+    w.on('unmaximize', sendMaxState)
+  })
 
   createWindow()
   app.on('activate', () => {

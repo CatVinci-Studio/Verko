@@ -250,4 +250,14 @@ export const webApi: IApi = {
       return URL.createObjectURL(blob)
     },
   },
+  app: {
+    platform: 'web' as unknown as NodeJS.Platform,
+    onMenuCommand: () => () => {},
+  },
+  window: {
+    minimize: () => {},
+    toggleMaximize: () => {},
+    close: () => {},
+    onMaximized: () => () => {},
+  },
 }

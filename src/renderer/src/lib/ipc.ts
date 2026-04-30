@@ -75,6 +75,16 @@ export interface IApi {
   pdf: {
     getPath(id: PaperId): Promise<string | null>
   }
+  app: {
+    platform: NodeJS.Platform
+    onMenuCommand(cb: (cmd: string) => void): UnsubFn
+  }
+  window: {
+    minimize(): void
+    toggleMaximize(): void
+    close(): void
+    onMaximized(cb: (maximized: boolean) => void): UnsubFn
+  }
 }
 
 declare global {
@@ -260,6 +270,16 @@ const webStub: IApi = {
   },
   pdf: {
     getPath: () => Promise.resolve(null),
+  },
+  app: {
+    platform: 'darwin' as NodeJS.Platform,
+    onMenuCommand: () => () => {},
+  },
+  window: {
+    minimize: () => {},
+    toggleMaximize: () => {},
+    close: () => {},
+    onMaximized: () => () => {},
   },
 }
 
