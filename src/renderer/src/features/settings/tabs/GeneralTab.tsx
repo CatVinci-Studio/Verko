@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { SettingRow } from '@/components/ui/setting-row'
 import { SettingSection } from '@/components/ui/setting-section'
 import { SettingSegmented } from '@/components/ui/setting-segmented'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import {
   PROVIDER_DEFINITIONS,
@@ -35,11 +36,8 @@ function BasicSection() {
   const currentLang = (i18n.language as Language) ?? 'en'
 
   return (
-    <SettingSection title={t('settings.basic.title')} description={t('settings.basic.description')}>
-      <SettingRow
-        label={t('settings.basic.colorScheme')}
-        description={t('settings.basic.colorSchemeHint')}
-      >
+    <div className="space-y-3">
+      <SettingRow label={t('settings.basic.colorScheme')}>
         <SettingSegmented<'system' | 'light' | 'dark'>
           value={theme}
           onValueChange={setTheme}
@@ -50,20 +48,18 @@ function BasicSection() {
           ]}
         />
       </SettingRow>
-      <SettingRow
-        label={t('settings.basic.language')}
-        description={t('settings.basic.languageHint')}
-      >
-        <SettingSegmented<Language>
-          value={currentLang}
-          onValueChange={setLanguage}
-          options={[
-            { value: 'en', label: 'English' },
-            { value: 'zh', label: '中文' },
-          ]}
-        />
+      <SettingRow label={t('settings.basic.language')}>
+        <Select value={currentLang} onValueChange={(v) => setLanguage(v as Language)}>
+          <SelectTrigger className="w-32 rounded-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="en">English</SelectItem>
+            <SelectItem value="zh">中文</SelectItem>
+          </SelectContent>
+        </Select>
       </SettingRow>
-    </SettingSection>
+    </div>
   )
 }
 
@@ -152,10 +148,7 @@ function ProviderSection() {
   }
 
   return (
-    <SettingSection
-      title={t('settings.provider.title')}
-      description={t('settings.provider.description')}
-    >
+    <SettingSection title={t('settings.provider.title')}>
       <div className="space-y-4 pt-2">
         {/* Summary */}
         {active && (
@@ -211,9 +204,6 @@ function ProviderSection() {
                   className="accent-[var(--accent-color)]"
                 />
                 <span>{t('settings.provider.rememberKey')}</span>
-                <span className="text-[var(--text-muted)] text-[12.5px]">
-                  · {t('settings.provider.rememberKeyHint')}
-                </span>
               </label>
             )}
 

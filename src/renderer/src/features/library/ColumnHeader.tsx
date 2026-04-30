@@ -25,7 +25,9 @@ export function ColumnHeader({ header, onAddColumn }: ColumnHeaderProps) {
   const sorted = column.getIsSorted()
   const canSort = column.getCanSort()
   const canHide = column.getCanHide()
-  const canResize = column.getCanResize()
+  const allLeaves = header.getContext().table.getVisibleLeafColumns()
+  const isLast = allLeaves[allLeaves.length - 1]?.id === column.id
+  const canResize = column.getCanResize() && !isLast
   const isResizing = column.getIsResizing()
   const isPinned = column.getIsPinned()
 

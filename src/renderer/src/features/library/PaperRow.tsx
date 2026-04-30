@@ -47,11 +47,18 @@ export function PaperRow({
   return (
     <div
       data-selected={selected || undefined}
+      onDoubleClick={(e) => {
+        // Cells start text editing on double-click; clear any selection first
+        // and only open if the user double-clicked outside an editable cell.
+        if (e.target instanceof HTMLElement && e.target.closest('input, textarea')) return
+        window.getSelection()?.removeAllRanges()
+        onClick()
+      }}
       className={cn(
         'group relative flex items-stretch border-b border-[var(--border-color)]/50 cursor-default h-9 transition-colors w-fit min-w-full',
-        // Row no longer opens on click — cells own their own click semantics
-        // (title cell opens; other cells edit). Selection still highlights
-        // whichever paper is the current PaperDetail subject.
+        // Single-click is owned by individual cells (edit / open). Double-
+        // click on the row anywhere outside an active editor opens the
+        // paper detail page.
         selected
           ? 'bg-[var(--bg-accent-subtle)]'
           : 'hover:bg-[var(--bg-sidebar-hover)]'

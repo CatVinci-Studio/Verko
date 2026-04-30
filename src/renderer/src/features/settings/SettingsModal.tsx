@@ -67,25 +67,19 @@ export function SettingsModal() {
                   key={meta.id}
                   onClick={() => setTab(meta.id)}
                   className={cn(
-                    'w-full grid items-start gap-2.5 px-3 py-2.5 rounded-[8px] text-left transition-all duration-150',
-                    'grid-cols-[14px_1fr]',
+                    'w-full flex items-center gap-2.5 px-3 py-2 rounded-[8px] text-left transition-all duration-150',
                     active
                       ? 'bg-[var(--bg-accent-subtle)] border border-[var(--accent-color)]/20 text-[var(--text-primary)]'
                       : 'border border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-color)]'
                   )}
                 >
                   <Icon
-                    size={13}
-                    className={cn('mt-[3px]', active ? 'text-[var(--accent-color)]' : 'text-[var(--text-muted)]')}
+                    size={14}
+                    className={active ? 'text-[var(--accent-color)]' : 'text-[var(--text-muted)]'}
                   />
-                  <div className="min-w-0">
-                    <div className="text-[13.5px] font-medium leading-tight">
-                      {t(`settings.tabs.${meta.id}`)}
-                    </div>
-                    <div className="text-[12px] text-[var(--text-muted)] mt-0.5 leading-snug">
-                      {t(`settings.tabDescriptions.${meta.id}`)}
-                    </div>
-                  </div>
+                  <span className="text-[14px] font-medium">
+                    {t(`settings.tabs.${meta.id}`)}
+                  </span>
                 </button>
               )
             })}
@@ -94,12 +88,9 @@ export function SettingsModal() {
           {/* Content */}
           <div className="flex-1 overflow-y-auto">
             <header className="px-6 pt-5 pb-4 border-b border-[var(--border-color)]">
-              <h3 className="text-[15.5px] font-semibold text-[var(--text-primary)]">
+              <h3 className="text-[16px] font-semibold text-[var(--text-primary)]">
                 {t(`settings.tabs.${current.id}`)}
               </h3>
-              <p className="text-[13.5px] text-[var(--text-muted)] mt-0.5">
-                {t(`settings.tabDescriptions.${current.id}`)}
-              </p>
             </header>
             <div className="px-6 py-5">
               {tab === 'general' && <GeneralTab />}

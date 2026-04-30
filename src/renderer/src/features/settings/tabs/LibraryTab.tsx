@@ -204,7 +204,7 @@ export function LibraryTab() {
           </div>
         ))}
 
-        <div className="grid gap-2 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
           <AddChoice
             icon={<FolderOpen size={14} />}
             label={t('welcome.actions.openExisting.title')}
@@ -245,10 +245,10 @@ function AddChoice(props: {
     <button
       onClick={props.onClick}
       disabled={props.disabled}
-      className="flex items-center gap-2 w-full px-4 py-2.5 rounded-full border border-dashed border-[var(--border-color)] text-[13.5px] text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:border-[var(--border-focus)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex flex-col items-center justify-center gap-1.5 px-4 py-3.5 rounded-[12px] border border-[var(--border-color)] bg-[var(--bg-elevated)] text-[12.5px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-focus)] hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <span className="text-[var(--accent-color)]">{props.icon}</span>
-      {props.label}
+      <span className="leading-none">{props.label}</span>
     </button>
   )
 }

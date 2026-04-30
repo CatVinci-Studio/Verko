@@ -33,7 +33,7 @@ export function SettingSegmented<T extends string>({
           className={cn(
             'px-3.5 py-1 rounded-full text-[13.5px] font-medium transition-all duration-150',
             value === opt.value
-              ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-sm'
+              ? 'bg-[var(--accent-color)] text-[var(--accent-on)]'
               : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
           )}
         >
