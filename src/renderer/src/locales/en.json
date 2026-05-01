@@ -48,7 +48,9 @@
       "empty": "No agent turns recorded yet. Send a message to start logging.",
       "request": "Request",
       "response": "Response",
-      "events": "events"
+      "events": "events",
+      "copy": "Copy",
+      "copied": "Copied"
     },
     "basic": {
       "colorScheme": "Color scheme",

@@ -1,5 +1,5 @@
-import { useSyncExternalStore } from 'react'
-import { Trash2, Inbox } from 'lucide-react'
+import { useState, useSyncExternalStore } from 'react'
+import { Check, Copy, Trash2, Inbox } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { wireLog, type WireLogEntry } from '@shared/agent/wireLog'
 import { Button } from '@/components/ui/button'
@@ -88,34 +88,62 @@ function Card({ entry }: { entry: WireLogEntry }) {
         )}
       </div>
 
-      <details className="text-[13px]">
-        <summary className="cursor-pointer text-[var(--text-secondary)] select-none hover:text-[var(--text-primary)]">
-          {t('settings.debug.request')}
-        </summary>
-        <div className="mt-2 max-h-96 overflow-auto rounded bg-[var(--bg-base)] border border-[var(--border-color)] p-2 select-text">
-          <JsonTree value={entry.rawRequest ?? entry.request} />
-        </div>
-      </details>
-
-      <details className="text-[13px]">
-        <summary className="cursor-pointer text-[var(--text-secondary)] select-none hover:text-[var(--text-primary)]">
-          {t('settings.debug.response')}
-        </summary>
-        <div className="mt-2 max-h-96 overflow-auto rounded bg-[var(--bg-base)] border border-[var(--border-color)] p-2 select-text">
-          <JsonTree value={entry.events} />
-        </div>
-      </details>
+      <Section
+        label={t('settings.debug.request')}
+        value={entry.rawRequest ?? entry.request}
+      />
+      <Section label={t('settings.debug.response')} value={entry.events} />
     </div>
   )
 }
 
-// ── Recursive JSON viewer ──────────────────────────────────────────────────
+function Section({ label, value }: { label: string; value: unknown }) {
+  const { t } = useTranslation()
+  const [copied, setCopied] = useState(false)
 
-function JsonTree({ value }: { value: unknown }) {
-  return <Node value={value} keyPath="" />
+  const onCopy = async (e: React.MouseEvent) => {
+    e.preventDefault()  // don't toggle the parent <details>
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(value, null, 2))
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch { /* clipboard blocked — silently ignore */ }
+  }
+
+  return (
+    <details className="text-[13px] group">
+      <summary className="flex items-center gap-2 cursor-pointer text-[var(--text-secondary)] select-none hover:text-[var(--text-primary)]">
+        <span>{label}</span>
+        <button
+          onClick={onCopy}
+          className="ml-auto opacity-0 group-hover:opacity-100 flex items-center gap-1 px-1.5 py-0.5 rounded text-[11.5px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-opacity"
+          title={t('settings.debug.copy')}
+        >
+          {copied
+            ? <><Check size={10} /> {t('settings.debug.copied')}</>
+            : <><Copy size={10} /> {t('settings.debug.copy')}</>}
+        </button>
+      </summary>
+      <div className="mt-2 max-h-96 overflow-auto rounded bg-[var(--bg-base)] border border-[var(--border-color)] p-2 select-text">
+        <JsonTree value={value} topLevel />
+      </div>
+    </details>
+  )
 }
 
-function Node({ value, keyPath }: { value: unknown; keyPath: string }) {
+// ── Recursive JSON viewer ──────────────────────────────────────────────────
+//
+// `topLevel`: when true, the immediate children of an array/object are
+// rendered as collapsed <details> chips so the section opens to a tidy
+// summary instead of dumping the whole tree at once. Nested levels stay
+// fully expanded (until you hit a long string, which has its own folder).
+
+function JsonTree({ value, topLevel }: { value: unknown; topLevel?: boolean }) {
+  return <Node value={value} keyPath="" topLevel={topLevel} />
+}
+
+function Node({ value, keyPath, topLevel }: { value: unknown; keyPath: string; topLevel?: boolean }) {
   if (value === null) return <Token cls="dim">null</Token>
   if (value === undefined) return <Token cls="dim">undefined</Token>
 
@@ -144,10 +172,13 @@ function Node({ value, keyPath }: { value: unknown; keyPath: string }) {
     return (
       <div className="ml-3 border-l border-[var(--border-color)] pl-2">
         {value.map((v, i) => (
-          <div key={`${keyPath}.${i}`} className="font-mono text-[12.5px]">
-            <span className="text-[var(--text-muted)]">{i}: </span>
-            <Node value={v} keyPath={`${keyPath}.${i}`} />
-          </div>
+          <Entry
+            key={`${keyPath}.${i}`}
+            label={String(i)}
+            value={v}
+            keyPath={`${keyPath}.${i}`}
+            collapse={topLevel}
+          />
         ))}
       </div>
     )
@@ -159,16 +190,49 @@ function Node({ value, keyPath }: { value: unknown; keyPath: string }) {
     return (
       <div className="ml-3 border-l border-[var(--border-color)] pl-2">
         {entries.map(([k, v]) => (
-          <div key={`${keyPath}.${k}`} className="font-mono text-[12.5px]">
-            <span className="text-[var(--text-muted)]">{k}: </span>
-            <Node value={v} keyPath={`${keyPath}.${k}`} />
-          </div>
+          <Entry
+            key={`${keyPath}.${k}`}
+            label={k}
+            value={v}
+            keyPath={`${keyPath}.${k}`}
+            collapse={topLevel}
+          />
         ))}
       </div>
     )
   }
 
   return <Token cls="primary">{String(value)}</Token>
+}
+
+/** One key/value row. When `collapse`, wraps non-primitive values in a
+ *  default-collapsed <details>; primitives render inline regardless. */
+function Entry({ label, value, keyPath, collapse }: {
+  label: string
+  value: unknown
+  keyPath: string
+  collapse?: boolean
+}) {
+  const isComplex = value !== null && typeof value === 'object'
+  if (collapse && isComplex) {
+    return (
+      <details className="font-mono text-[12.5px]">
+        <summary className="cursor-pointer">
+          <span className="text-[var(--text-muted)]">{label}: </span>
+          <span className="text-[var(--text-dim)]">
+            {Array.isArray(value) ? `[${value.length}]` : `{${Object.keys(value as object).length}}`}
+          </span>
+        </summary>
+        <Node value={value} keyPath={keyPath} />
+      </details>
+    )
+  }
+  return (
+    <div className="font-mono text-[12.5px]">
+      <span className="text-[var(--text-muted)]">{label}: </span>
+      <Node value={value} keyPath={keyPath} />
+    </div>
+  )
 }
 
 function Token({ cls, children }: { cls: 'primary' | 'dim'; children: React.ReactNode }) {
