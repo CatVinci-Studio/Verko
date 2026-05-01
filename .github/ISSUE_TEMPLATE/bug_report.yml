@@ -24,6 +24,7 @@ body:
         - macOS
         - Windows
         - Linux
+        - All platforms
     validations:
       required: true
 

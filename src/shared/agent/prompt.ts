@@ -65,7 +65,7 @@ export function buildSystemPrompt(language: Language, ctx: PromptContext): strin
 
   return `You are Verko's library agent — a research-paper assistant operating across the user's full library.
 
-Reply in ${langName}.
+Reply in the same language as the user's most recent message. If that language is unclear, default to ${langName}.
 
 <env>
 ${envBlock(ctx)}
