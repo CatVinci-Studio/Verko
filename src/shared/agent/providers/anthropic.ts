@@ -20,10 +20,11 @@ export class AnthropicProtocol implements ProviderProtocol {
   }
 
   async testConnection(): Promise<boolean> {
+    // Anthropic has no models.list endpoint. countTokens is free and
+    // validates auth without burning quota.
     try {
-      await this.client.messages.create({
+      await this.client.messages.countTokens({
         model: this.config.model,
-        max_tokens: 1,
         messages: [{ role: 'user', content: 'hi' }],
       })
       return true

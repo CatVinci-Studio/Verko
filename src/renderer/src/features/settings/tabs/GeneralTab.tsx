@@ -201,10 +201,17 @@ function FieldRow({
   let placeholder = field.placeholder ?? ''
   let inputType: string = field.type
 
+  // When a key is saved and the input is empty, render dots that match
+  // the live-text style — same color, similar length — so the field doesn't
+  // look "missing". Placeholder color is muted by default; the
+  // `placeholder:text-[var(--text-primary)]` override fixes it for this row.
+  const apiKeyMaskActive = field.key === 'apiKey' && hasKey && !keyInput
   if (field.key === 'apiKey') {
     value = keyInput
     onChange = onKeyChange
-    placeholder = hasKey ? '••••••••••••••••' : (field.placeholder ?? 'sk-...')
+    placeholder = apiKeyMaskActive
+      ? '•'.repeat(40)
+      : (field.placeholder ?? 'sk-...')
     inputType = 'password'
   } else if (field.key === 'model') {
     value = modelInput
@@ -222,7 +229,10 @@ function FieldRow({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-full"
+        className={cn(
+          'rounded-full',
+          apiKeyMaskActive && 'placeholder:text-[var(--text-primary)]',
+        )}
       />
     </div>
   )

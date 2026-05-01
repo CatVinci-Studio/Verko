@@ -2,6 +2,14 @@ import { marked } from 'marked'
 import { ToolCallRow } from './ToolCallRow'
 import type { Message } from '@/store/agent'
 
+// `breaks: true` so single \n becomes <br>. LLMs (esp. OpenAI chat) emit
+// lists and short bullets with single newlines between lines; the default
+// CommonMark behaviour collapses those into spaces, producing one giant
+// run-on paragraph. With breaks:true the rendered output also matches the
+// streaming bubble (which uses whitespace-pre-wrap), so finalising a stream
+// no longer shifts the layout.
+marked.use({ breaks: true, gfm: true })
+
 const BUBBLE_USER =
   'max-w-[min(85%,600px)] rounded-[18px] rounded-br-[4px] ' +
   'bg-[var(--accent-color)] text-[var(--accent-on)] ' +
@@ -10,7 +18,7 @@ const BUBBLE_USER =
 const BUBBLE_ASSISTANT =
   'max-w-[min(85%,680px)] rounded-[18px] rounded-bl-[4px] ' +
   'bg-[var(--bg-elevated)] border border-[var(--border-color)] ' +
-  'text-[var(--text-bright)] px-4 py-3 text-[16px] leading-[1.65]'
+  'text-[var(--text-bright)] px-4 py-3 text-[16px] leading-[1.65] chat-md'
 
 interface MessageBubbleProps {
   message: Message

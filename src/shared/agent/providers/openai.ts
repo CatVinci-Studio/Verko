@@ -28,13 +28,14 @@ export class OpenAIProtocol implements ProviderProtocol {
   }
 
   async testConnection(): Promise<boolean> {
+    // Auth-only check. `chat.completions` with max_tokens:1 misfires on
+    // reasoning models (gpt-5 / o-series reserve a token budget for
+    // hidden reasoning, so a 1-token cap returns finish_reason="length"
+    // with no choices) and burns quota. `models.list` is the canonical
+    // "does the key work" probe — fast, free, no model assumed.
     try {
-      const r = await this.client.chat.completions.create({
-        model: this.config.model,
-        messages: [{ role: 'user', content: 'hi' }],
-        max_tokens: 1,
-      })
-      return r.choices.length > 0
+      await this.client.models.list()
+      return true
     } catch {
       return false
     }
@@ -86,7 +87,17 @@ export class OpenAIProtocol implements ProviderProtocol {
     }
 
     for (const tc of Object.values(accum)) {
-      yield { type: 'tool_call', id: tc.id, name: tc.name, arguments: tc.args }
+      // OpenAI accepts empty args by emitting `arguments: ""` over the
+      // wire, but echoing that back on the next turn fails validation —
+      // `arguments` must be a JSON string. Reasoning models (o-series,
+      // gpt-5) routinely emit zero-argument tool calls. Normalise here
+      // so persistence + the next turn always carry valid JSON.
+      yield {
+        type: 'tool_call',
+        id: tc.id,
+        name: tc.name,
+        arguments: tc.args || '{}',
+      }
     }
 
     yield { type: 'finish', reason: normalizeFinish(finishReason) }
@@ -116,7 +127,9 @@ function toOpenAIMessage(m: NormalizedMessage): OpenAI.Chat.ChatCompletionMessag
         tool_calls: m.toolCalls.map((tc) => ({
           id: tc.id,
           type: 'function' as const,
-          function: { name: tc.name, arguments: tc.arguments },
+          // Defensive: even if a persisted message slipped through with
+          // empty args, OpenAI's API rejects it on replay.
+          function: { name: tc.name, arguments: tc.arguments || '{}' },
         })),
       }
     }
