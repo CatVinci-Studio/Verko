@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { IApi } from '@/lib/ipc'
 
 // Stage-1 PoC stub. The Rust shim only exposes `ping` so far; everything else
@@ -97,9 +98,15 @@ export const tauriStubApi: IApi = {
     onMenuCommand: noopUnsub,
   },
   window: {
-    minimize: () => {},
-    toggleMaximize: () => {},
-    close: () => {},
-    onMaximized: noopUnsub,
+    minimize: () => { void getCurrentWindow().minimize() },
+    toggleMaximize: () => { void getCurrentWindow().toggleMaximize() },
+    close: () => { void getCurrentWindow().close() },
+    onMaximized: (cb) => {
+      const w = getCurrentWindow()
+      const unlistenP = w.onResized(async () => {
+        cb(await w.isMaximized())
+      })
+      return () => { void unlistenP.then((u) => u()) }
+    },
   },
 }
