@@ -19,7 +19,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
     let about_metadata = AboutMetadataBuilder::new()
         .name(Some(pkg.name.clone()))
         .version(Some(pkg.version.to_string()))
-        .copyright(Some("Copyright © CatVinci-Studio".into()))
+        .copyright(Some(String::from("Copyright © CatVinci-Studio")))
         .build();
 
     let app_menu = SubmenuBuilder::new(app, &pkg.name)

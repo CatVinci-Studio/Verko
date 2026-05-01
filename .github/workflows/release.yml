@@ -14,10 +14,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS: single universal binary covers Apple Silicon + Intel.
+          # macOS Apple Silicon
           - os: macos-latest
-            args: --target universal-apple-darwin
-            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+            args: --target aarch64-apple-darwin
+            rust_targets: aarch64-apple-darwin
+          # macOS Intel
+          - os: macos-13
+            args: --target x86_64-apple-darwin
+            rust_targets: x86_64-apple-darwin
           # Windows: NSIS .exe + WiX .msi (bundle.targets in tauri.conf.json).
           - os: windows-latest
             args: ''
