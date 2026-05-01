@@ -1,4 +1,4 @@
-import { Loader, Wifi } from 'lucide-react'
+import { Loader, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useUpdater } from '@/features/update/useUpdater'
 import { setLanguage, type Language } from '@/lib/i18n'
@@ -77,7 +77,7 @@ function UpdateSection() {
           className="rounded-full"
           onClick={() => { void check() }}
         >
-          {state.status === 'checking' ? <Loader size={11} className="animate-spin" /> : <Wifi size={11} />}
+          {state.status === 'checking' ? <Loader size={11} className="animate-spin" /> : <RefreshCw size={11} />}
           {t('update.check')}
         </Button>
       </SettingRow>

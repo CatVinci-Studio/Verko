@@ -43,7 +43,8 @@
     ],
     "windows": {
       "nsis": {
-        "installerIcon": "icons/icon.ico"
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser"
       },
       "wix": {
         "language": "en-US"

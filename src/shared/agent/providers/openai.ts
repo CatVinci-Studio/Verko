@@ -156,6 +156,12 @@ function makeCodexFetch(oauth: CodexOAuth): typeof fetch {
     if (oauth.tokens.accountId) {
       headers.set('ChatGPT-Account-Id', oauth.tokens.accountId)
     }
+    // Codex backend uses `originator` to identify the client. The official
+    // codex CLI sends `codex_cli_rs`; opencode sends `opencode`. Without
+    // this header the backend has been observed to silently reject or
+    // degrade. The browser strips User-Agent overrides from fetch, so
+    // `originator` is the only client-id channel we have.
+    headers.set('originator', 'verko')
 
     const requestUrl = typeof input === 'string'
       ? input
