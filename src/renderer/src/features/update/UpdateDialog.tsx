@@ -30,10 +30,10 @@ export function UpdateDialog({ state, onInstall, onDismiss }: Props) {
     <Dialog open onOpenChange={(o) => { if (!o) onDismiss() }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{t('update.available.title')}</DialogTitle>
+          <DialogTitle>{t('update.dialog.title')}</DialogTitle>
           <DialogDescription>
             {update.version
-              ? t('update.available.version', { version: update.version })
+              ? t('update.dialog.version', { version: update.version })
               : ''}
           </DialogDescription>
         </DialogHeader>
@@ -54,7 +54,7 @@ export function UpdateDialog({ state, onInstall, onDismiss }: Props) {
             </div>
             <p className="text-[13px] text-[var(--text-muted)] flex items-center gap-1.5">
               <Loader size={11} className="animate-spin" />
-              {t('update.downloading')}
+              {t('update.dialog.downloading')}
             </p>
           </div>
         )}
@@ -63,16 +63,16 @@ export function UpdateDialog({ state, onInstall, onDismiss }: Props) {
           {state.status === 'available' && (
             <>
               <Button variant="outline" size="lg" onClick={onDismiss} className="rounded-full">
-                <X size={11} /> {t('update.later')}
+                <X size={11} /> {t('update.dialog.later')}
               </Button>
               <Button variant="accent" size="lg" onClick={onInstall} className="rounded-full">
-                <RotateCw size={11} /> {t('update.install')}
+                <RotateCw size={11} /> {t('update.dialog.install')}
               </Button>
             </>
           )}
           {state.status === 'ready' && (
             <p className="text-[13px] text-[var(--text-muted)] mr-auto">
-              {t('update.restarting')}
+              {t('update.dialog.restarting')}
             </p>
           )}
         </DialogFooter>

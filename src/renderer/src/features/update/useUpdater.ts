@@ -1,15 +1,11 @@
-// Thin React wrapper around `@tauri-apps/plugin-updater`. The plugin's
-// JS API doesn't expose runtime endpoint overrides — endpoints are
-// configured statically in tauri.conf.json — so this hook always hits
-// the stable channel for now. A future dev-channel switch needs a
-// small Rust-side custom command that builds an updater with a
-// different endpoint per call; left as follow-up.
-//
-// On the web build everything is no-op: the dialog never opens, the
-// "check now" button reports "up to date".
+// React wrapper around `@tauri-apps/plugin-updater`. The plugin's JS
+// API doesn't expose runtime endpoint overrides, so this hook always
+// hits the stable endpoint configured in tauri.conf.json. On the web
+// build everything is no-op.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Update } from '@tauri-apps/plugin-updater'
+import { isTauri } from '@/lib/ipc'
 
 export type UpdateState =
   | { status: 'idle' }
@@ -22,12 +18,10 @@ export type UpdateState =
 
 const SESSION_DISMISSED = 'verko:update-dismissed-this-session'
 
-function isTauri(): boolean {
-  return typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== 'undefined'
-}
-
 export function useUpdater() {
   const [state, setState] = useState<UpdateState>({ status: 'idle' })
+  const stateRef = useRef(state)
+  stateRef.current = state
 
   const check = useCallback(async (): Promise<UpdateState> => {
     if (!isTauri()) {
@@ -50,33 +44,36 @@ export function useUpdater() {
   }, [])
 
   const installAndRestart = useCallback(async () => {
-    setState((prev) => {
-      if (prev.status !== 'available') return prev
-      const update = prev.update
-      void (async () => {
-        try {
-          let downloaded = 0
-          let total = 0
-          await update.downloadAndInstall((event) => {
-            if (event.event === 'Started') {
-              total = event.data.contentLength ?? 0
-              setState({ status: 'downloading', progress: 0, update })
-            } else if (event.event === 'Progress') {
-              downloaded += event.data.chunkLength
-              const progress = total > 0 ? downloaded / total : 0
-              setState({ status: 'downloading', progress, update })
-            } else if (event.event === 'Finished') {
-              setState({ status: 'ready', update })
-            }
-          })
-          const { relaunch } = await import('@tauri-apps/plugin-process')
-          await relaunch()
-        } catch (e) {
-          setState({ status: 'error', error: e instanceof Error ? e.message : String(e) })
+    const current = stateRef.current
+    if (current.status !== 'available') return
+    const update = current.update
+    setState({ status: 'downloading', progress: 0, update })
+
+    try {
+      let downloaded = 0
+      let total = 0
+      let lastPercent = -1
+      await update.downloadAndInstall((event) => {
+        if (event.event === 'Started') {
+          total = event.data.contentLength ?? 0
+        } else if (event.event === 'Progress') {
+          downloaded += event.data.chunkLength
+          const progress = total > 0 ? downloaded / total : 0
+          // Only re-render when the displayed integer percent changes.
+          const percent = Math.round(progress * 100)
+          if (percent !== lastPercent) {
+            lastPercent = percent
+            setState({ status: 'downloading', progress, update })
+          }
+        } else if (event.event === 'Finished') {
+          setState({ status: 'ready', update })
         }
-      })()
-      return { status: 'downloading', progress: 0, update }
-    })
+      })
+      const { relaunch } = await import('@tauri-apps/plugin-process')
+      await relaunch()
+    } catch (e) {
+      setState({ status: 'error', error: e instanceof Error ? e.message : String(e) })
+    }
   }, [])
 
   const dismiss = useCallback(() => {
@@ -88,9 +85,8 @@ export function useUpdater() {
 }
 
 /**
- * Single startup check. Skipped if the user has already dismissed an
- * update prompt this session — clicking "Later" must not re-prompt
- * mid-session.
+ * Run a single check on mount. Skipped if the user has already
+ * dismissed an update prompt this session.
  */
 export function useStartupUpdateCheck(check: () => Promise<UpdateState>): void {
   useEffect(() => {

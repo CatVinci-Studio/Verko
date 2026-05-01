@@ -2,6 +2,7 @@ import type { IApi } from '@/lib/ipc'
 import type { LibraryInfo, S3LibraryInfo, AgentConfig, AgentProfile } from '@shared/types'
 import { PROVIDER_DEFINITIONS } from '@shared/providers'
 import { createProvider } from '@shared/agent/providers'
+import { browserFetcher } from '@shared/net/fetch'
 import { buildProviderForProfile } from '@/lib/providerBuild'
 import { Library } from '@shared/paperdb/store'
 import { S3Backend, type S3BackendConfig } from '@shared/paperdb/backendS3'
@@ -316,16 +317,7 @@ export const webApi: IApi = {
     onMaximized: () => () => {},
   },
   net: {
-    fetch: async (req) => {
-      const res = await fetch(req.url, {
-        method: req.method ?? 'GET',
-        headers: req.headers,
-        body: req.body,
-      })
-      const headers: Record<string, string> = {}
-      res.headers.forEach((v, k) => { headers[k] = v })
-      return { status: res.status, ok: res.ok, headers, body: await res.text() }
-    },
+    fetch: browserFetcher,
     openExternal: async (url) => { window.open(url, '_blank', 'noopener,noreferrer') },
   },
   oauth: {

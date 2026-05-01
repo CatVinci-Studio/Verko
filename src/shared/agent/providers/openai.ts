@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import { CODEX_API_ENDPOINT } from '@shared/oauth/codex'
 import type {
   CodexOAuth,
   ContentPart,
@@ -9,7 +10,6 @@ import type {
   StreamOptions,
 } from './types'
 
-const CODEX_API_ENDPOINT = 'https://chatgpt.com/backend-api/codex/responses'
 const REFRESH_LEEWAY_MS = 30_000
 
 interface ToolCallAccum {
@@ -121,20 +121,34 @@ export class OpenAIProtocol implements ProviderProtocol {
  * Build a Fetch-API-compatible function that injects the Codex OAuth
  * Authorization + ChatGPT-Account-Id headers and rewrites the URL to
  * the Codex backend endpoint. Refreshes the access token on demand
- * (within `REFRESH_LEEWAY_MS` of expiry) by calling back into the
- * provider config's persistence-aware `refresh` hook.
+ * within `REFRESH_LEEWAY_MS` of expiry. Concurrent calls in the leeway
+ * window share a single in-flight refresh promise — without this guard,
+ * two parallel tool calls would both POST to /oauth/token and the
+ * second refresh would invalidate the first refresh_token rotation.
  */
 function makeCodexFetch(oauth: CodexOAuth): typeof fetch {
+  let inflightRefresh: Promise<void> | null = null
+
+  const refreshIfNeeded = async () => {
+    if (oauth.tokens.expiresAt - Date.now() >= REFRESH_LEEWAY_MS) return
+    if (inflightRefresh) return inflightRefresh
+    inflightRefresh = (async () => {
+      try {
+        const next = await oauth.refresh(oauth.tokens.refreshToken)
+        // Mutate in place — the closure shares `oauth` with the caller.
+        oauth.tokens.accessToken = next.accessToken
+        oauth.tokens.refreshToken = next.refreshToken
+        oauth.tokens.expiresAt = next.expiresAt
+        if (next.accountId) oauth.tokens.accountId = next.accountId
+      } finally {
+        inflightRefresh = null
+      }
+    })()
+    return inflightRefresh
+  }
+
   return async (input, init) => {
-    if (oauth.tokens.expiresAt - Date.now() < REFRESH_LEEWAY_MS) {
-      const next = await oauth.refresh(oauth.tokens.refreshToken)
-      // Mutate in place so subsequent calls in the same provider see the
-      // refreshed values (config holds a reference to this object).
-      oauth.tokens.accessToken = next.accessToken
-      oauth.tokens.refreshToken = next.refreshToken
-      oauth.tokens.expiresAt = next.expiresAt
-      if (next.accountId) oauth.tokens.accountId = next.accountId
-    }
+    await refreshIfNeeded()
 
     const headers = new Headers(init?.headers ?? {})
     headers.delete('authorization')
@@ -143,14 +157,12 @@ function makeCodexFetch(oauth: CodexOAuth): typeof fetch {
       headers.set('ChatGPT-Account-Id', oauth.tokens.accountId)
     }
 
-    // Codex backend serves both shapes (chat completions + responses)
-    // at the same endpoint. The SDK targets `/v1/chat/completions` or
-    // `/v1/responses`; rewrite either to the Codex path.
     const requestUrl = typeof input === 'string'
       ? input
       : input instanceof URL ? input.toString() : input.url
     const parsed = new URL(requestUrl)
-    const url = parsed.pathname.includes('/chat/completions') || parsed.pathname.includes('/responses')
+    const path = parsed.pathname
+    const url = path.endsWith('/chat/completions') || path.endsWith('/responses')
       ? CODEX_API_ENDPOINT
       : parsed.toString()
 

@@ -1,14 +1,7 @@
-// Codex / ChatGPT OAuth flow — TypeScript-only so the renderer drives it
-// in both desktop (Tauri webview) and web (S3 build) builds. The only
-// non-portable piece is "wait for the localhost callback after the user
-// authorizes in their browser"; the host wires that via `loopback()` —
-// desktop runs a one-shot Rust TCP listener; web builds reject because
-// the OAuth client ID `app_EMoamE…` is registered for `localhost:1455`
-// only and a hosted redirect would need a separate registration.
-//
-// Reference flow: OpenAI's codex CLI + opencode plugin. Endpoints,
-// client ID, scopes, and the `codex_cli_simplified_flow` flag all match
-// what the official codex CLI ships with.
+// Codex / ChatGPT OAuth flow. Endpoints, client ID, scopes, and the
+// `codex_cli_simplified_flow` flag mirror the official codex CLI. The
+// only non-portable piece is the loopback callback (desktop binds a
+// TCP socket via Rust; web rejects).
 
 import { nativeFetch } from '@shared/net/fetch'
 
@@ -18,10 +11,18 @@ export const CODEX_API_ENDPOINT = 'https://chatgpt.com/backend-api/codex/respons
 export const CODEX_LOOPBACK_PORT = 1455
 export const CODEX_REDIRECT_URI = `http://localhost:${CODEX_LOOPBACK_PORT}/auth/callback`
 
+/**
+ * Keychain slot for a provider's OAuth tokens — separate from the
+ * provider's API-key slot so users can keep both configured and switch
+ * between auth modes without losing either.
+ */
+export function oauthKey(providerId: string): string {
+  return `${providerId}:oauth`
+}
+
 /** Persisted OAuth tokens. Stored as JSON in the keychain. */
 export interface CodexTokens {
-  /** discriminator for keychain detection */
-  kind: 'codex-oauth'
+  kind: 'codex'
   accessToken: string
   refreshToken: string
   /** epoch ms when the access token expires */
@@ -42,9 +43,11 @@ interface IdTokenClaims {
   'https://api.openai.com/auth'?: { chatgpt_account_id?: string }
 }
 
-/** Generate a PKCE verifier + S256 challenge. */
+/** Generate a PKCE verifier + S256 challenge. RFC 7636 — verifier is
+ *  43 unreserved chars; we use base64url(32 random bytes) which lands at
+ *  exactly 43 chars and avoids modulo bias from a hand-rolled alphabet. */
 export async function generatePkce(): Promise<{ verifier: string; challenge: string }> {
-  const verifier = randomString(43)
+  const verifier = base64Url(crypto.getRandomValues(new Uint8Array(32)))
   const data = new TextEncoder().encode(verifier)
   const hash = await crypto.subtle.digest('SHA-256', data)
   return { verifier, challenge: base64Url(new Uint8Array(hash)) }
@@ -111,7 +114,7 @@ function toTokens(raw: RawTokenResponse): CodexTokens {
   const accountId = (raw.id_token && extractAccountId(raw.id_token))
     ?? extractAccountId(raw.access_token)
   return {
-    kind: 'codex-oauth',
+    kind: 'codex',
     accessToken: raw.access_token,
     refreshToken: raw.refresh_token,
     expiresAt: Date.now() + (raw.expires_in ?? 3600) * 1000,
@@ -138,19 +141,13 @@ function extractAccountId(jwt: string): string | undefined {
 export function parseStoredTokens(raw: string): CodexTokens | null {
   try {
     const obj = JSON.parse(raw) as Partial<CodexTokens>
-    if (obj && obj.kind === 'codex-oauth' && typeof obj.accessToken === 'string') {
+    if (obj && obj.kind === 'codex' && typeof obj.accessToken === 'string') {
       return obj as CodexTokens
     }
   } catch {
     return null
   }
   return null
-}
-
-function randomString(length: number): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'
-  const bytes = crypto.getRandomValues(new Uint8Array(length))
-  return Array.from(bytes).map((b) => chars[b % chars.length]).join('')
 }
 
 function base64Url(bytes: Uint8Array): string {

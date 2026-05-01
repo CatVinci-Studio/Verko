@@ -15,14 +15,20 @@
     "getDesktop": "Get the desktop app →"
   },
   "update": {
-    "available": {
+    "title": "Updates",
+    "checkNow": "Check for updates",
+    "check": "Check",
+    "checking": "Checking…",
+    "upToDate": "You are on the latest version.",
+    "statusAvailable": "Update available: v{{version}}",
+    "dialog": {
       "title": "A new version of Verko is available",
-      "version": "Version {{version}}"
-    },
-    "downloading": "Downloading update…",
-    "later": "Later",
-    "install": "Install & restart",
-    "restarting": "Restarting…"
+      "version": "Version {{version}}",
+      "downloading": "Downloading update…",
+      "later": "Later",
+      "install": "Install & restart",
+      "restarting": "Restarting…"
+    }
   },
   "settings": {
     "title": "Settings",
@@ -68,14 +74,6 @@
         "signOut": "Sign out",
         "signedIn": "Signed in"
       }
-    },
-    "update": {
-      "title": "Updates",
-      "checkNow": "Check for updates",
-      "check": "Check",
-      "checking": "Checking…",
-      "upToDate": "You are on the latest version.",
-      "available": "Update available: v{{version}}"
     },
     "libraries": {
       "switch": "Switch",

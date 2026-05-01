@@ -37,7 +37,6 @@ export default function App() {
   // Subscribe to agent IPC events at the top level
   useAgentEvents()
 
-  // Auto-update: one check on mount, prompt only when an update is available.
   const updater = useUpdater()
   useStartupUpdateCheck(updater.check)
 
@@ -68,10 +67,9 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Route external link clicks to the user's default browser. Without this,
-  // clicking an http(s) link inside the Tauri webview navigates the webview
-  // itself with no way back. Internal anchors (`#hash`) and same-origin
-  // links are left alone.
+  // Without this, clicking an http(s) link in the Tauri webview navigates
+  // the webview itself with no way back. Same-origin and `#hash` links pass
+  // through unchanged.
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0) return

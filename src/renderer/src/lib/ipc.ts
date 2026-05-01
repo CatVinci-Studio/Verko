@@ -118,7 +118,7 @@ import { tauriShell } from '@/tauri/tauriShell'
 
 declare const __WEB_BUILD__: boolean | undefined
 
-function isTauri(): boolean {
+export function isTauri(): boolean {
   return typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== 'undefined'
 }
 

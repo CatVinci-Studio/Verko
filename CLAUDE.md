@@ -37,8 +37,10 @@ src/
                       #     pdfTools (OffscreenCanvas)
                       #     documentTools (mammoth + pdfjs + turndown, via backend.readFile)
     types.ts          # Master type contract (AgentEvent, LibraryInfo, …)
-    providers.ts      # PROVIDER_DEFINITIONS catalog
+    providers.ts      # PROVIDER_DEFINITIONS catalog (incl. `oauth: 'codex'` flag on OpenAI)
     presets.ts        # DEFAULT_AGENT_CONFIG derived from the catalog
+    net/fetch.ts      # nativeFetch shim — desktop installs Rust-backed fetcher; web uses browserFetcher
+    oauth/codex.ts    # ChatGPT/Codex OAuth flow (PKCE, exchange, refresh, oauthKey() helper)
 
   renderer/src/       # React frontend — owns Library + agent runtime at runtime
     desktop/          # Desktop adapter — wraps the IShellApi (Tauri commands) into the full IApi
@@ -56,16 +58,16 @@ src/
       apiKeys.ts      #   Per-provider key store (localStorage / memory)
       credentials.ts  #   S3 credential store (IndexedDB)
     store/            # Zustand stores: library, ui, agent, dialogs
-    features/         # library/, paper/, agent/, command/, settings/, dialogs/, onboarding/
+    features/         # library/, paper/, agent/, command/, settings/, dialogs/, onboarding/, update/
     components/ui/    # shadcn primitives (kebab-case)
     components/common/# TitleBar, ChipStatus, ChipTag
-    lib/              # ipc.ts (IApi + pickApi), utils.ts, i18n.ts
+    lib/              # ipc.ts (IApi + pickApi + isTauri), utils.ts, i18n.ts, providerBuild.ts
     locales/          # en.json + zh.json
     styles/           # globals.css (CSS variables for dark/light theme)
 
-src-tauri/            # Rust shell — zero-trust IO shim (~1k lines)
+src-tauri/            # Rust shell — zero-trust IO shim (~1.2k lines)
   src/
-    lib.rs            #   App entry, command registration, AppState init, menu install
+    lib.rs            #   App entry, command registration, AppState init, plugin wiring
     scope.rs          #   allowedRoots + resolveScoped (path validation, symlink-safe)
     state.rs          #   AppState { data_dir, roots, registry, active_id }
     registry.rs       #   libraries.json on-disk shape
@@ -74,19 +76,23 @@ src-tauri/            # Rust shell — zero-trust IO shim (~1k lines)
     dialog_cmd.rs     #   dialog_open_pdf (native picker → bytes)
     keychain.rs       #   keyring-backed secret storage (replaces Electron safeStorage)
     agent_cmd.rs      #   agent_save_key / agent_load_key / agent_has_key (two-tier: session + keyring)
+    http_cmd.rs       #   http_fetch (reqwest, bypasses webview CORS for arxiv / web_fetch)
+    oauth_cmd.rs      #   oauth_loopback_wait (one-shot TCP listener for OAuth callback)
     libraries_cmd.rs  #   libraries_* commands; emits library:switched / library:none
     zip_cmd.rs        #   library export/import zip
     menu.rs           #   macOS native menu (predefined roles only)
-  capabilities/       # Tauri permissions (window controls + dialog)
-  tauri.conf.json     # Window/build/bundle config; decorations: false (custom titlebar)
+  capabilities/       # Tauri permissions (window + dialog + opener + updater + process)
+  tauri.conf.json     # Window/build/bundle + plugins.updater (endpoint + pubkey)
 ```
 
+Plugins wired in `lib.rs`: `tauri-plugin-dialog`, `tauri-plugin-opener` (external links), `tauri-plugin-updater` (auto-update), `tauri-plugin-process` (relaunch after update).
+
 **Single source of truth for everything except IO.** Library, agent loop,
-all tools, providers, prompts, conversation persistence — all in `shared`,
-all run in the renderer for both web and desktop. The Rust shell exists
-only to expose the OS file system and the OS keychain through narrow,
-scoped commands (`fs_read/write/list/exists/delete`, `agent_save_key`,
-`dialog_open_pdf`, etc).
+all tools, providers, prompts, conversation persistence, OAuth flow (PKCE / token
+exchange / refresh) — all in `shared/`, all run in the renderer for both web and
+desktop. The Rust shell only exposes capabilities a webview can't reach: file
+system (`fs_*`), OS keychain (`agent_*_key`), TCP listener (`oauth_loopback_wait`),
+native dialogs (`dialog_open_pdf`), and CORS-free outbound HTTP (`http_fetch`).
 
 ## Storage Format
 A library is just a folder:
@@ -118,7 +124,10 @@ The IPC contract is `IShellApi` in `src/renderer/src/desktop/shellApi.ts`. Two i
 
 Renderer code consumes `IApi` (broader surface) from `src/renderer/src/lib/ipc.ts`, where `pickApi()` detects the runtime: `__TAURI_INTERNALS__` → `makeDesktopApi(tauriShell)`, `__WEB_BUILD__` → `webApi`.
 
-The IPC surface is small and primitive — file IO, keychain, dialogs. There is **no** `papers:*`, `schema:*`, `collections:*`, `agent:send`, or streaming `agent:event` IPC: those are renderer-local. `library:switched` and `library:none` are the only Rust → renderer events.
+The IPC surface is small and primitive — file IO, keychain, dialogs, outbound HTTP, OAuth callback. There is **no** `papers:*`, `schema:*`, `collections:*`, `agent:send`, or streaming `agent:event` IPC: those are renderer-local. `library:switched` and `library:none` are the only Rust → renderer events.
+
+### HTTP routing
+Outbound HTTP from shared code goes through `nativeFetch()` in `shared/net/fetch.ts`. `entry.tsx` installs `api.net.fetch` as the active fetcher at boot — desktop routes through Rust (`http_fetch` command via reqwest, no CORS), web stays on browser fetch. Anywhere shared code needs the open internet (arxiv, `web_fetch` tool, OAuth token endpoint) it calls `nativeFetch`, never `fetch` directly.
 
 ### Zero-trust file scope
 `fs_read/write/list/exists/delete` commands take `(rootId, relPath)` — never absolute paths. `src-tauri/src/scope.rs` maintains a `rootId → absolute root` map (libraries register on add; the conversation store registers `'conversations'` and `'transcripts'` on boot) and rejects any path that escapes its root via `..` or symlinks. If the renderer is compromised, the blast radius is the union of registered roots.
@@ -177,6 +186,18 @@ The papers list is a TanStack Table v8 (headless) instance. The contract:
 - **Persistence** (`features/library/useColumnPersistence.ts`): TanStack's `columnSizing` and `columnVisibility` state piped through `localStorage`, scoped per-library. Key prefix is `verko:column-state:<libraryName>`. **The library schema (`schema.md`, `papers.csv`, paper `.md` files) intentionally never sees these preferences** — keeping the data layer agent-readable is more important than syncing prefs across machines.
 - **Header** (`features/library/ColumnHeader.tsx`): renders sort toggle, drag-to-resize handle (right edge), and ⋮ dropdown on hover (Hide / New column). Hidden columns surface again via the 👁 button at the right end of the header bar.
 - **Add column** flow: a context-menu "New column" opens a `promptDialog` for name + type and calls `api.schema.addColumn`. Schema changes are persisted (they're real data); only sizing/visibility live in localStorage.
+
+## ChatGPT (Codex) OAuth
+The OpenAI provider has two auth modes — API key (the existing field) and a "Sign in with ChatGPT" OAuth flow that drives the same `chatgpt.com/backend-api/codex/responses` endpoint the codex CLI uses. The full flow lives in TS (`shared/oauth/codex.ts`): PKCE generation, authorize URL, token exchange, refresh-on-expiry. Rust only owns the loopback callback (`oauth_loopback_wait` — desktop binds `localhost:1455`; web rejects with a "desktop-only" error).
+
+Tokens persist in the keychain under `oauthKey(providerId)` (= `${id}:oauth`), parallel to the API-key slot. `providerBuild.ts` picks OAuth tokens first when both are configured. `OpenAIProtocol` detects `config.oauth` and overrides the SDK's `fetch` with `makeCodexFetch` — Bearer header + `ChatGPT-Account-Id` + URL rewrite to the Codex backend, with serialized refresh-on-expiry (concurrent calls share one in-flight refresh promise so refresh-token rotation can't race).
+
+## Auto-update
+`tauri-plugin-updater` + `tauri-plugin-process` handle the desktop update path. On startup the renderer calls `useStartupUpdateCheck` once (per session — "Later" sets a `sessionStorage` flag that suppresses re-prompts until next launch). When an update is found, `UpdateDialog` offers "Install & restart" or "Later". Web build short-circuits via `isTauri()`.
+
+The plugin is **stable-channel only** for now — its JS API doesn't expose runtime endpoint overrides, so dev-channel subscribers would need a small custom Rust command building a per-call updater. Not yet wired.
+
+Releases must be signed: the workflow forwards `TAURI_SIGNING_PRIVATE_KEY` + `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` repo secrets to `tauri-action`, which produces `latest.json`. The matching public key lives in `tauri.conf.json` under `plugins.updater.pubkey`. Lose the private key → existing installs can never receive another update; they'd have to be reinstalled.
 
 ## Window chrome
 `tauri.conf.json` sets `decorations: false` and the renderer draws its own titlebar in `components/common/TitleBar.tsx`. macOS gets a native menu via `src-tauri/src/menu.rs` (predefined system roles only — no custom Verko commands; the renderer owns its own keyboard shortcuts). Window dragging is wired explicitly: a `mousedown` handler on the titlebar calls `getCurrentWindow().startDragging()` because Tauri ignores `-webkit-app-region: drag` and the `data-tauri-drag-region` attribute walk is unreliable on webkit2gtk.

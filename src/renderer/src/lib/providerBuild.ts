@@ -1,9 +1,5 @@
-// Shared provider-construction helper used by both `desktopApi` and `webApi`.
-// Centralises the "do we have OAuth tokens or an API key?" branching so the
-// two adapters don't drift.
-
 import { createProvider, type ProviderProtocol } from '@shared/agent/providers'
-import { parseStoredTokens, refreshTokens } from '@shared/oauth/codex'
+import { oauthKey, parseStoredTokens, refreshTokens } from '@shared/oauth/codex'
 
 export interface ProfileLike {
   name: string
@@ -32,7 +28,7 @@ export async function buildProviderForProfile(
   profile: ProfileLike,
   store: KeyStore,
 ): Promise<ProviderHandle | null> {
-  const oauthRaw = await Promise.resolve(store.load(`${profile.name}:oauth`))
+  const oauthRaw = await Promise.resolve(store.load(oauthKey(profile.name)))
   const tokens = oauthRaw ? parseStoredTokens(oauthRaw) : null
   if (tokens) {
     const provider = createProvider({
@@ -45,7 +41,7 @@ export async function buildProviderForProfile(
         tokens: { ...tokens },
         refresh: async (rt) => {
           const next = await refreshTokens(rt)
-          await Promise.resolve(store.save(`${profile.name}:oauth`, JSON.stringify(next)))
+          await Promise.resolve(store.save(oauthKey(profile.name), JSON.stringify(next)))
           return next
         },
       },

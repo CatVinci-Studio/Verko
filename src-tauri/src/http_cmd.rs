@@ -40,7 +40,7 @@ pub async fn http_fetch(req: FetchRequest) -> Result<FetchResponse, String> {
     let method = req.method.as_deref().unwrap_or("GET").to_uppercase();
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
-        .user_agent("Verko/0.5 (mailto:leonardoshen@icloud.com)")
+        .user_agent(concat!("Verko/", env!("CARGO_PKG_VERSION"), " (mailto:leonardoshen@icloud.com)"))
         .build()
         .map_err(|e| e.to_string())?;
 

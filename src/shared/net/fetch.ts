@@ -21,7 +21,9 @@ export interface SimpleRequest {
 
 export type Fetcher = (req: SimpleRequest) => Promise<SimpleResponse>
 
-const defaultFetcher: Fetcher = async (req) => {
+/** Browser-fetch-backed fetcher. The web build uses this directly;
+ *  desktop swaps in a Rust-backed fetcher at boot. */
+export const browserFetcher: Fetcher = async (req) => {
   const res = await fetch(req.url, {
     method: req.method ?? 'GET',
     headers: req.headers,
@@ -32,7 +34,7 @@ const defaultFetcher: Fetcher = async (req) => {
   return { status: res.status, ok: res.ok, headers, body: await res.text() }
 }
 
-let active: Fetcher = defaultFetcher
+let active: Fetcher = browserFetcher
 
 /** Install the native (CORS-free) fetcher. Call once at app boot. */
 export function setNativeFetch(fn: Fetcher): void {

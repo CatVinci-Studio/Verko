@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/ipc'
 import { signInWithChatGpt, signOutChatGpt } from '../codexLogin'
+import { oauthKey } from '@shared/oauth/codex'
 import { useUpdater } from '@/features/update/useUpdater'
 import { setLanguage, type Language } from '@/lib/i18n'
 import { useUIStore } from '@/store/ui'
@@ -194,21 +195,21 @@ function UpdateSection() {
   const { state, check } = useUpdater()
 
   const status =
-      state.status === 'checking'  ? t('settings.update.checking')
-    : state.status === 'available' ? t('settings.update.available', { version: state.update.version })
-    : state.status === 'none'      ? t('settings.update.upToDate')
+      state.status === 'checking'  ? t('update.checking')
+    : state.status === 'available' ? t('update.statusAvailable', { version: state.update.version })
+    : state.status === 'none'      ? t('update.upToDate')
     : state.status === 'error'     ? state.error
     : ''
 
   return (
-    <SettingSection title={t('settings.update.title')}>
+    <SettingSection title={t('update.title')}>
       <SettingRow
-        label={t('settings.update.checkNow')}
+        label={t('update.checkNow')}
         description={status}
       >
         <Button variant="outline" size="lg" onClick={() => { void check() }} disabled={state.status === 'checking'} className="rounded-full">
           {state.status === 'checking' ? <Loader size={11} className="animate-spin" /> : <Wifi size={11} />}
-          {t('settings.update.check')}
+          {t('update.check')}
         </Button>
       </SettingRow>
     </SettingSection>
@@ -226,7 +227,7 @@ function CodexOAuthRow({ providerId }: { providerId: string }) {
   const { data: signedIn = false } = useQuery({
     queryKey: ['agent', 'oauth', providerId],
     queryFn: async () => {
-      const raw = await api.agent.loadKey(`${providerId}:oauth`)
+      const raw = await api.agent.loadKey(oauthKey(providerId))
       return Boolean(raw && raw.length > 0)
     },
   })

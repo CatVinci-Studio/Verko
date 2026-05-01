@@ -11,7 +11,7 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
@@ -50,24 +50,25 @@ fn run_listener(port: u16, path: &str, timeout: Duration) -> Result<OauthCallbac
     let addr = format!("127.0.0.1:{port}");
     let listener = TcpListener::bind(&addr).map_err(|e| format!("bind {addr}: {e}"))?;
     listener
-        .set_nonblocking(false)
+        .set_nonblocking(true)
         .map_err(|e| e.to_string())?;
 
-    // accept() blocks forever; drop the listener after timeout via a watchdog
-    // thread that calls shutdown on the underlying socket. Simpler: spawn
-    // an accept-thread, join with timeout.
-    let (tx, rx) = std::sync::mpsc::channel::<std::io::Result<std::net::TcpStream>>();
-    std::thread::spawn(move || {
-        for stream in listener.incoming() {
-            let _ = tx.send(stream);
-            break;
+    // Poll instead of spawning a thread that blocks indefinitely on
+    // `accept()` — the original spawn-and-recv_timeout shape leaked the
+    // listener thread when the parent gave up.
+    let deadline = Instant::now() + timeout;
+    let stream = loop {
+        match listener.accept() {
+            Ok((stream, _)) => break stream,
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                if Instant::now() >= deadline {
+                    return Err("OAuth callback timed out".into());
+                }
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            Err(e) => return Err(format!("accept: {e}")),
         }
-    });
-
-    let stream = rx
-        .recv_timeout(timeout)
-        .map_err(|_| "OAuth callback timed out".to_string())?
-        .map_err(|e| format!("accept: {e}"))?;
+    };
 
     handle_request(stream, path)
 }
