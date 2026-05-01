@@ -101,15 +101,8 @@ export interface IApi {
   }
 }
 
-declare global {
-  interface Window {
-    api: IApi
-  }
-}
-
 import { webApi } from '@/web/webApi'
 import { makeDesktopApi } from '@/desktop/desktopApi'
-import type { IPreloadApi } from '@/desktop/preloadApi'
 import { tauriPreload } from '@/tauri/tauriPreload'
 
 declare const __WEB_BUILD__: boolean | undefined
@@ -121,16 +114,12 @@ function isTauri(): boolean {
 /**
  * Pick the right `IApi` for the runtime:
  *   - Tauri: `__TAURI_INTERNALS__` injected → wrap the Tauri preload with `makeDesktopApi`
- *   - Electron renderer: `window.api` is set by preload → wrap with `makeDesktopApi`
- *   - Web build: `__WEB_BUILD__` define is true → use S3-backed `webApi`
- * Anything else throws.
+ *   - Web build: `__WEB_BUILD__` define is true → use the S3-backed `webApi`
  */
 function pickApi(): IApi {
   if (isTauri()) return makeDesktopApi(tauriPreload)
-  const electronApi = (window as unknown as { api?: IPreloadApi }).api
-  if (electronApi) return makeDesktopApi(electronApi)
   if (typeof __WEB_BUILD__ !== 'undefined' && __WEB_BUILD__) return webApi
-  throw new Error('Verko: no IApi backend (neither window.api nor __WEB_BUILD__ available).')
+  throw new Error('Verko: no IApi backend (neither Tauri nor web build).')
 }
 
 export const api: IApi = pickApi()

@@ -6,10 +6,10 @@ import type {
 type UnsubFn = () => void
 
 /**
- * Contract for the preload-bridged `window.api` on desktop. Narrower than
- * the renderer-facing `IApi` — `papers/schema/collections/pdf/conversations`
- * are filled in by `desktopApi.ts` using the Library + Agent that live in
- * the renderer.
+ * Narrow IO contract that the Tauri shell implements (see
+ * `src/renderer/src/tauri/tauriPreload.ts`). `desktopApi.ts` wraps this
+ * up into the full `IApi` by attaching the renderer-side Library + Agent
+ * (papers / schema / collections / pdf / conversations).
  */
 export interface IPreloadApi {
   libraries: {

@@ -3,20 +3,15 @@
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
-    "remove": "Remove",
     "rename": "Rename",
     "create": "Create",
     "add": "Add",
     "open": "Open",
     "ok": "OK",
-    "loading": "Loading…",
-    "settings": "Settings",
-    "close": "Close"
+    "loading": "Loading…"
   },
   "titlebar": {
     "appName": "Verko",
-    "askAgent": "Ask Agent (⌘K)",
-    "settings": "Settings (⌘,)",
     "getDesktop": "Get the desktop app →"
   },
   "settings": {
@@ -26,26 +21,15 @@
       "schema": "Schema",
       "library": "Libraries"
     },
-    "tabDescriptions": {
-      "general": "Theme, language, and model provider.",
-      "schema": "Custom columns on top of the core paper schema.",
-      "library": "Manage and switch paper library folders."
-    },
     "basic": {
-      "title": "Basic",
-      "description": "Adjust how the interface looks.",
       "colorScheme": "Color scheme",
-      "colorSchemeHint": "System tracks the OS preference automatically.",
       "system": "System",
       "dark": "Dark",
       "light": "Light",
-      "language": "Language",
-      "languageHint": "Affects the interface and the agent's system prompt."
+      "language": "Language"
     },
     "provider": {
       "title": "Model provider",
-      "description": "Pick a provider, then configure its API key. Clicking a provider switches the active one.",
-      "current": "Current",
       "fields": {
         "apiKey": "API Key",
         "model": "Model",
@@ -58,38 +42,10 @@
       "failed": "Failed",
       "keySaved": "API key saved"
     },
-    "schema": {
-      "customColumns": {
-        "title": "Custom columns",
-        "description": "Extra fields you've added on top of the core paper schema. They appear in the library view and CSV index.",
-        "empty": "No custom columns yet.",
-        "removeConfirmTitle": "Remove column \"{{name}}\"?",
-        "removeConfirmMessage": "Existing papers keep their data in the Markdown frontmatter, but the column will no longer appear in the library view or CSV index."
-      },
-      "addColumn": {
-        "title": "Add column",
-        "description": "New columns become available immediately on every paper.",
-        "namePlaceholder": "Column name…"
-      },
-      "types": {
-        "text": "Text",
-        "number": "Number",
-        "date": "Date",
-        "bool": "Boolean",
-        "select": "Select",
-        "multiselect": "Multi-select",
-        "tags": "Tags",
-        "url": "URL"
-      }
-    },
     "libraries": {
-      "title": "Libraries",
-      "description": "Each library is a self-contained folder of papers, attachments, and schema.",
       "switch": "Switch",
       "active": "Active",
       "papers": "{{count}} papers",
-      "papers_one": "{{count}} paper",
-      "addExisting": "Add existing library",
       "addDialog": {
         "title": "Add library",
         "description": "Point to an existing folder. Verko will index it on first open.",
@@ -97,7 +53,6 @@
         "absolutePath": "Absolute path"
       },
       "export": "Export to .zip",
-      "import": "Import from .zip",
       "action": {
         "open": "Open Folder",
         "new": "New Library",
@@ -181,8 +136,6 @@
     "newPaper": "New paper",
     "importArxiv": "Import arXiv",
     "papers": "{{count}} papers",
-    "papers_one": "{{count}} paper",
-    "showHidden": "Show hidden columns",
     "deletePaper": {
       "title": "Delete paper?",
       "message": "This removes the Markdown file and any attachments. The action cannot be undone.",
@@ -225,7 +178,6 @@
     "placeholder": "Ask anything…",
     "send": "Send",
     "stop": "Stop",
-    "clear": "Clear conversation",
     "tool": {
       "input": "Input",
       "output": "Output"
@@ -237,7 +189,6 @@
       "empty": "No matches"
     },
     "conversations": {
-      "title": "Conversations",
       "new": "New chat",
       "empty": "No conversation yet",
       "delete": {
@@ -272,12 +223,7 @@
     "send": "Send (↵)",
     "shortcutHintBase": "↵ send · ⇧↵ newline",
     "shortcutHintWithPaper": " · ⇥ add paper as context",
-    "papersHeading": "Papers — tab to add as context",
-    "suggestions": [
-      "Summarize the key contributions of the attention paper",
-      "What papers in my library discuss diffusion models?",
-      "Compare the methods in these two papers"
-    ]
+    "papersHeading": "Papers — tab to add as context"
   },
   "sidebar": {
     "collectionNew": "New collection",
