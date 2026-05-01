@@ -40,6 +40,8 @@
       "debug": "Debug"
     },
     "debug": {
+      "enable": "Record agent turns",
+      "enableHint": "Stores the last 50 agent ↔ model exchanges in memory for inspection. Cleared on app close.",
       "entryCount_one": "{{count}} entry",
       "entryCount_other": "{{count}} entries",
       "clear": "Clear",

@@ -3,6 +3,8 @@ import { Trash2, Inbox } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { wireLog, type WireLogEntry } from '@shared/agent/wireLog'
 import { Button } from '@/components/ui/button'
+import { SettingRow } from '@/components/ui/setting-row'
+import { SettingToggle } from '@/components/ui/setting-toggle'
 import { cn } from '@/lib/utils'
 
 /**
@@ -15,10 +17,23 @@ import { cn } from '@/lib/utils'
 export function DebugTab() {
   const { t } = useTranslation()
   const entries = useSyncExternalStore(wireLog.subscribe, () => wireLog.list())
+  const enabled = useSyncExternalStore(wireLog.subscribe, () => wireLog.isEnabled())
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <SettingRow
+        label={t('settings.debug.enable')}
+        description={t('settings.debug.enableHint')}
+        className="py-1"
+      >
+        <SettingToggle
+          checked={enabled}
+          onCheckedChange={(v) => wireLog.setEnabled(v)}
+          ariaLabel={t('settings.debug.enable')}
+        />
+      </SettingRow>
+
+      <div className="flex items-center justify-between pt-2 border-t border-[var(--border-color)]">
         <p className="text-[14px] text-[var(--text-muted)]">
           {t('settings.debug.entryCount', { count: entries.length })}
         </p>

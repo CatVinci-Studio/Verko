@@ -40,6 +40,8 @@
       "debug": "调试日志"
     },
     "debug": {
+      "enable": "记录 agent 回合",
+      "enableHint": "在内存中保留最近 50 条 agent 与模型的交互记录，关闭应用即清空。",
       "entryCount_one": "{{count}} 条记录",
       "entryCount_other": "{{count}} 条记录",
       "clear": "清空",

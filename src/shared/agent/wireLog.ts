@@ -52,12 +52,35 @@ export interface WireLogEntry {
 
 type Listener = () => void
 
+const ENABLED_LS_KEY = 'verko:wirelog-enabled'
+
 class WireLogStore {
   private entries: WireLogEntry[] = []
   private listeners = new Set<Listener>()
+  private enabled: boolean
+
+  constructor() {
+    // Default ON to preserve historical behaviour. The user can opt out via
+    // Settings → Debug; the choice persists across sessions.
+    const v = typeof localStorage !== 'undefined' ? localStorage.getItem(ENABLED_LS_KEY) : null
+    this.enabled = v !== '0'
+  }
 
   list(): WireLogEntry[] {
     return this.entries
+  }
+
+  isEnabled(): boolean {
+    return this.enabled
+  }
+
+  setEnabled(value: boolean): void {
+    if (this.enabled === value) return
+    this.enabled = value
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(ENABLED_LS_KEY, value ? '1' : '0')
+    }
+    this.notify()
   }
 
   subscribe = (listener: Listener): (() => void) => {
@@ -66,13 +89,15 @@ class WireLogStore {
   }
 
   start(input: Omit<WireLogEntry, 'id' | 'startedAt' | 'events'>): string {
+    // Disabled: return a sentinel id. The other methods look entries up by
+    // id and become no-ops when nothing matches.
+    if (!this.enabled) return ''
     const entry: WireLogEntry = {
       id: `wire-${Date.now()}-${randomId(4)}`,
       startedAt: Date.now(),
       events: [],
       ...input,
     }
-    // Newest first; cap.
     this.entries = [entry, ...this.entries].slice(0, MAX_ENTRIES)
     this.notify()
     return entry.id
