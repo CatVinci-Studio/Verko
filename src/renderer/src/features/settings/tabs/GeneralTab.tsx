@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/ipc'
 import { signInWithChatGpt, signOutChatGpt } from '../codexLogin'
+import { useUpdater } from '@/features/update/useUpdater'
 import { setLanguage, type Language } from '@/lib/i18n'
 import { useUIStore } from '@/store/ui'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,7 @@ export function GeneralTab() {
     <div className="space-y-6">
       <BasicSection />
       <ProviderSection />
+      <UpdateSection />
     </div>
   )
 }
@@ -181,6 +183,34 @@ function ProviderSection() {
           </div>
         )}
       </div>
+    </SettingSection>
+  )
+}
+
+// ── Updates ─────────────────────────────────────────────────────────────────
+
+function UpdateSection() {
+  const { t } = useTranslation()
+  const { state, check } = useUpdater()
+
+  const status =
+      state.status === 'checking'  ? t('settings.update.checking')
+    : state.status === 'available' ? t('settings.update.available', { version: state.update.version })
+    : state.status === 'none'      ? t('settings.update.upToDate')
+    : state.status === 'error'     ? state.error
+    : ''
+
+  return (
+    <SettingSection title={t('settings.update.title')}>
+      <SettingRow
+        label={t('settings.update.checkNow')}
+        description={status}
+      >
+        <Button variant="outline" size="lg" onClick={() => { void check() }} disabled={state.status === 'checking'} className="rounded-full">
+          {state.status === 'checking' ? <Loader size={11} className="animate-spin" /> : <Wifi size={11} />}
+          {t('settings.update.check')}
+        </Button>
+      </SettingRow>
     </SettingSection>
   )
 }

@@ -74,6 +74,12 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Updater signing — required by tauri-plugin-updater. The
+          # private key + password are repo secrets generated once via
+          # `npm run tauri signer generate`; the matching public key
+          # lives in src-tauri/tauri.conf.json under plugins.updater.pubkey.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: ${{ github.ref_name }}
