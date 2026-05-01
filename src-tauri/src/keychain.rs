@@ -18,10 +18,18 @@ pub fn set_secret(service: &str, account: &str, secret: &str) -> Result<(), Stri
 }
 
 pub fn get_secret(service: &str, account: &str) -> Result<Option<String>, String> {
-    match entry(service, account)?.get_password() {
+    let entry = match entry(service, account) {
+        Ok(e) => e,
+        // No backend (e.g. WSL without secret service): treat as "no entry"
+        // so the renderer surfaces "no key" instead of an exception.
+        Err(_) => return Ok(None),
+    };
+    match entry.get_password() {
         Ok(s) => Ok(Some(s)),
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(format!("keyring get: {e}")),
+        // Backend unreachable / locked / permission denied → treat as "no entry"
+        // for read paths; write paths (set_secret) still error loudly.
+        Err(_) => Ok(None),
     }
 }
 

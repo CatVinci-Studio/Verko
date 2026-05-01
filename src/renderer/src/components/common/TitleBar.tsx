@@ -4,16 +4,39 @@ import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/ipc'
 import logoUrl from '@/assets/logo.jpg'
 
+const isTauri = (): boolean =>
+  typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== 'undefined'
+
+/**
+ * Tauri ignores `-webkit-app-region: drag` and on Linux/webkit2gtk the
+ * `data-tauri-drag-region` attribute walk is unreliable. Drive the drag
+ * explicitly on mousedown — single click drags, double click toggles
+ * maximize. No-op on Electron / web.
+ */
+function onTitlebarMouseDown(e: React.MouseEvent) {
+  if (!isTauri() || e.button !== 0) return
+  if ((e.target as HTMLElement).closest('[data-tauri-drag-region="false"]')) return
+  e.preventDefault()
+  if (e.detail === 2) {
+    api.window.toggleMaximize()
+    return
+  }
+  void import('@tauri-apps/api/window').then(({ getCurrentWindow }) =>
+    getCurrentWindow().startDragging(),
+  )
+}
+
 export function TitleBar() {
   const { t } = useTranslation()
   const platform = api.app.platform
   const isMac = platform === 'darwin'
   const isWeb = platform as unknown as string === 'web'
-  const showWindowControls = !isMac && !isWeb  // Windows / Linux Electron only
+  const showWindowControls = !isMac && !isWeb  // Windows / Linux Electron + Tauri
 
   return (
     <div
       data-tauri-drag-region
+      onMouseDown={onTitlebarMouseDown}
       className="flex items-center h-11 border-b border-[var(--border-color)] shrink-0 titlebar-drag select-none"
     >
       {/* macOS traffic-light spacer */}

@@ -126,7 +126,9 @@ export const tauriPreload: IPreloadApi = {
     getProfiles: async (): Promise<AgentProfile[]> => {
       const profiles = PROVIDER_DEFINITIONS.map((d) => buildProfile(d.id))
       const flags = await Promise.all(
-        profiles.map((p) => invoke<boolean>('agent_has_key', { profile: p.name })),
+        profiles.map((p) =>
+          invoke<boolean>('agent_has_key', { profile: p.name }).catch(() => false),
+        ),
       )
       return profiles.map((p, i) => ({ ...p, hasKey: flags[i] }))
     },
