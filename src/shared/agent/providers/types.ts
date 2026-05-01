@@ -45,6 +45,13 @@ export interface StreamOptions {
   tools: ToolDef[]
   temperature: number
   signal: AbortSignal
+  /**
+   * Optional capture hook invoked once per turn, just before the SDK
+   * sends the request. Receives the raw vendor-shaped request body so
+   * the wire log can record it. Implementations should treat the body
+   * as opaque — it differs per provider.
+   */
+  onRawRequest?: (body: unknown) => void
 }
 
 /** Events emitted while a single LLM turn streams. */
@@ -54,6 +61,9 @@ export type StreamEvent =
   | { type: 'finish'; reason: 'stop' | 'tool_calls' | 'length' | 'other' }
 
 export interface ProviderProtocol {
+  /** Active provider config (model / baseUrl / protocol). Read-only. */
+  readonly config: ProviderConfig
+
   /** Stream a single turn. Yields normalized events; throws on transport / auth errors. */
   stream(opts: StreamOptions): AsyncIterable<StreamEvent>
 

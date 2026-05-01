@@ -1,5 +1,6 @@
 import type { AgentEvent } from '../types'
 import type { NormalizedMessage, ProviderProtocol, ToolDef } from './providers'
+import { wireLog } from './wireLog'
 
 export interface RunAgentLoopOptions {
   provider: ProviderProtocol
@@ -69,6 +70,18 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
     const toolCalls: Array<{ id: string; name: string; arguments: string }> = []
     let finishReason: 'stop' | 'tool_calls' | 'length' | 'other' = 'other'
 
+    const wireId = wireLog.start({
+      protocol: provider.config.protocol,
+      model: provider.config.model,
+      baseUrl: provider.config.baseUrl,
+      request: {
+        systemPrompt,
+        messages: messages.map((m) => ({ ...m })),
+        tools: tools.map((t) => ({ name: t.name, description: t.description })),
+        temperature,
+      },
+    })
+
     try {
       for await (const ev of provider.stream({
         model: '',  // unused — provider already has it
@@ -77,8 +90,10 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
         tools,
         temperature,
         signal: abortSignal,
+        onRawRequest: (body) => wireLog.setRawRequest(wireId, body),
       })) {
         if (abortSignal.aborted) break
+        wireLog.appendEvent(wireId, ev)
         if (ev.type === 'text') {
           assistantText += ev.delta
           onEvent({ type: 'text', delta: ev.delta })
@@ -88,12 +103,15 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
           finishReason = ev.reason
         }
       }
+      wireLog.finish(wireId, { finishReason })
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      wireLog.finish(wireId, { error: msg })
       if (abortSignal.aborted) {
         onEvent({ type: 'done' })
         return
       }
-      onEvent({ type: 'error', message: e instanceof Error ? e.message : String(e) })
+      onEvent({ type: 'error', message: msg })
       return
     }
 

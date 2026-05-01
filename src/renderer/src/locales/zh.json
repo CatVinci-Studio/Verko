@@ -19,7 +19,17 @@
     "tabs": {
       "general": "通用",
       "schema": "字段",
-      "library": "知识库"
+      "library": "知识库",
+      "debug": "调试日志"
+    },
+    "debug": {
+      "entryCount_one": "{{count}} 条记录",
+      "entryCount_other": "{{count}} 条记录",
+      "clear": "清空",
+      "empty": "尚未记录任何 agent 回合。发送一条消息开始记录。",
+      "request": "请求",
+      "response": "响应",
+      "events": "个事件"
     },
     "basic": {
       "colorScheme": "配色方案",

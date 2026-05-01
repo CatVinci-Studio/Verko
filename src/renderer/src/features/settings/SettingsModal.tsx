@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { X, Settings2, Library } from 'lucide-react'
+import { X, Settings2, Library, Bug } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useUIStore } from '@/store/ui'
 import { Button } from '@/components/ui/button'
 import { GeneralTab } from './tabs/GeneralTab'
 import { LibraryTab } from './tabs/LibraryTab'
+import { DebugTab } from './tabs/DebugTab'
 import { cn } from '@/lib/utils'
 
-type SettingsTab = 'general' | 'library'
+type SettingsTab = 'general' | 'library' | 'debug'
 
 interface TabMeta {
   id: SettingsTab
@@ -18,6 +19,7 @@ interface TabMeta {
 const TABS: TabMeta[] = [
   { id: 'general', icon: Settings2 },
   { id: 'library', icon: Library },
+  { id: 'debug',   icon: Bug },
 ]
 
 export function SettingsModal() {
@@ -95,6 +97,7 @@ export function SettingsModal() {
             <div className="px-6 py-5">
               {tab === 'general' && <GeneralTab />}
               {tab === 'library' && <LibraryTab />}
+              {tab === 'debug'   && <DebugTab />}
             </div>
           </div>
         </div>

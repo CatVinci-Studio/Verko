@@ -51,16 +51,16 @@ export class OpenAIProtocol implements ProviderProtocol {
       function: { name: t.name, description: t.description, parameters: t.parameters },
     }))
 
-    const stream = this.client.chat.completions.stream(
-      {
-        model: this.config.model,
-        messages: oaiMessages,
-        tools,
-        tool_choice: tools.length > 0 ? 'auto' : undefined,
-        temperature: opts.temperature,
-      },
-      { signal: opts.signal },
-    )
+    const body: OpenAI.Chat.ChatCompletionCreateParamsStreaming = {
+      model: this.config.model,
+      messages: oaiMessages,
+      tools,
+      tool_choice: tools.length > 0 ? 'auto' : undefined,
+      temperature: opts.temperature,
+      stream: true,
+    }
+    opts.onRawRequest?.(body)
+    const stream = this.client.chat.completions.stream(body, { signal: opts.signal })
 
     const accum: Record<number, ToolCallAccum> = {}
     let finishReason: string | null = null

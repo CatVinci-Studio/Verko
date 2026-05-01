@@ -19,7 +19,17 @@
     "tabs": {
       "general": "General",
       "schema": "Schema",
-      "library": "Libraries"
+      "library": "Libraries",
+      "debug": "Debug"
+    },
+    "debug": {
+      "entryCount_one": "{{count}} entry",
+      "entryCount_other": "{{count}} entries",
+      "clear": "Clear",
+      "empty": "No agent turns recorded yet. Send a message to start logging.",
+      "request": "Request",
+      "response": "Response",
+      "events": "events"
     },
     "basic": {
       "colorScheme": "Color scheme",

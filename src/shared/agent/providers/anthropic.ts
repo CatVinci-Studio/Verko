@@ -41,17 +41,16 @@ export class AnthropicProtocol implements ProviderProtocol {
       input_schema: t.parameters as Anthropic.Tool.InputSchema,
     }))
 
-    const stream = this.client.messages.stream(
-      {
-        model: this.config.model,
-        max_tokens: 4096,
-        system: opts.systemPrompt,
-        messages,
-        tools: tools.length > 0 ? tools : undefined,
-        temperature: opts.temperature,
-      },
-      { signal: opts.signal },
-    )
+    const body = {
+      model: this.config.model,
+      max_tokens: 4096,
+      system: opts.systemPrompt,
+      messages,
+      tools: tools.length > 0 ? tools : undefined,
+      temperature: opts.temperature,
+    }
+    opts.onRawRequest?.(body)
+    const stream = this.client.messages.stream(body, { signal: opts.signal })
 
     // Track tool uses by index so we can yield them when complete.
     const toolBlocks = new Map<number, { id: string; name: string; args: string }>()
