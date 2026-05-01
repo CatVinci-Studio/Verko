@@ -11,7 +11,7 @@
 #[cfg(target_os = "macos")]
 use tauri::menu::{AboutMetadataBuilder, MenuBuilder, PredefinedMenuItem, SubmenuBuilder};
 #[cfg(target_os = "macos")]
-use tauri::{AppHandle, Wry};
+use tauri::AppHandle;
 
 #[cfg(target_os = "macos")]
 pub fn install(app: &AppHandle) -> tauri::Result<()> {
@@ -55,7 +55,7 @@ pub fn install(app: &AppHandle) -> tauri::Result<()> {
         .item(&PredefinedMenuItem::close_window(app, None)?)
         .build()?;
 
-    let menu = MenuBuilder::<Wry>::new(app)
+    let menu = MenuBuilder::new(app)
         .item(&app_menu)
         .item(&edit_menu)
         .item(&view_menu)
