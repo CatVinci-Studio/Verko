@@ -9,6 +9,7 @@ mod dialog_cmd;
 mod fs_cmd;
 mod keychain;
 mod libraries_cmd;
+mod menu;
 mod paths_cmd;
 mod registry;
 mod scope;
@@ -61,6 +62,7 @@ pub fn run() {
             app.manage(SessionKeys(Mutex::new(HashMap::new())));
 
             libraries_cmd::register_local_roots(app.handle());
+            menu::install(app.handle())?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
