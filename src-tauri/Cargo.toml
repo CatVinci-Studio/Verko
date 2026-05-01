@@ -1,6 +1,6 @@
 [package]
 name = "verko"
-version = "0.5.0-1"
+version = "0.5.0-2"
 description = "Agent-first paper management. CSV + Markdown native storage."
 authors = ["CatVinci-Studio"]
 edition = "2021"
