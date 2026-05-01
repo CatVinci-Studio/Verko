@@ -14,16 +14,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS Apple Silicon
+          # macOS: single universal binary covers Apple Silicon + Intel.
           - os: macos-latest
-            args: --target aarch64-apple-darwin
-          # macOS Intel
-          - os: macos-13
-            args: --target x86_64-apple-darwin
+            args: --target universal-apple-darwin
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+          # Windows: NSIS .exe + WiX .msi (bundle.targets in tauri.conf.json).
           - os: windows-latest
             args: ''
+            rust_targets: ''
+          # Linux: .AppImage + .deb + .rpm.
           - os: ubuntu-latest
             args: ''
+            rust_targets: ''
 
     runs-on: ${{ matrix.os }}
 
@@ -40,8 +42,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          # macOS jobs split arm64 vs intel; non-macOS builds for the host.
-          targets: ${{ contains(matrix.args, '--target') && (contains(matrix.args, 'aarch64-apple-darwin') && 'aarch64-apple-darwin' || 'x86_64-apple-darwin') || '' }}
+          targets: ${{ matrix.rust_targets }}
 
       - name: Cache Rust build
         uses: swatinem/rust-cache@v2
@@ -73,7 +74,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: ${{ github.ref_name }}
           releaseBody: 'Automated release for ${{ github.ref_name }}.'
-          # Semver prerelease tags (anything with a hyphen, e.g. v0.5.0-dev.1)
+          # Semver prerelease tags (anything with a hyphen, e.g. v0.5.0-1)
           # publish as a GitHub prerelease; stable tags as a full release.
           prerelease: ${{ contains(github.ref_name, '-') }}
           args: ${{ matrix.args }}
