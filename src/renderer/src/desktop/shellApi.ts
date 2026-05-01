@@ -5,6 +5,20 @@ import type {
 
 type UnsubFn = () => void
 
+export interface HttpFetchRequest {
+  url: string
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'HEAD'
+  headers?: Record<string, string>
+  body?: string
+}
+
+export interface HttpFetchResponse {
+  status: number
+  ok: boolean
+  headers: Record<string, string>
+  body: string
+}
+
 /**
  * Narrow IO contract that the Tauri shell implements (see
  * `src/renderer/src/tauri/tauriShell.ts`). `desktopApi.ts` wraps this
@@ -50,6 +64,12 @@ export interface IShellApi {
   }
   dialog: {
     openPdf(): Promise<{ filename: string; bytes: Uint8Array } | null>
+  }
+  net: {
+    /** Native HTTP fetch routed through Rust — bypasses webview CORS. */
+    fetch(req: HttpFetchRequest): Promise<HttpFetchResponse>
+    /** Open URL in the user's default browser. */
+    openExternal(url: string): Promise<void>
   }
   app: {
     platform: NodeJS.Platform

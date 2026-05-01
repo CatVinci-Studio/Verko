@@ -117,5 +117,6 @@ export function makeDesktopApi(preload: IShellApi): IApi {
     paths:         { libraryRoot: preload.paths.libraryRoot },
     app:           preload.app,
     window:        preload.window,
+    net:           preload.net,
   }
 }

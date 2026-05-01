@@ -1,4 +1,5 @@
 import type { ToolRegistry } from './types'
+import { nativeFetch } from '@shared/net/fetch'
 
 /**
  * web_fetch — browser-safe network tool. Returns the response body as
@@ -24,15 +25,15 @@ export const webTools: ToolRegistry = {
         return JSON.stringify({ error: 'URL must start with http:// or https://' })
       }
       try {
-        const res = await fetch(url, {
-          headers: { 'User-Agent': 'Verko/0.3 (mailto:leonardoshen@icloud.com)' },
+        const res = await nativeFetch({
+          url,
+          headers: { 'User-Agent': 'Verko/0.5 (mailto:leonardoshen@icloud.com)' },
         })
         if (!res.ok) {
-          return JSON.stringify({ error: `Fetch failed: ${res.status} ${res.statusText}` })
+          return JSON.stringify({ error: `Fetch failed: ${res.status}` })
         }
-        const ct = res.headers.get('content-type') ?? ''
-        const text = await res.text()
-        return JSON.stringify({ url, contentType: ct, body: text.slice(0, 50_000) })
+        const ct = res.headers['content-type'] ?? ''
+        return JSON.stringify({ url, contentType: ct, body: res.body.slice(0, 50_000) })
       } catch (e) {
         return JSON.stringify({ error: e instanceof Error ? e.message : String(e) })
       }

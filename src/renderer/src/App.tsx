@@ -62,6 +62,30 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Route external link clicks to the user's default browser. Without this,
+  // clicking an http(s) link inside the Tauri webview navigates the webview
+  // itself with no way back. Internal anchors (`#hash`) and same-origin
+  // links are left alone.
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0) return
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      const target = (e.target as HTMLElement | null)?.closest('a')
+      if (!target) return
+      const href = target.getAttribute('href')
+      if (!href) return
+      if (!/^https?:\/\//i.test(href)) return
+      try {
+        const url = new URL(href)
+        if (url.origin === window.location.origin) return
+      } catch { return }
+      e.preventDefault()
+      void api.net.openExternal(href)
+    }
+    window.addEventListener('click', handleClick)
+    return () => window.removeEventListener('click', handleClick)
+  }, [])
+
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {

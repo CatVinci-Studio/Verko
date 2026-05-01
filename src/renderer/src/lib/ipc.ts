@@ -5,6 +5,7 @@ import type {
   NewLibraryInput, NewS3LibraryInput, ProbeResult, LibraryNonePayload,
   ChatContentPart, ChatMessage, ConversationSummary, Conversation,
 } from '@shared/types'
+import type { HttpFetchRequest, HttpFetchResponse } from '@/desktop/shellApi'
 
 type UnsubFn = () => void
 
@@ -98,6 +99,12 @@ export interface IApi {
     toggleMaximize(): void
     close(): void
     onMaximized(cb: (maximized: boolean) => void): UnsubFn
+  }
+  net: {
+    /** Native HTTP fetch — bypasses webview CORS on desktop; falls back to native fetch on web. */
+    fetch(req: HttpFetchRequest): Promise<HttpFetchResponse>
+    /** Open URL in user's default browser. */
+    openExternal(url: string): Promise<void>
   }
 }
 

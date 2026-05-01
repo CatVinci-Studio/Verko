@@ -10,6 +10,19 @@ import type { Message } from '@/store/agent'
 // no longer shifts the layout.
 marked.use({ breaks: true, gfm: true })
 
+// Force every rendered link to carry target="_blank" + rel hardening so
+// the global click interceptor in App.tsx can route it to the user's
+// default browser instead of navigating the webview.
+marked.use({
+  renderer: {
+    link({ href, title, tokens }) {
+      const text = this.parser.parseInline(tokens)
+      const t = title ? ` title="${title.replace(/"/g, '&quot;')}"` : ''
+      return `<a href="${href}"${t} target="_blank" rel="noopener noreferrer">${text}</a>`
+    },
+  },
+})
+
 const BUBBLE_USER =
   'max-w-[min(85%,600px)] rounded-[18px] rounded-br-[4px] ' +
   'bg-[var(--accent-color)] text-[var(--accent-on)] ' +

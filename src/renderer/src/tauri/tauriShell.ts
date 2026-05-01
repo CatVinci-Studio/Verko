@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import type { IShellApi } from '@/desktop/shellApi'
+import { openUrl } from '@tauri-apps/plugin-opener'
+import type { HttpFetchRequest, HttpFetchResponse, IShellApi } from '@/desktop/shellApi'
 import type {
   AgentConfig, AgentProfile, LibraryInfo, LibraryNonePayload,
   NewS3LibraryInput, ProbeResult, ProfilePatch,
@@ -154,6 +155,11 @@ export const tauriShell: IShellApi = {
   dialog: {
     openPdf: () => invoke<{ filename: string; bytes: number[] } | null>('dialog_open_pdf')
       .then((r) => r ? { filename: r.filename, bytes: new Uint8Array(r.bytes) } : null),
+  },
+
+  net: {
+    fetch: (req: HttpFetchRequest) => invoke<HttpFetchResponse>('http_fetch', { req }),
+    openExternal: (url: string) => openUrl(url),
   },
 
   app: {

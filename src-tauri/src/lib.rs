@@ -7,6 +7,7 @@
 mod agent_cmd;
 mod dialog_cmd;
 mod fs_cmd;
+mod http_cmd;
 mod keychain;
 mod libraries_cmd;
 mod menu;
@@ -32,6 +33,7 @@ const TRANSCRIPTS_ROOT: &str = "transcripts";
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let data_dir = app
                 .path()
@@ -77,6 +79,8 @@ pub fn run() {
             paths_cmd::paths_user_data,
             // dialog
             dialog_cmd::dialog_open_pdf,
+            // http (CORS bypass for arxiv / web_fetch)
+            http_cmd::http_fetch,
             // agent (keychain only)
             agent_cmd::agent_save_key,
             agent_cmd::agent_load_key,

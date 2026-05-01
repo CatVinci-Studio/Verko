@@ -311,4 +311,17 @@ export const webApi: IApi = {
     close: () => {},
     onMaximized: () => () => {},
   },
+  net: {
+    fetch: async (req) => {
+      const res = await fetch(req.url, {
+        method: req.method ?? 'GET',
+        headers: req.headers,
+        body: req.body,
+      })
+      const headers: Record<string, string> = {}
+      res.headers.forEach((v, k) => { headers[k] = v })
+      return { status: res.status, ok: res.ok, headers, body: await res.text() }
+    },
+    openExternal: async (url) => { window.open(url, '_blank', 'noopener,noreferrer') },
+  },
 }
