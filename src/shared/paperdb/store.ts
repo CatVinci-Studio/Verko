@@ -601,11 +601,40 @@ export class Library {
       text: draft.text,
       rects: draft.rects,
       createdAt: new Date().toISOString(),
+      ...(draft.color != null ? { color: draft.color } : {}),
       ...(draft.note != null ? { note: draft.note } : {}),
+      ...(draft.groupId != null ? { groupId: draft.groupId } : {}),
     }
     list.push(h)
     await this.backend.writeFile(highlightRel(id), JSON.stringify(list, null, 2))
     return h
+  }
+
+  /**
+   * Patch semantics:
+   *   - `note: undefined` → field untouched
+   *   - `note: ''`        → clear (drop the field)
+   *   - `note: 'text'`    → set
+   *   - `color: undefined` → untouched
+   *   - `color: <value>`  → set
+   */
+  async updateHighlight(
+    id: PaperId,
+    highlightId: string,
+    patch: Partial<Pick<Highlight, 'note' | 'color'>>,
+  ): Promise<Highlight | null> {
+    const list = await this.listHighlights(id)
+    const idx = list.findIndex((h) => h.id === highlightId)
+    if (idx < 0) return null
+    const next: Highlight = { ...list[idx] }
+    if (patch.note !== undefined) {
+      if (patch.note === '') delete next.note
+      else next.note = patch.note
+    }
+    if (patch.color !== undefined) next.color = patch.color
+    list[idx] = next
+    await this.backend.writeFile(highlightRel(id), JSON.stringify(list, null, 2))
+    return next
   }
 
   async deleteHighlight(id: PaperId, highlightId: string): Promise<void> {

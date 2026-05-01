@@ -55,9 +55,10 @@ export function buildLibraryFacade(
       getPath: async (id) => (await lib())?.pdfPath(id) ?? null,
     },
     highlights: {
-      list:   async (id)              => (await lib())?.listHighlights(id) ?? [],
-      add:    async (id, draft)       => (await need()).addHighlight(id, draft),
-      delete: async (id, highlightId) => (await need()).deleteHighlight(id, highlightId),
+      list:   async (id)                     => (await lib())?.listHighlights(id) ?? [],
+      add:    async (id, draft)              => (await need()).addHighlight(id, draft),
+      update: async (id, highlightId, patch) => (await need()).updateHighlight(id, highlightId, patch),
+      delete: async (id, highlightId)        => (await need()).deleteHighlight(id, highlightId),
     },
   }
 }

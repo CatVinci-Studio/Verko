@@ -1,67 +1,162 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, Highlighter, RotateCcw, Trash2, ZoomIn, ZoomOut } from 'lucide-react'
+import { Highlighter, MessageSquare, RotateCcw, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { confirmDialog } from '@/store/dialogs'
-import { useAddHighlight, useDeleteHighlight, useHighlights, usePdfPath } from './usePaper'
-import type { Highlight, HighlightDraft, HighlightRect } from '@shared/types'
+import {
+  useAddHighlight,
+  useDeleteHighlight,
+  useHighlights,
+  usePdfPath,
+  useUpdateHighlight,
+} from './usePaper'
+import { useUndoStore } from './highlightUndo'
+import type { Highlight, HighlightColor, HighlightDraft, HighlightRect } from '@shared/types'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PdfDoc = any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PdfPageProxy = any
+
+const COLORS: HighlightColor[] = ['yellow', 'green', 'blue', 'pink']
+const LAST_COLOR_LS = 'verko:highlight-color'
+const NEAR_VIEWPORT_PAGES = 2
 
 interface PdfViewerProps {
   paperId: string
 }
 
-interface PageState {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  pdfDoc: any
-  numPages: number
+interface PageMeta {
+  index: number     // 1-based
+  width: number     // px at scale=1
+  height: number
 }
 
 interface PendingSelection {
-  page: number
+  /** Per-page rect groups derived from a possibly cross-page browser selection. */
+  segments: Array<{ page: number; text: string; rects: HighlightRect[] }>
+  /** Combined text across pages, for the toolbar preview / agent storage. */
   text: string
-  rects: HighlightRect[]
-  /** Anchor for the floating action — viewport-relative */
+  /** Anchor for the floating toolbar — viewport-relative. */
   anchor: { left: number; top: number }
 }
+
+interface NotePopover {
+  highlight: Highlight
+  /** Anchor — relative to viewport. */
+  anchor: { left: number; top: number }
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export function PdfViewer({ paperId }: PdfViewerProps) {
   const { data: pdfPath, isLoading } = usePdfPath(paperId)
   const { data: highlights = [] } = useHighlights(paperId)
   const addHighlight = useAddHighlight(paperId)
+  const updateHighlight = useUpdateHighlight(paperId)
   const deleteHighlight = useDeleteHighlight(paperId)
+  const pushUndo = useUndoStore((s) => s.push)
 
-  const containerRef = useRef<HTMLDivElement>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const renderTaskRef = useRef<{ cancel: () => void } | null>(null)
-  const pageStateRef = useRef<PageState | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const docRef = useRef<PdfDoc | null>(null)
+  const renderTasksRef = useRef<Map<number, { cancel: () => void }>>(new Map())
+  const renderedRef = useRef<Set<number>>(new Set())
 
-  const [numPages, setNumPages] = useState(0)
-  const [currentPage, setCurrentPage] = useState(1)
+  const [pages, setPages] = useState<PageMeta[]>([])
   const [scale, setScale] = useState(1.2)
   const [error, setError] = useState<string | null>(null)
-  const [isRendering, setIsRendering] = useState(false)
   const [selection, setSelection] = useState<PendingSelection | null>(null)
+  const [notePopover, setNotePopover] = useState<NotePopover | null>(null)
+  const [color, setColor] = useState<HighlightColor>(() => {
+    const saved = localStorage.getItem(LAST_COLOR_LS) as HighlightColor | null
+    return COLORS.includes(saved as HighlightColor) ? (saved as HighlightColor) : 'yellow'
+  })
 
-  const pageHighlights = useMemo(
-    () => highlights.filter((h) => h.page === currentPage),
-    [highlights, currentPage],
-  )
+  // Highlights bucketed by page for O(1) per-page lookup during render.
+  const highlightsByPage = useMemo(() => {
+    const map = new Map<number, Highlight[]>()
+    for (const h of highlights) {
+      const arr = map.get(h.page) ?? []
+      arr.push(h)
+      map.set(h.page, arr)
+    }
+    return map
+  }, [highlights])
 
-  // ── Render a page (canvas + text layer) ─────────────────────────────────────
+  const pickColor = useCallback((next: HighlightColor) => {
+    setColor(next)
+    localStorage.setItem(LAST_COLOR_LS, next)
+  }, [])
 
-  const renderPage = useCallback(async (pageNum: number, sc: number) => {
-    if (!pageStateRef.current || !wrapRef.current) return
-    renderTaskRef.current?.cancel()
-    setIsRendering(true)
+  // ── Load PDF ────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!pdfPath) return
+    setError(null)
     setSelection(null)
+    setNotePopover(null)
+
+    const cancelled = { v: false }
+    const tasks = renderTasksRef.current
+    const loadPdf = async () => {
+      try {
+        const pdfjs = await import('pdfjs-dist')
+        if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+          pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+            'pdfjs-dist/build/pdf.worker.min.mjs',
+            import.meta.url,
+          ).href
+        }
+        const url = `file://${pdfPath}`
+        const pdfDoc: PdfDoc = await pdfjs.getDocument({ url }).promise
+        if (cancelled.v) return
+        docRef.current = pdfDoc
+
+        // Pre-fetch each page's intrinsic size so placeholders reserve scroll space
+        // before any canvas exists. This avoids layout jumps as canvases load in.
+        const metas: PageMeta[] = []
+        for (let p = 1; p <= pdfDoc.numPages; p++) {
+          const page: PdfPageProxy = await pdfDoc.getPage(p)
+          const vp = page.getViewport({ scale: 1 })
+          metas.push({ index: p, width: vp.width, height: vp.height })
+        }
+        if (cancelled.v) return
+        renderedRef.current.clear()
+        setPages(metas)
+      } catch (e) {
+        if (!cancelled.v) setError(`Failed to load PDF: ${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+    loadPdf()
+
+    return () => {
+      cancelled.v = true
+      for (const t of tasks.values()) t.cancel()
+      tasks.clear()
+    }
+  }, [pdfPath])
+
+  // Re-render visible pages when scale changes.
+  useEffect(() => {
+    if (!docRef.current) return
+    for (const t of renderTasksRef.current.values()) t.cancel()
+    renderTasksRef.current.clear()
+    renderedRef.current.clear()
+    // Force re-evaluate visibility — IntersectionObserver re-fires on layout change.
+  }, [scale])
+
+  // ── Page render (async, cancellable) ───────────────────────────────────────
+
+  const renderPage = useCallback(async (pageIndex: number, sc: number) => {
+    if (renderedRef.current.has(pageIndex)) return
+    const doc = docRef.current
+    const wrap = document.querySelector<HTMLDivElement>(`[data-pdf-page="${pageIndex}"]`)
+    if (!doc || !wrap) return
+    renderedRef.current.add(pageIndex)
 
     try {
       const pdfjs = await import('pdfjs-dist')
-      const page = await pageStateRef.current.pdfDoc.getPage(pageNum)
+      const page: PdfPageProxy = await doc.getPage(pageIndex)
       const viewport = page.getViewport({ scale: sc })
-
-      const wrap = wrapRef.current
-      wrap.style.width = `${viewport.width}px`
-      wrap.style.height = `${viewport.height}px`
 
       let canvas = wrap.querySelector<HTMLCanvasElement>('canvas.pdf-page-canvas')
       if (!canvas) {
@@ -75,11 +170,12 @@ export function PdfViewer({ paperId }: PdfViewerProps) {
       canvas.style.height = `${viewport.height}px`
 
       const ctx = canvas.getContext('2d')!
-      const renderTask = page.render({ canvasContext: ctx, viewport })
-      renderTaskRef.current = renderTask
-      await renderTask.promise
+      const task = page.render({ canvasContext: ctx, viewport })
+      renderTasksRef.current.set(pageIndex, task)
+      await task.promise
+      renderTasksRef.current.delete(pageIndex)
 
-      // ── Text layer ──
+      // Text layer
       let textLayer = wrap.querySelector<HTMLDivElement>('div.pdf-text-layer')
       if (!textLayer) {
         textLayer = document.createElement('div')
@@ -88,11 +184,10 @@ export function PdfViewer({ paperId }: PdfViewerProps) {
       } else {
         textLayer.replaceChildren()
       }
-      textLayer.style.width  = `${viewport.width}px`
+      textLayer.style.width = `${viewport.width}px`
       textLayer.style.height = `${viewport.height}px`
 
       const textContent = await page.getTextContent()
-      // pdfjs ≥ 4 exports `TextLayer` as a class.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const PdfTextLayer = (pdfjs as any).TextLayer
       if (PdfTextLayer) {
@@ -103,84 +198,112 @@ export function PdfViewer({ paperId }: PdfViewerProps) {
         })
         await layer.render()
       }
-
-      setIsRendering(false)
     } catch (e: unknown) {
       if ((e as { name?: string })?.name !== 'RenderingCancelledException') {
-        setIsRendering(false)
+        renderedRef.current.delete(pageIndex)
       }
     }
   }, [])
 
-  // ── Load PDF document ───────────────────────────────────────────────────────
+  // ── Virtual rendering: only paint pages near the viewport ───────────────────
 
   useEffect(() => {
-    if (!pdfPath) return
-    setError(null)
-    setCurrentPage(1)
-
-    const loadPdf = async () => {
-      try {
-        const pdfjs = await import('pdfjs-dist')
-        if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-          pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-            'pdfjs-dist/build/pdf.worker.min.mjs',
-            import.meta.url,
-          ).href
+    if (pages.length === 0) return
+    const root = scrollRef.current
+    if (!root) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          const idx = Number((entry.target as HTMLElement).dataset.pdfPage)
+          if (!idx) continue
+          // Render the visible page + the next few so scrolling isn't jumpy.
+          for (let p = idx; p <= Math.min(pages.length, idx + NEAR_VIEWPORT_PAGES); p++) {
+            void renderPage(p, scale)
+          }
         }
-        const url = `file://${pdfPath}`
-        const pdfDoc = await pdfjs.getDocument({ url }).promise
-        pageStateRef.current = { pdfDoc, numPages: pdfDoc.numPages }
-        setNumPages(pdfDoc.numPages)
-        renderPage(1, scale)
-      } catch (e) {
-        setError(`Failed to load PDF: ${e instanceof Error ? e.message : String(e)}`)
-      }
-    }
-    loadPdf()
+      },
+      { root, rootMargin: '200px 0px' },
+    )
+    const wraps = root.querySelectorAll<HTMLElement>('[data-pdf-page]')
+    wraps.forEach((w) => observer.observe(w))
+    return () => observer.disconnect()
+  }, [pages, scale, renderPage])
 
-    return () => { renderTaskRef.current?.cancel() }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pdfPath])
-
-  useEffect(() => {
-    if (pageStateRef.current) renderPage(currentPage, scale)
-  }, [currentPage, scale, renderPage])
-
-  // ── Selection capture ───────────────────────────────────────────────────────
+  // ── Selection capture (works across pages) ──────────────────────────────────
 
   const captureSelection = useCallback(() => {
-    const wrap = wrapRef.current
-    if (!wrap) { setSelection(null); return }
+    if (!scrollRef.current) return
     const sel = window.getSelection()
-    if (!sel || sel.isCollapsed || sel.rangeCount === 0) { setSelection(null); return }
-
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+      setSelection(null)
+      return
+    }
     const range = sel.getRangeAt(0)
-    if (!wrap.contains(range.commonAncestorContainer)) { setSelection(null); return }
+    const root = scrollRef.current
+    if (!root.contains(range.commonAncestorContainer)) {
+      setSelection(null)
+      return
+    }
 
-    const wrapRect = wrap.getBoundingClientRect()
-    const clientRects = Array.from(range.getClientRects())
-    if (clientRects.length === 0) { setSelection(null); return }
+    // Group rects by which page wrap they belong to. The browser returns rects
+    // in document order across pages, so we just walk and bucket.
+    const wraps = Array.from(root.querySelectorAll<HTMLElement>('[data-pdf-page]'))
+    const wrapBoxes = wraps.map((w) => ({ el: w, page: Number(w.dataset.pdfPage), box: w.getBoundingClientRect() }))
 
-    // Convert to page-percent coords so highlights survive zoom changes.
-    const rects: HighlightRect[] = clientRects
-      .filter((r) => r.width > 1 && r.height > 1)
-      .map((r) => ({
-        x: (r.left   - wrapRect.left) / wrapRect.width,
-        y: (r.top    - wrapRect.top)  / wrapRect.height,
-        w: r.width  / wrapRect.width,
-        h: r.height / wrapRect.height,
-      }))
-    if (rects.length === 0) { setSelection(null); return }
+    const segments = new Map<number, { rects: HighlightRect[]; box: DOMRect }>()
+    for (const r of Array.from(range.getClientRects())) {
+      if (r.width < 1 || r.height < 1) continue
+      const cy = r.top + r.height / 2
+      const cx = r.left + r.width / 2
+      const wrap = wrapBoxes.find((wb) => cx >= wb.box.left && cx <= wb.box.right && cy >= wb.box.top && cy <= wb.box.bottom)
+      if (!wrap) continue
+      const seg = segments.get(wrap.page) ?? { rects: [], box: wrap.box }
+      seg.rects.push({
+        x: (r.left   - wrap.box.left) / wrap.box.width,
+        y: (r.top    - wrap.box.top)  / wrap.box.height,
+        w: r.width  / wrap.box.width,
+        h: r.height / wrap.box.height,
+      })
+      segments.set(wrap.page, seg)
+    }
+    if (segments.size === 0) {
+      setSelection(null)
+      return
+    }
 
-    const last = clientRects[clientRects.length - 1]
+    // Approximate per-page text by slicing the full selection text by the
+    // page's character ratio. This isn't exact but good enough for storage —
+    // the model only needs the gist, and the agent always sees the joined text.
+    const fullText = sel.toString()
+    const lastClient = Array.from(range.getClientRects()).pop()!
+
+    const segmentsArray = Array.from(segments.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([page, seg]) => ({ page, text: '', rects: seg.rects }))
+    if (segmentsArray.length === 1) {
+      segmentsArray[0].text = fullText
+    } else {
+      const totalRects = segmentsArray.reduce((n, s) => n + s.rects.length, 0)
+      let consumed = 0
+      for (const s of segmentsArray) {
+        const share = s.rects.length / totalRects
+        const take = Math.round(fullText.length * share)
+        s.text = fullText.slice(consumed, consumed + take)
+        consumed += take
+      }
+      // Patch any remainder onto the last page.
+      if (consumed < fullText.length) {
+        segmentsArray[segmentsArray.length - 1].text += fullText.slice(consumed)
+      }
+    }
+
     setSelection({
-      page: currentPage,
-      text: sel.toString(),
-      rects,
-      anchor: { left: last.right, top: last.bottom },
+      segments: segmentsArray,
+      text: fullText,
+      anchor: { left: lastClient.right, top: lastClient.bottom },
     })
-  }, [currentPage])
+  }, [])
 
   useEffect(() => {
     const onUp = () => { setTimeout(captureSelection, 0) }
@@ -188,35 +311,84 @@ export function PdfViewer({ paperId }: PdfViewerProps) {
     return () => document.removeEventListener('mouseup', onUp)
   }, [captureSelection])
 
-  // Close popover on outside click / page change.
-  useEffect(() => { setSelection(null) }, [currentPage])
+  // ── Actions ─────────────────────────────────────────────────────────────────
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
-
-  const onHighlight = async () => {
+  const onHighlight = async (chosenColor: HighlightColor) => {
     if (!selection) return
-    const draft: HighlightDraft = {
-      page: selection.page,
-      text: selection.text,
-      rects: selection.rects,
-    }
+    pickColor(chosenColor)
+    const groupId = selection.segments.length > 1 ? `g-${Date.now().toString(36)}` : undefined
+    const drafts: HighlightDraft[] = selection.segments.map((s) => ({
+      page: s.page,
+      text: s.text,
+      rects: s.rects,
+      color: chosenColor,
+      ...(groupId ? { groupId } : {}),
+    }))
     setSelection(null)
     window.getSelection()?.removeAllRanges()
-    addHighlight.mutate(draft)
+
+    const created: Highlight[] = []
+    for (const d of drafts) created.push(await addHighlight.mutateAsync(d))
+
+    pushUndo(
+      drafts.length > 1 ? `${drafts.length} highlights` : '1 highlight',
+      async () => {
+        for (const h of created) await deleteHighlight.mutateAsync(h.id)
+      },
+    )
   }
 
-  const onDeleteHighlight = (h: Highlight) => {
-    deleteHighlight.mutate(h.id)
+  const onClickHighlight = (h: Highlight, target: HTMLElement) => {
+    const box = target.getBoundingClientRect()
+    setNotePopover({ highlight: h, anchor: { left: box.left, top: box.bottom + 4 } })
+  }
+
+  const onDeleteHighlight = async (h: Highlight) => {
+    const ok = await confirmDialog({
+      title: 'Delete highlight?',
+      message: `"${h.text.slice(0, 200)}${h.text.length > 200 ? '…' : ''}"`,
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (!ok) return
+    setNotePopover(null)
+    // For grouped (cross-page) highlights, delete every member of the group.
+    const targets = h.groupId
+      ? highlights.filter((x) => x.groupId === h.groupId)
+      : [h]
+    for (const t of targets) await deleteHighlight.mutateAsync(t.id)
+    pushUndo(
+      targets.length > 1 ? `${targets.length} highlights` : '1 highlight',
+      async () => {
+        const groupId = h.groupId
+        for (const t of targets) {
+          await addHighlight.mutateAsync({
+            page: t.page,
+            text: t.text,
+            rects: t.rects,
+            ...(t.color != null ? { color: t.color } : {}),
+            ...(t.note != null ? { note: t.note } : {}),
+            ...(groupId != null ? { groupId } : {}),
+          })
+        }
+      },
+    )
+  }
+
+  const onSaveNote = async (h: Highlight, note: string, nextColor?: HighlightColor) => {
+    const patch: { note?: string; color?: HighlightColor } = {}
+    if (note.trim()) patch.note = note.trim()
+    else if (h.note != null) patch.note = ''  // explicit clear
+    if (nextColor && nextColor !== (h.color ?? 'yellow')) patch.color = nextColor
+    if (Object.keys(patch).length === 0) { setNotePopover(null); return }
+    await updateHighlight.mutateAsync({ highlightId: h.id, patch })
+    setNotePopover(null)
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <span className="text-[14.5px] text-[var(--text-muted)]">Loading PDF path…</span>
-      </div>
-    )
+    return <Centered text="Loading PDF path…" muted />
   }
   if (!pdfPath) {
     return (
@@ -229,39 +401,21 @@ export function PdfViewer({ paperId }: PdfViewerProps) {
     )
   }
   if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-2">
-        <p className="text-[14.5px] text-[var(--danger)]">{error}</p>
-      </div>
-    )
+    return <Centered text={error} danger />
   }
 
   return (
     <div className="flex flex-col h-full">
-      {/* Controls */}
+      {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[var(--bg-active)] shrink-0">
-        <Button
-          variant="ghost" size="icon-sm"
-          className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-          disabled={currentPage <= 1}
-        >
-          <ChevronLeft size={14} />
-        </Button>
         <span className="text-[13.5px] text-[var(--text-secondary)] tabular-nums">
-          {currentPage} / {numPages}
+          {pages.length} page{pages.length === 1 ? '' : 's'}
         </span>
-        <Button
-          variant="ghost" size="icon-sm"
-          className="text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-          onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
-          disabled={currentPage >= numPages}
-        >
-          <ChevronRight size={14} />
-        </Button>
-        <span className="text-[12.5px] text-[var(--text-muted)] ml-1">
-          {highlights.length > 0 && `${highlights.length} highlight${highlights.length === 1 ? '' : 's'}`}
-        </span>
+        {highlights.length > 0 && (
+          <span className="text-[12.5px] text-[var(--text-muted)] ml-1">
+            · {highlights.length} highlight{highlights.length === 1 ? '' : 's'}
+          </span>
+        )}
 
         <div className="flex-1" />
 
@@ -289,62 +443,183 @@ export function PdfViewer({ paperId }: PdfViewerProps) {
         >
           <RotateCcw size={12} />
         </Button>
-        {isRendering && (
-          <span className="text-[13.5px] text-[var(--text-muted)] ml-1">Rendering…</span>
-        )}
       </div>
 
-      {/* Canvas + layers */}
-      <div ref={containerRef} className="flex-1 overflow-auto bg-[var(--bg-base)] flex justify-center pt-4 relative">
-        <div ref={wrapRef} className="pdf-page-wrap">
-          {/* Highlight overlay — rendered between canvas and text layer */}
-          <div className="pdf-highlight-layer">
-            {pageHighlights.flatMap((h) =>
-              h.rects.map((r, i) => (
-                <div
-                  key={`${h.id}-${i}`}
-                  className="pdf-highlight-rect"
-                  title={h.text}
-                  style={{
-                    left:   `${r.x * 100}%`,
-                    top:    `${r.y * 100}%`,
-                    width:  `${r.w * 100}%`,
-                    height: `${r.h * 100}%`,
-                  }}
-                  onClick={async (e) => {
-                    e.stopPropagation()
-                    const ok = await confirmDialog({
-                      title: 'Delete highlight?',
-                      message: `"${h.text.slice(0, 200)}${h.text.length > 200 ? '…' : ''}"`,
-                      confirmLabel: 'Delete',
-                      danger: true,
-                    })
-                    if (ok) onDeleteHighlight(h)
-                  }}
-                />
-              )),
-            )}
+      {/* Continuous-scroll page list */}
+      <div ref={scrollRef} className="flex-1 overflow-auto bg-[var(--bg-base)] flex flex-col items-center pt-4 relative">
+        {pages.map((p) => (
+          <div
+            key={p.index}
+            data-pdf-page={p.index}
+            className="pdf-page-wrap"
+            style={{ width: p.width * scale, height: p.height * scale }}
+          >
+            {/* Highlight overlay */}
+            <div className="pdf-highlight-layer">
+              {(highlightsByPage.get(p.index) ?? []).flatMap((h) =>
+                h.rects.map((r, i) => (
+                  <div
+                    key={`${h.id}-${i}`}
+                    className="pdf-highlight-rect"
+                    data-color={h.color ?? 'yellow'}
+                    data-has-note={Boolean(h.note)}
+                    title={h.note ? `${h.text}\n\n📝 ${h.note}` : h.text}
+                    style={{
+                      left:   `${r.x * 100}%`,
+                      top:    `${r.y * 100}%`,
+                      width:  `${r.w * 100}%`,
+                      height: `${r.h * 100}%`,
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onClickHighlight(h, e.currentTarget)
+                    }}
+                  />
+                )),
+              )}
+            </div>
           </div>
-        </div>
+        ))}
 
+        {/* Selection toolbar */}
         {selection && (
           <div
-            className="fixed z-50 flex items-center gap-1 px-2 py-1 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] shadow-lg"
+            className="fixed z-50 flex items-center gap-2 px-2.5 py-1.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] shadow-lg"
             style={{ left: selection.anchor.left + 4, top: selection.anchor.top + 4 }}
+            onMouseDown={(e) => e.preventDefault()  /* keep selection alive */}
           >
-            <Button variant="accent" size="sm" className="rounded-full h-7" onClick={onHighlight}>
-              <Highlighter size={11} /> Highlight
-            </Button>
+            <Highlighter size={12} className="text-[var(--text-muted)]" />
+            {COLORS.map((c) => (
+              <button
+                key={c}
+                className="pdf-color-swatch"
+                data-color={c}
+                data-active={c === color}
+                onClick={() => onHighlight(c)}
+                title={`Highlight (${c})`}
+              />
+            ))}
             <Button
               variant="ghost" size="icon-sm" className="h-7 w-7 text-[var(--text-muted)]"
               onClick={() => { setSelection(null); window.getSelection()?.removeAllRanges() }}
               title="Cancel"
             >
-              <Trash2 size={11} />
+              <X size={11} />
             </Button>
           </div>
         )}
+
+        {/* Highlight popover (note + color + delete) */}
+        {notePopover && (
+          <NoteEditor
+            key={notePopover.highlight.id}
+            highlight={notePopover.highlight}
+            anchor={notePopover.anchor}
+            onSave={(note, nextColor) => onSaveNote(notePopover.highlight, note, nextColor)}
+            onDelete={() => onDeleteHighlight(notePopover.highlight)}
+            onCancel={() => setNotePopover(null)}
+          />
+        )}
       </div>
+
+      <UndoToast />
+    </div>
+  )
+}
+
+// ── Sub-components ───────────────────────────────────────────────────────────
+
+function Centered({ text, muted, danger }: { text: string; muted?: boolean; danger?: boolean }) {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <span className={`text-[14.5px] ${danger ? 'text-[var(--danger)]' : muted ? 'text-[var(--text-muted)]' : ''}`}>
+        {text}
+      </span>
+    </div>
+  )
+}
+
+interface NoteEditorProps {
+  highlight: Highlight
+  anchor: { left: number; top: number }
+  onSave: (note: string, color?: HighlightColor) => void
+  onDelete: () => void
+  onCancel: () => void
+}
+
+function NoteEditor({ highlight, anchor, onSave, onDelete, onCancel }: NoteEditorProps) {
+  const [note, setNote] = useState(highlight.note ?? '')
+  const [chosenColor, setChosenColor] = useState<HighlightColor>(highlight.color ?? 'yellow')
+
+  // Position above the click if there isn't enough room below.
+  const style = useMemo(() => {
+    const popoverHeight = 180
+    const top = anchor.top + popoverHeight > window.innerHeight
+      ? Math.max(8, anchor.top - popoverHeight - 16)
+      : anchor.top
+    const left = Math.min(anchor.left, window.innerWidth - 320)
+    return { left, top }
+  }, [anchor])
+
+  return (
+    <div
+      className="fixed z-50 w-[300px] rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-color)] shadow-xl p-3 flex flex-col gap-2"
+      style={style}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <p className="text-[13px] text-[var(--text-muted)] line-clamp-3">
+        “{highlight.text}”
+      </p>
+      <textarea
+        autoFocus
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        placeholder="Add a note…"
+        className="w-full resize-none bg-[var(--bg-base)] border border-[var(--border-color)] rounded-md px-2 py-1.5 text-[13px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-color)]"
+        rows={3}
+        onKeyDown={(e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') onSave(note, chosenColor)
+          if (e.key === 'Escape') onCancel()
+        }}
+      />
+      <div className="flex items-center gap-2">
+        {COLORS.map((c) => (
+          <button
+            key={c}
+            className="pdf-color-swatch"
+            data-color={c}
+            data-active={c === chosenColor}
+            onClick={() => setChosenColor(c)}
+            title={c}
+          />
+        ))}
+        <div className="flex-1" />
+        <Button variant="ghost" size="sm" className="h-7 text-[var(--danger)]" onClick={onDelete}>
+          <Trash2 size={11} />
+        </Button>
+        <Button variant="accent" size="sm" className="h-7 rounded-full" onClick={() => onSave(note, chosenColor)}>
+          Save
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function UndoToast() {
+  const entry = useUndoStore((s) => s.entry)
+  const trigger = useUndoStore((s) => s.trigger)
+  const dismiss = useUndoStore((s) => s.dismiss)
+  if (!entry) return null
+  return (
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border-color)] shadow-lg">
+      <MessageSquare size={11} className="text-[var(--text-muted)]" />
+      <span className="text-[13px] text-[var(--text-primary)]">{entry.label}</span>
+      <Button variant="accent" size="sm" className="h-7 rounded-full" onClick={() => void trigger()}>
+        Undo
+      </Button>
+      <Button variant="ghost" size="icon-sm" className="h-7 w-7 text-[var(--text-muted)]" onClick={dismiss}>
+        <X size={11} />
+      </Button>
     </div>
   )
 }

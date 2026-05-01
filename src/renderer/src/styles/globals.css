@@ -334,12 +334,42 @@ body {
 }
 .pdf-highlight-rect {
   position: absolute;
-  background: rgba(255, 233, 157, 0.35);
   border-radius: 1px;
   pointer-events: auto;
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background 0.1s, box-shadow 0.1s;
 }
-.pdf-highlight-rect:hover {
-  background: rgba(255, 233, 157, 0.55);
+.pdf-highlight-rect[data-color="yellow"] { background: rgba(255, 233, 157, 0.35); }
+.pdf-highlight-rect[data-color="green"]  { background: rgba(140, 220, 160, 0.35); }
+.pdf-highlight-rect[data-color="blue"]   { background: rgba(140, 190, 240, 0.35); }
+.pdf-highlight-rect[data-color="pink"]   { background: rgba(240, 160, 200, 0.35); }
+.pdf-highlight-rect[data-has-note="true"]::after {
+  content: "";
+  position: absolute;
+  right: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-bright);
+  box-shadow: 0 0 0 1px var(--bg-base);
 }
+.pdf-highlight-rect[data-color="yellow"]:hover { background: rgba(255, 233, 157, 0.55); }
+.pdf-highlight-rect[data-color="green"]:hover  { background: rgba(140, 220, 160, 0.55); }
+.pdf-highlight-rect[data-color="blue"]:hover   { background: rgba(140, 190, 240, 0.55); }
+.pdf-highlight-rect[data-color="pink"]:hover   { background: rgba(240, 160, 200, 0.55); }
+
+.pdf-color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.pdf-color-swatch:hover { transform: scale(1.15); }
+.pdf-color-swatch[data-active="true"] { border-color: var(--text-bright); }
+.pdf-color-swatch[data-color="yellow"] { background: rgba(255, 233, 157, 0.9); }
+.pdf-color-swatch[data-color="green"]  { background: rgba(140, 220, 160, 0.9); }
+.pdf-color-swatch[data-color="blue"]   { background: rgba(140, 190, 240, 0.9); }
+.pdf-color-swatch[data-color="pink"]   { background: rgba(240, 160, 200, 0.9); }

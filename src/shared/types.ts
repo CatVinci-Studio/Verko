@@ -119,6 +119,8 @@ export interface HighlightRect {
   h: number
 }
 
+export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink'
+
 export interface Highlight {
   id: string
   /** 1-based page number */
@@ -127,17 +129,27 @@ export interface Highlight {
   text: string
   /** Bounding rects (one per visual line) in page-percent coordinates. */
   rects: HighlightRect[]
+  /** Color swatch — defaults to yellow when missing (back-compat with v1 highlights). */
+  color?: HighlightColor
   /** ISO timestamp */
   createdAt: string
   /** Optional user note */
   note?: string
+  /**
+   * Group ID for cross-page selections. Multiple highlights sharing a
+   * group were created from a single drag that spanned page boundaries —
+   * the UI may want to delete them together.
+   */
+  groupId?: string
 }
 
 export interface HighlightDraft {
   page: number
   text: string
   rects: HighlightRect[]
+  color?: HighlightColor
   note?: string
+  groupId?: string
 }
 
 // ─── Agent ───────────────────────────────────────────────────────────────────

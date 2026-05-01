@@ -172,6 +172,22 @@ describe('Library highlights', () => {
     expect(left[0].id).toBe(h2.id)
   })
 
+  it('updates a highlight note and color', async () => {
+    const id = await lib.add({ title: 'A', tags: [] })
+    const h = await lib.addHighlight(id, {
+      page: 1, text: 'x', rects: [{ x: 0, y: 0, w: 0.1, h: 0.01 }], color: 'yellow',
+    })
+    const updated = await lib.updateHighlight(id, h.id, { note: 'a thought', color: 'green' })
+    expect(updated?.note).toBe('a thought')
+    expect(updated?.color).toBe('green')
+
+    const cleared = await lib.updateHighlight(id, h.id, { note: '' })
+    expect(cleared?.note).toBeUndefined()
+
+    const missing = await lib.updateHighlight(id, 'no-such-id', { note: 'x' })
+    expect(missing).toBeNull()
+  })
+
   it('removes the file when the last highlight is deleted', async () => {
     const id = await lib.add({ title: 'A', tags: [] })
     const h = await lib.addHighlight(id, {

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { HighlightDraft, PaperPatch } from '@shared/types'
+import type { HighlightColor, HighlightDraft, PaperPatch } from '@shared/types'
 import { api } from '@/lib/ipc'
 
 export function usePaperDetail(id: string | null) {
@@ -55,6 +55,17 @@ export function useDeleteHighlight(paperId: string | null) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (highlightId: string) => api.highlights.delete(paperId!, highlightId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['highlights', paperId] })
+    },
+  })
+}
+
+export function useUpdateHighlight(paperId: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ highlightId, patch }: { highlightId: string; patch: { note?: string; color?: HighlightColor } }) =>
+      api.highlights.update(paperId!, highlightId, patch),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['highlights', paperId] })
     },

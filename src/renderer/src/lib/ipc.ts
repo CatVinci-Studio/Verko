@@ -84,6 +84,7 @@ export interface IApi {
   highlights: {
     list(paperId: PaperId): Promise<Highlight[]>
     add(paperId: PaperId, draft: HighlightDraft): Promise<Highlight>
+    update(paperId: PaperId, highlightId: string, patch: { note?: string; color?: import('@shared/types').HighlightColor }): Promise<Highlight | null>
     delete(paperId: PaperId, highlightId: string): Promise<void>
   }
   fs: {
