@@ -330,4 +330,11 @@ export const webApi: IApi = {
     // OAuth client + hosted redirect page — out of scope for this build.
     loopbackWait: () => Promise.reject(new Error('ChatGPT sign-in is only available in the desktop app.')),
   },
+  deepLink: {
+    // The browser is the OS share target on the web; the page can read
+    // `?url=…` query params or `share_target` on a PWA, but that wiring
+    // is out of scope for this build. The listener is a no-op so the
+    // shared `useDeepLinkIngest` hook can mount safely.
+    onIngest: () => () => {},
+  },
 }

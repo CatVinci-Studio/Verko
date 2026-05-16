@@ -182,6 +182,15 @@ export const tauriShell: IShellApi = {
     onMenuCommand: (_cb) => () => {},
   },
 
+  deepLink: {
+    // Only the mobile build registers the deep-link plugin in Rust. On
+    // desktop the event simply never fires, so the listener is harmless.
+    onIngest: (cb) => {
+      const p = listen<string>('deeplink:ingest', (e) => cb(e.payload))
+      return () => { void p.then((u) => u()) }
+    },
+  },
+
   window: {
     minimize:       () => { void getCurrentWindow().minimize() },
     toggleMaximize: () => { void getCurrentWindow().toggleMaximize() },

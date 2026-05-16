@@ -70,6 +70,12 @@ export interface IApi {
       language?: Language,
       conversationId?: string,
     ): Promise<string>
+    /**
+     * Background worker run — no conversation persisted, no event stream.
+     * Used by the inbox auto-summarize pass and any other "do this and
+     * disappear" task. Caller should treat it as fire-and-forget.
+     */
+    runWorker(prompt: string, paperId?: string): Promise<void>
     abort(conversationId?: string): Promise<void>
     compact(conversationId: string): Promise<void>
     getConfig(): Promise<AgentConfig | null>
@@ -127,6 +133,15 @@ export interface IApi {
   oauth: {
     /** Bind a one-shot loopback listener for the OAuth redirect. Desktop-only. */
     loopbackWait(port: number, path: string, timeoutSecs: number): Promise<{ code: string; state: string }>
+  }
+  deepLink: {
+    /**
+     * Subscribe to URLs handed to Verko via the OS share sheet (iOS) /
+     * Send intent (Android) on `verko://ingest?url=…`. Returns an
+     * unsubscribe function. No-op on platforms without deep-link
+     * support (web build, desktop builds where the plugin is gated out).
+     */
+    onIngest(cb: (url: string) => void): UnsubFn
   }
 }
 

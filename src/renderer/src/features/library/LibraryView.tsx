@@ -15,11 +15,13 @@ import { confirmDialog, promptDialog } from '@/store/dialogs'
 import { Button } from '@/components/ui/button'
 import { FilterModal } from './FilterBar'
 import { InboxBar } from './InboxBar'
+import { MobilePaperList } from './MobilePaperList'
 import { StatusFilterStrip } from './StatusFilterStrip'
 import { PaperRow } from './PaperRow'
 import { ColumnHeader } from './ColumnHeader'
 import { buildColumns } from './columns'
 import { useColumnPersistence } from './useColumnPersistence'
+import { useMobile } from '@/lib/useMobile'
 import {
   usePapersQuery, useSchemaQuery, useCollectionsQuery, useActiveLibrary,
   useInvalidateLibrary,
@@ -30,6 +32,7 @@ const CORE_COLS = new Set(['id', 'title', 'authors', 'year', 'status', 'tags', '
 
 export function LibraryView() {
   const { t } = useTranslation()
+  const isMobile = useMobile()
   const selectedId = useLibraryStore((s) => s.selectedId)
   const setSelected = useLibraryStore((s) => s.setSelected)
   const activeCollection = useLibraryStore((s) => s.activeCollection)
@@ -219,18 +222,24 @@ export function LibraryView() {
       <StatusFilterStrip />
 
       <div ref={scrollRef} className="flex-1 overflow-auto">
-        <TableHeader
-          table={table}
-          hiddenColumns={hiddenColumns}
-          onAddColumn={handleAddColumn}
-        />
-
         {isLoadingPapers ? (
           <div className="flex items-center justify-center h-32 text-[14.5px] text-[var(--text-muted)]">
             {t('common.loading')}
           </div>
+        ) : isMobile ? (
+          <MobilePaperList
+            papers={table.getRowModel().rows.map((r) => r.original)}
+            selectedId={selectedId}
+            onSelect={handleSelect}
+          />
         ) : (
           <>
+            <TableHeader
+              table={table}
+              hiddenColumns={hiddenColumns}
+              onAddColumn={handleAddColumn}
+            />
+
             {table.getRowModel().rows.map((row) => (
               <PaperRow
                 key={row.original.id}

@@ -66,6 +66,15 @@ export interface IShellApi {
      */
     loopbackWait(port: number, path: string, timeoutSecs: number): Promise<{ code: string; state: string }>
   }
+  deepLink: {
+    /**
+     * Subscribe to URLs handed to Verko via the OS share sheet (iOS) /
+     * Send intent (Android). The Rust deep-link bridge emits each match
+     * on the webview event bus; this method wires a callback to those
+     * events and returns an unsubscribe.
+     */
+    onIngest(cb: (url: string) => void): UnsubFn
+  }
   app: {
     platform: NodeJS.Platform
     onMenuCommand(cb: (cmd: string) => void): UnsubFn

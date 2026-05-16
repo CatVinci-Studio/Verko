@@ -53,6 +53,19 @@
       "wix": {
         "language": "en-US"
       }
+    },
+    "iOS": {
+      "minimumSystemVersion": "15.0"
+    },
+    "android": {
+      "minSdkVersion": 26
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "mobile": [
+        { "scheme": "verko", "host": "ingest", "pathPrefix": ["/"] }
+      ]
     }
   }
 }

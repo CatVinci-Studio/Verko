@@ -151,7 +151,11 @@ fn mark_opened(state: &AppState, id: &str) -> Result<(), String> {
 pub async fn libraries_list(state: State<'_, AppState>) -> Result<Vec<LibraryInfo>, String> {
     let active = state.active_id.lock().unwrap().clone();
     let reg = state.registry.lock().unwrap();
-    Ok(reg.entries.iter().map(|e| to_info(e, active.as_deref())).collect())
+    Ok(reg
+        .entries
+        .iter()
+        .map(|e| to_info(e, active.as_deref()))
+        .collect())
 }
 
 #[tauri::command]
@@ -185,7 +189,11 @@ pub async fn libraries_add(
     input: NewLibraryInput,
 ) -> Result<LibraryInfo, String> {
     let entry: LibraryEntry = match input {
-        NewLibraryInput::Local { name, path, initialize } => {
+        NewLibraryInput::Local {
+            name,
+            path,
+            initialize,
+        } => {
             if initialize {
                 std::fs::create_dir_all(&path).map_err(|e| e.to_string())?;
             }
@@ -195,7 +203,12 @@ pub async fn libraries_add(
                 .lock()
                 .unwrap()
                 .insert(id.clone(), PathBuf::from(&path));
-            LibraryEntry::Local(LocalEntry { id, name, path, last_opened_at: None })
+            LibraryEntry::Local(LocalEntry {
+                id,
+                name,
+                path,
+                last_opened_at: None,
+            })
         }
         NewLibraryInput::S3 {
             name,
@@ -251,7 +264,9 @@ pub async fn libraries_remove(
 ) -> Result<(), String> {
     let removed = {
         let mut reg = state.registry.lock().unwrap();
-        let Some(idx) = reg.find_idx(&id) else { return Ok(()) };
+        let Some(idx) = reg.find_idx(&id) else {
+            return Ok(());
+        };
         reg.entries.remove(idx)
     };
     {
@@ -283,7 +298,9 @@ pub async fn libraries_rename(
 ) -> Result<(), String> {
     {
         let mut reg = state.registry.lock().unwrap();
-        let Some(idx) = reg.find_idx(&id) else { return Ok(()) };
+        let Some(idx) = reg.find_idx(&id) else {
+            return Ok(());
+        };
         match &mut reg.entries[idx] {
             LibraryEntry::Local(l) => l.name = new_name,
             LibraryEntry::S3(s) => s.name = new_name,
@@ -292,6 +309,10 @@ pub async fn libraries_rename(
     save_registry(&state)
 }
 
+// Desktop-only: iOS/Android sandbox apps to their own documents container
+// and don't expose a folder picker in any usable form. Mobile uses the
+// `ensure_default_mobile_library` bootstrap instead.
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 #[tauri::command]
 pub async fn libraries_pick_folder(app: AppHandle) -> Result<Option<String>, String> {
     let picked = app.dialog().file().blocking_pick_folder();
@@ -302,7 +323,9 @@ pub async fn libraries_pick_folder(app: AppHandle) -> Result<Option<String>, Str
 pub async fn libraries_probe_local(path: String) -> Result<ProbeResult, String> {
     let p = Path::new(&path);
     if !p.is_dir() {
-        return Ok(ProbeResult::Error { message: "Folder does not exist".into() });
+        return Ok(ProbeResult::Error {
+            message: "Folder does not exist".into(),
+        });
     }
     if p.join("schema.md").exists() {
         Ok(ProbeResult::Ready)
@@ -327,7 +350,13 @@ pub async fn libraries_export_zip(
                 let safe = l
                     .name
                     .chars()
-                    .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+                    .map(|c| {
+                        if c.is_alphanumeric() || c == '-' || c == '_' {
+                            c
+                        } else {
+                            '_'
+                        }
+                    })
                     .collect::<String>();
                 (format!("{safe}.zip"), Some(l.path.clone()))
             }
@@ -369,7 +398,9 @@ pub async fn libraries_import_zip(
         .set_title("Import library archive")
         .add_filter("Zip archive", &["zip"])
         .blocking_pick_file();
-    let Some(zip_picked) = zip_picked else { return Ok(None) };
+    let Some(zip_picked) = zip_picked else {
+        return Ok(None);
+    };
     let zip_path = zip_picked
         .as_path()
         .ok_or_else(|| "Pick dialog returned non-filesystem path".to_string())?
@@ -380,7 +411,9 @@ pub async fn libraries_import_zip(
         .file()
         .set_title("Choose destination folder (must be empty)")
         .blocking_pick_folder();
-    let Some(dest_picked) = dest_picked else { return Ok(None) };
+    let Some(dest_picked) = dest_picked else {
+        return Ok(None);
+    };
     let target_dir = dest_picked
         .as_path()
         .ok_or_else(|| "Folder dialog returned non-filesystem path".to_string())?
@@ -396,7 +429,11 @@ pub async fn libraries_import_zip(
     libraries_add(
         app,
         state,
-        NewLibraryInput::Local { name, path, initialize: false },
+        NewLibraryInput::Local {
+            name,
+            path,
+            initialize: false,
+        },
     )
     .await
     .map(Some)
@@ -419,6 +456,46 @@ pub async fn libraries_s3_creds(
     };
     let creds: S3CredsOut = serde_json::from_str(&json).map_err(|e| e.to_string())?;
     Ok(Some(creds))
+}
+
+// ── Mobile bootstrap ────────────────────────────────────────────────────────
+
+/// On mobile, the welcome screen can't run a folder picker — there's no
+/// equivalent on iOS or Android. If the registry is empty at startup,
+/// auto-provision a single local library at `<app_data_dir>/library` so
+/// the user can start dropping URLs immediately. S3 libraries can still
+/// be added through the normal flow.
+#[cfg(any(target_os = "ios", target_os = "android"))]
+pub fn ensure_default_mobile_library(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let already = !state.registry.lock().unwrap().entries.is_empty();
+    if already {
+        return;
+    }
+    let data_dir = state.data_dir.clone();
+    let lib_path = data_dir.join("library");
+    if std::fs::create_dir_all(&lib_path).is_err() {
+        return;
+    }
+    let id = LibrariesFile::new_id();
+    state
+        .roots
+        .lock()
+        .unwrap()
+        .insert(id.clone(), lib_path.clone());
+    let entry = LibraryEntry::Local(LocalEntry {
+        id: id.clone(),
+        name: "My Inbox".to_string(),
+        path: lib_path.to_string_lossy().into_owned(),
+        last_opened_at: Some(now_ms()),
+    });
+    {
+        let mut reg = state.registry.lock().unwrap();
+        reg.entries.push(entry);
+        reg.last_opened_id = Some(id.clone());
+    }
+    let _ = save_registry(&state);
+    *state.active_id.lock().unwrap() = Some(id);
 }
 
 // ── Bootstrap ───────────────────────────────────────────────────────────────

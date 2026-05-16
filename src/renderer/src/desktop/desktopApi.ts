@@ -116,5 +116,6 @@ export function makeDesktopApi(preload: IShellApi): IApi {
     window:        preload.window,
     net:           preload.net,
     oauth:         preload.oauth,
+    deepLink:      preload.deepLink,
   }
 }

@@ -5,13 +5,16 @@
 // renderer; this file is the only platform-specific layer.
 
 mod agent_cmd;
+#[cfg(any(target_os = "ios", target_os = "android"))]
+mod deep_link_cmd;
 mod dialog_cmd;
 mod fs_cmd;
 mod http_cmd;
 mod keychain;
 mod libraries_cmd;
-mod oauth_cmd;
 mod menu;
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
+mod oauth_cmd;
 mod paths_cmd;
 mod registry;
 mod scope;
@@ -32,14 +35,19 @@ const TRANSCRIPTS_ROOT: &str = "transcripts";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_opener::init());
+
+    // Mobile-only: deep-link plugin so an OS share-sheet "Send to Verko"
+    // intent (verko://ingest?url=…) lands as a webview event the
+    // renderer can route into Library.ingestUrl().
+    #[cfg(any(target_os = "ios", target_os = "android"))]
+    let builder = builder.plugin(tauri_plugin_deep_link::init());
+
+    builder
         .setup(|app| {
-            let data_dir = app
-                .path()
-                .app_config_dir()
-                .expect("resolve app_config_dir");
+            let data_dir = app.path().app_config_dir().expect("resolve app_config_dir");
             std::fs::create_dir_all(&data_dir)?;
 
             // Reserved scopes: conversations + pre-compaction transcripts.
@@ -47,6 +55,11 @@ pub fn run() {
             std::fs::create_dir_all(&conv_dir)?;
             let transcripts_dir = data_dir.join("transcripts");
             std::fs::create_dir_all(&transcripts_dir)?;
+
+            // Mobile keychain backend needs the data dir to know where to
+            // persist its JSON. Desktop keyring ignores this.
+            #[cfg(any(target_os = "ios", target_os = "android"))]
+            keychain::init_data_dir(data_dir.clone());
 
             let registry = LibrariesFile::load(&data_dir.join("libraries.json"));
             let app_state = AppState::new(data_dir, registry);
@@ -66,6 +79,18 @@ pub fn run() {
 
             libraries_cmd::register_local_roots(app.handle());
             menu::install(app.handle())?;
+
+            // On mobile, also bootstrap a default local library at the app's
+            // sandboxed documents dir if the registry is empty. Mobile lacks
+            // a folder picker, so without this the welcome screen would dead-end.
+            #[cfg(any(target_os = "ios", target_os = "android"))]
+            libraries_cmd::ensure_default_mobile_library(app.handle());
+
+            // Mobile deep-link bridge: surface incoming verko://ingest URLs
+            // as `deeplink:ingest` webview events.
+            #[cfg(any(target_os = "ios", target_os = "android"))]
+            deep_link_cmd::install(app.handle());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -82,7 +107,8 @@ pub fn run() {
             dialog_cmd::dialog_open_pdf,
             // http (CORS bypass for arxiv / web_fetch)
             http_cmd::http_fetch,
-            // oauth (loopback callback for ChatGPT sign-in)
+            // oauth (desktop-only loopback callback)
+            #[cfg(not(any(target_os = "ios", target_os = "android")))]
             oauth_cmd::oauth_loopback_wait,
             // agent (keychain only)
             agent_cmd::agent_save_key,
@@ -95,6 +121,7 @@ pub fn run() {
             libraries_cmd::libraries_add,
             libraries_cmd::libraries_remove,
             libraries_cmd::libraries_rename,
+            #[cfg(not(any(target_os = "ios", target_os = "android")))]
             libraries_cmd::libraries_pick_folder,
             libraries_cmd::libraries_probe_local,
             libraries_cmd::libraries_export_zip,

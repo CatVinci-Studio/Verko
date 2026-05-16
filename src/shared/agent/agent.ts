@@ -150,6 +150,55 @@ export class Agent {
 
   // ── Send ─────────────────────────────────────────────────────────────────
 
+  /**
+   * Fire-and-forget worker run. Doesn't touch ConversationStore, doesn't
+   * surface in the conversation list, doesn't emit events. Used for the
+   * post-ingest auto-summarize pass: the user dropped a URL, the row is
+   * already in the inbox, and we want a brief filled in without opening
+   * a chat panel.
+   *
+   * The prompt is the entire user message; tool calls go through the
+   * normal dispatcher so paper-mutating tools (update_paper, append_note)
+   * write directly to the library.
+   *
+   * Returns when the loop terminates (success, error, or maxTurns).
+   * Errors are swallowed and logged — the caller should not fail the
+   * primary user action on a background summarization failure.
+   */
+  async runWorker(userText: string, currentPaperId?: PaperId): Promise<void> {
+    const resolved = await this.ports.getProvider()
+    if (!resolved) return
+
+    const snapshot = await this.ports.describeContext()
+    const systemPrompt = buildSystemPrompt('en', {
+      ...snapshot,
+      currentDate: new Date().toISOString().split('T')[0],
+      currentPaperId,
+    })
+
+    const ctrl = new AbortController()
+    try {
+      await runAgentLoop({
+        provider: resolved.provider,
+        systemPrompt,
+        messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
+        tools: this.ports.getTools(),
+        // Workers should converge fast; capping turns keeps stuck runs from
+        // burning tokens. summary + body rewrite is ~2-3 turns end to end.
+        maxTurns: 4,
+        temperature: this.ports.temperature,
+        dispatchTool: (name, args) => this.ports.dispatchTool(name, args),
+        isParallelSafe: this.ports.isParallelSafe,
+        onEvent: () => {},
+        onMessage: () => {},
+        abortSignal: ctrl.signal,
+      })
+    } catch (e) {
+      // Background work — log only.
+      console.warn('[agent worker]', e instanceof Error ? e.message : String(e))
+    }
+  }
+
   async send(
     userText: string,
     attachments: ChatContentPart[] | undefined,

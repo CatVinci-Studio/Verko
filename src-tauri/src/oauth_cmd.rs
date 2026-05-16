@@ -8,6 +8,14 @@
 // Single bind per process: if a previous attempt didn't receive a
 // callback the socket may still be in use, in which case re-running just
 // fails with "Address already in use" — surface that to the user.
+//
+// Desktop-only: iOS / Android app sandboxes block binding loopback ports.
+// Mobile is expected to fall back to API-key auth or, longer term, a
+// `tauri-plugin-deep-link` redirect URI registered with the IdP. The
+// Codex client_id is bound to the loopback URL so deep-link OAuth needs
+// IdP-side config — out of scope for this commit.
+
+#![cfg(not(any(target_os = "ios", target_os = "android")))]
 
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
@@ -49,9 +57,7 @@ pub async fn oauth_loopback_wait(
 fn run_listener(port: u16, path: &str, timeout: Duration) -> Result<OauthCallback, String> {
     let addr = format!("127.0.0.1:{port}");
     let listener = TcpListener::bind(&addr).map_err(|e| format!("bind {addr}: {e}"))?;
-    listener
-        .set_nonblocking(true)
-        .map_err(|e| e.to_string())?;
+    listener.set_nonblocking(true).map_err(|e| e.to_string())?;
 
     // Poll instead of spawning a thread that blocks indefinitely on
     // `accept()` — the original spawn-and-recv_timeout shape leaked the
@@ -73,10 +79,11 @@ fn run_listener(port: u16, path: &str, timeout: Duration) -> Result<OauthCallbac
     handle_request(stream, path)
 }
 
-fn handle_request(mut stream: std::net::TcpStream, expected_path: &str) -> Result<OauthCallback, String> {
-    stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
-        .ok();
+fn handle_request(
+    mut stream: std::net::TcpStream,
+    expected_path: &str,
+) -> Result<OauthCallback, String> {
+    stream.set_read_timeout(Some(Duration::from_secs(5))).ok();
     let mut reader = BufReader::new(stream.try_clone().map_err(|e| e.to_string())?);
 
     let mut request_line = String::new();
@@ -110,7 +117,9 @@ fn handle_request(mut stream: std::net::TcpStream, expected_path: &str) -> Resul
             "HTTP/1.1 {status}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
             body.len()
         );
-        stream.write_all(resp.as_bytes()).map_err(|e| e.to_string())?;
+        stream
+            .write_all(resp.as_bytes())
+            .map_err(|e| e.to_string())?;
         stream.flush().ok();
         Ok(())
     };
