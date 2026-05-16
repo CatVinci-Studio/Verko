@@ -158,6 +158,16 @@
     "newPaper": "New paper",
     "importArxiv": "Import arXiv",
     "papers": "{{count}} papers",
+    "inbox": {
+      "placeholder": "Paste a URL to drop into the inbox…",
+      "ingesting": "Ingesting…",
+      "errorTitle": "Couldn't ingest URL",
+      "filterAll": "All",
+      "filterUnread": "Inbox",
+      "filterReading": "Reading",
+      "filterRead": "Done",
+      "filterArchived": "Archived"
+    },
     "deletePaper": {
       "title": "Delete paper?",
       "message": "This removes the Markdown file and any attachments. The action cannot be undone.",

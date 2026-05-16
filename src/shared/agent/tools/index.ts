@@ -11,6 +11,7 @@ import { paperTools } from './paperTools'
 import { collectionTools } from './collectionTools'
 import { fileTools } from './fileTools'
 import { webTools } from './webTools'
+import { ingestTools } from './ingestTools'
 import { pdfTools } from './pdfTools'
 import { documentTools } from './documentTools'
 import { skillTools } from './skillTools'
@@ -27,6 +28,7 @@ export const SHARED_TOOLS: ToolRegistry = {
   ...collectionTools,
   ...fileTools,
   ...webTools,
+  ...ingestTools,
   ...pdfTools,
   ...documentTools,
   ...skillTools,

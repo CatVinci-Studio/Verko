@@ -1,11 +1,12 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import type { TFunction } from 'i18next'
-import { Star, FileText } from 'lucide-react'
+import { Star } from 'lucide-react'
 import type { PaperRef, PaperPatch, PaperStatus, Column } from '@shared/types'
 import { ChipStatus } from '@/components/common/ChipStatus'
 import { ChipTag } from '@/components/common/ChipTag'
 import { formatAuthors, formatYear } from '@/lib/utils'
 import { EditableTextCell, EditableSelectCell } from './EditableCell'
+import { KindGlyph } from './KindGlyph'
 
 const STATUS_OPTIONS: PaperStatus[] = ['unread', 'reading', 'read', 'archived']
 
@@ -42,9 +43,7 @@ export function buildColumns(extras: Column[], t: TFunction): ColumnDef<PaperRef
         // auto-enter edit mode via meta.editingId.
         return (
           <div className="flex items-center gap-1.5 min-w-0 w-full">
-            {p.hasPdf && (
-              <FileText size={12} className="shrink-0 text-[var(--text-dim)]" />
-            )}
+            <KindGlyph kind={p.kind} hasPdf={p.hasPdf} />
             <div className="flex-1 min-w-0">
               <EditableTextCell
                 value={p.title}

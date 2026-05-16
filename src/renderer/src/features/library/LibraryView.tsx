@@ -14,6 +14,8 @@ import { api } from '@/lib/ipc'
 import { confirmDialog, promptDialog } from '@/store/dialogs'
 import { Button } from '@/components/ui/button'
 import { FilterModal } from './FilterBar'
+import { InboxBar } from './InboxBar'
+import { StatusFilterStrip } from './StatusFilterStrip'
 import { PaperRow } from './PaperRow'
 import { ColumnHeader } from './ColumnHeader'
 import { buildColumns } from './columns'
@@ -212,6 +214,9 @@ export function LibraryView() {
   return (
     <div className="flex flex-col h-full bg-[var(--bg-base)]">
       <FilterModal />
+
+      <InboxBar />
+      <StatusFilterStrip />
 
       <div ref={scrollRef} className="flex-1 overflow-auto">
         <TableHeader

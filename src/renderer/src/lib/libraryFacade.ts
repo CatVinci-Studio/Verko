@@ -33,6 +33,15 @@ export function buildLibraryFacade(
       delete:      async (id)                  => (await need()).delete(id),
       search:      async (q, filter)           => (await lib())?.search(q, filter) ?? [],
       importArxiv: async (input)               => (await need()).importArxiv(input),
+      ingestUrl:   async (url, opts)           => (await need()).ingestUrl(url, opts),
+      importPdfBlob: async (filename, bytes) => {
+        const l = await need()
+        const baseTitle = filename.replace(/\.pdf$/i, '')
+        const id = await l.add({ title: baseTitle, kind: 'pdf', tags: [], status: 'unread' })
+        await l.backend.writeFile(`attachments/${id}.pdf`, bytes)
+        await l.markPdfPresent(id)
+        return id
+      },
       importPdf:   async () => {
         throw new Error('importPdf must be provided by the platform adapter')
       },

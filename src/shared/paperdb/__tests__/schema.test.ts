@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { loadSchema, saveSchema, DEFAULT_SCHEMA } from '../schema'
+import { loadSchema, saveSchema, reconcileSchema, DEFAULT_SCHEMA } from '../schema'
+import type { Schema } from '@shared/types'
 import { LocalBackend } from './helpers/backendLocal'
 
 let tmpDir: string
@@ -53,5 +54,52 @@ describe('DEFAULT_SCHEMA', () => {
     expect(values).toContain('reading')
     expect(values).toContain('read')
     expect(values).toContain('archived')
+  })
+
+  it('exposes the read-later kind column with paper as the default', () => {
+    const kind = DEFAULT_SCHEMA.columns.find(c => c.name === 'kind')
+    expect(kind).toBeDefined()
+    expect(kind!.type).toBe('select')
+    expect(kind!.default).toBe('paper')
+    const values = kind!.options?.map(o => o.value) ?? []
+    expect(values).toEqual(expect.arrayContaining(['paper', 'web', 'pdf', 'note', 'video']))
+  })
+
+  it('exposes a summary text column for inbox previews', () => {
+    const summary = DEFAULT_SCHEMA.columns.find(c => c.name === 'summary')
+    expect(summary).toBeDefined()
+    expect(summary!.type).toBe('text')
+    expect(summary!.inCsv).toBe(true)
+  })
+})
+
+describe('reconcileSchema', () => {
+  it('reports no change when the schema already has every default column', () => {
+    const { changed } = reconcileSchema(structuredClone(DEFAULT_SCHEMA))
+    expect(changed).toBe(false)
+  })
+
+  it('adds new built-in columns to a legacy schema', () => {
+    const legacy: Schema = {
+      version: 1,
+      columns: DEFAULT_SCHEMA.columns.filter(c => c.name !== 'kind' && c.name !== 'summary'),
+    }
+    const { schema, changed } = reconcileSchema(legacy)
+    expect(changed).toBe(true)
+    expect(schema.columns.find(c => c.name === 'kind')).toBeDefined()
+    expect(schema.columns.find(c => c.name === 'summary')).toBeDefined()
+    expect(schema.version).toBeGreaterThanOrEqual(DEFAULT_SCHEMA.version)
+  })
+
+  it('preserves user-added custom columns', () => {
+    const legacy: Schema = {
+      version: 1,
+      columns: [
+        ...DEFAULT_SCHEMA.columns.filter(c => c.name !== 'kind' && c.name !== 'summary'),
+        { name: 'my_custom', type: 'text', inCsv: true },
+      ],
+    }
+    const { schema } = reconcileSchema(legacy)
+    expect(schema.columns.find(c => c.name === 'my_custom')).toBeDefined()
   })
 })

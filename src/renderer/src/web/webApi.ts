@@ -197,6 +197,8 @@ const papers: IApi['papers'] = {
   add: notSupported,
   update: notSupported,
   delete: notSupported,
+  ingestUrl: notSupported,
+  importPdfBlob: notSupported,
   importPdf: notSupported,
 }
 

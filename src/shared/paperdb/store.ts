@@ -14,12 +14,14 @@ import type {
   HighlightDraft,
 } from '@shared/types'
 import type { StorageBackend } from '@shared/paperdb/backend'
-import { loadSchema, saveSchema } from '@shared/paperdb/schema'
+import { loadSchema, saveSchema, reconcileSchema } from '@shared/paperdb/schema'
 import { parseFrontmatter, normalizePaperData } from '@shared/paperdb/frontmatter'
 import { rebuildCsv, parseCsv } from '@shared/paperdb/csv'
 import { buildIndex, searchIndex } from '@shared/paperdb/search'
 import { generateId } from '@shared/paperdb/id'
 import { importFromArxiv } from '@shared/paperdb/arxiv'
+import { extractPage } from '@shared/paperdb/htmlExtract'
+import { nativeFetch } from '@shared/net/fetch'
 import { randomId } from '@shared/util/randomId'
 
 const PAPERS_DIR     = 'papers'
@@ -75,7 +77,12 @@ export class Library {
   }
 
   private async _init(): Promise<void> {
-    this._schema = await loadSchema(this.backend)
+    const onDisk = await loadSchema(this.backend)
+    // New built-in columns (e.g. `kind`, `summary`) introduced after a library
+    // was last opened must be merged in, or filtering / writes will silently
+    // drop them. reconcileSchema preserves user-added columns.
+    const { schema, changed: schemaChanged } = reconcileSchema(onDisk)
+    this._schema = schema
     await saveSchema(this.backend, this._schema)
     await this._loadCollections()
     await this._loadAttachmentIndex()
@@ -86,6 +93,27 @@ export class Library {
       // whose .md files still hold frontmatter. The bootstrap path handles
       // both: it scans .md, builds CSV, and strips frontmatter from .md.
       await this._bootstrapFromLegacyMd()
+    }
+
+    if (schemaChanged) {
+      // Backfill row defaults for newly-introduced columns and rewrite the
+      // CSV so the new columns show up in papers.csv on disk.
+      this._applySchemaDefaults()
+      if (this.refs.size > 0) await this._writeCsv()
+    }
+  }
+
+  /**
+   * Walk every row and fill in `col.default` for any column the row does not
+   * yet have a value for. Idempotent — safe to call multiple times.
+   */
+  private _applySchemaDefaults(): void {
+    for (const col of this._schema.columns) {
+      if (col.default === undefined) continue
+      for (const ref of this.refs.values()) {
+        const r = ref as Record<string, unknown>
+        if (r[col.name] === undefined) r[col.name] = col.default
+      }
     }
   }
 
@@ -164,6 +192,8 @@ export class Library {
       tags:       (data['tags']     as string[]) || [],
       status:     (data['status']   as PaperRef['status']) || 'unread',
       rating:     data['rating']    as number | undefined,
+      kind:       (data['kind']     as PaperRef['kind']) || 'paper',
+      summary:    data['summary']   as string | undefined,
       added_at:   (data['added_at']   as string) || now,
       updated_at: (data['updated_at'] as string) || now,
       hasPdf:     this.hasPdfCache.has(id),
@@ -374,7 +404,7 @@ export class Library {
 
     const knownKeys = new Set([
       'title', 'authors', 'year', 'venue', 'doi', 'url',
-      'tags', 'status', 'rating', 'markdown',
+      'tags', 'status', 'rating', 'kind', 'summary', 'markdown',
     ])
     const extras = Object.fromEntries(
       Object.entries(draft).filter(([k]) => !knownKeys.has(k))
@@ -391,6 +421,8 @@ export class Library {
       tags:       draft.tags || [],
       status:     draft.status || 'unread',
       rating:     typeof draft.rating === 'number' ? draft.rating : undefined,
+      kind:       draft.kind || 'paper',
+      summary:    draft.summary,
       added_at:   now,
       updated_at: now,
       hasPdf:     this.hasPdfCache.has(id),
@@ -557,6 +589,49 @@ export class Library {
     return this.add(draft)
   }
 
+  /**
+   * Ingest a web page as a `kind=web` item. Fetches the URL (CORS-free
+   * on desktop via nativeFetch), extracts a title / description / body
+   * excerpt, and creates the row with an `unread` status. No LLM call —
+   * the agent runs that later as a separate pass.
+   *
+   * The PaperDraft return route means this also works for the inbox
+   * drop-bar UI (which doesn't go through an agent).
+   */
+  async ingestUrl(
+    url: string,
+    opts?: { tags?: string[]; status?: PaperDraft['status'] }
+  ): Promise<PaperId> {
+    if (!/^https?:\/\//i.test(url)) {
+      throw new Error('URL must start with http:// or https://')
+    }
+    const res = await nativeFetch({
+      url,
+      headers: { 'User-Agent': 'Verko/0.5 (mailto:leonardoshen@icloud.com)' },
+    })
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`)
+
+    const ct = (res.headers['content-type'] ?? '').toLowerCase()
+    const isHtml = ct.includes('html') || /<html[\s>]/i.test(res.body)
+    const page = isHtml
+      ? extractPage(res.body, url)
+      : { title: url, description: '', bodyText: res.body.slice(0, 8000) }
+
+    const markdown = page.bodyText
+      ? `## Source\n\n${url}\n\n## Excerpt\n\n${page.bodyText}\n\n## Summary\n\n_(pending — agent will fill this in)_\n`
+      : `## Source\n\n${url}\n\n## Summary\n\n_(pending — agent will fill this in)_\n`
+
+    return this.add({
+      title:   page.title,
+      kind:    'web',
+      url,
+      tags:    opts?.tags ?? [],
+      status:  opts?.status ?? 'unread',
+      summary: page.description || undefined,
+      markdown,
+    })
+  }
+
   async markPdfPresent(id: PaperId): Promise<void> {
     this.hasPdfCache.add(id)
     const ref = this.refs.get(id)
@@ -690,7 +765,8 @@ export class Library {
 function extractExtraColumns(data: Record<string, unknown>, schema: Schema): Record<string, unknown> {
   const known = new Set([
     'id', 'title', 'authors', 'year', 'venue', 'doi', 'url',
-    'tags', 'status', 'rating', 'added_at', 'updated_at',
+    'tags', 'status', 'rating', 'kind', 'summary',
+    'added_at', 'updated_at',
   ])
   const out: Record<string, unknown> = {}
   const schemaCols = new Set(schema.columns.map((c) => c.name))

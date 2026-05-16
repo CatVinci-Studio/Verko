@@ -42,6 +42,17 @@ export interface IApi {
     delete(id: PaperId): Promise<void>
     search(q: string, filter?: Filter): Promise<SearchHit[]>
     importArxiv(input: string): Promise<PaperId>
+    /**
+     * Drop a URL into the read-later inbox. Fetches + extracts +
+     * creates a kind=web item in one shot. Used by the inbox drop bar.
+     */
+    ingestUrl(url: string, opts?: { tags?: string[] }): Promise<PaperId>
+    /**
+     * Drop raw PDF bytes (e.g. a drag-drop or a clipboard image) into the
+     * inbox. Creates a kind=pdf item, copies the bytes into the library's
+     * `attachments/` directory, and returns the new id.
+     */
+    importPdfBlob(filename: string, bytes: Uint8Array): Promise<PaperId>
     /** Show a native picker, copy the chosen PDF into the active library, return the new id. */
     importPdf(): Promise<PaperId>
   }

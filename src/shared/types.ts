@@ -30,11 +30,21 @@ export interface Schema {
   columns: Column[]
 }
 
-// ─── Paper ───────────────────────────────────────────────────────────────────
+// ─── Paper / Item ────────────────────────────────────────────────────────────
 
 export type PaperId = string  // e.g. "2024-ho-ddpm" or 7-char hash
 
 export type PaperStatus = 'unread' | 'reading' | 'read' | 'archived'
+
+/**
+ * What this row IS, beyond raw fields. Drives UI affordances:
+ *   - 'paper'  legacy academic paper (default for back-compat)
+ *   - 'web'    web article / blog post / page captured by URL
+ *   - 'pdf'    standalone PDF without a paper-shaped citation
+ *   - 'note'   user-authored markdown note (no external source)
+ *   - 'video'  video link (youtube, etc) — body is a generated transcript / summary
+ */
+export type ItemKind = 'paper' | 'web' | 'pdf' | 'note' | 'video'
 
 export interface Paper {
   id: PaperId
@@ -49,6 +59,9 @@ export interface Paper {
   rating?: number           // 0–5
   added_at: string          // ISO 8601
   updated_at: string
+  kind?: ItemKind
+  /** Agent- or user-authored short brief shown in list previews. */
+  summary?: string
   // custom columns (schema-defined) land here as key→value
   [key: string]: unknown
 }
@@ -67,6 +80,8 @@ export interface PaperRef {
   rating?: number
   added_at: string
   updated_at: string
+  kind?: ItemKind
+  summary?: string
   hasPdf: boolean
   [key: string]: unknown
 }
@@ -85,6 +100,8 @@ export interface PaperDraft {
   url?: string
   tags?: string[]
   status?: PaperStatus
+  kind?: ItemKind
+  summary?: string
   markdown?: string
   [key: string]: unknown
 }
