@@ -158,6 +158,16 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-focus); }
 
+/* Opt-out for horizontal strips that look noisy with a track (tab bars,
+   pill rows, mobile filter chips). Apply via the `no-scrollbar` class. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* iOS safe-area utility — Tailwind doesn't ship one for env() shorthand,
+   so we expose `pb-safe` for callers that need home-indicator clearance. */
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+.pt-safe { padding-top: max(env(safe-area-inset-top), 0px); }
+
 /* ── Titlebar drag region ───────────────────────────────────────────────────── */
 .titlebar-drag { -webkit-app-region: drag; }
 .no-drag { -webkit-app-region: no-drag; }

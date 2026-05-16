@@ -32,8 +32,18 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] bg-[var(--bg-surface)] border border-[var(--bg-active)] rounded-lg shadow-2xl p-6',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]',
+        // Default (sm+): centered modal with max-width.
+        // Narrow viewports (<sm): pinned bottom-sheet with safe-area
+        // padding and only top corners rounded — feels native on phones.
+        'fixed z-50 bg-[var(--bg-surface)] border border-[var(--bg-active)] shadow-2xl',
+        // Centered card on sm+
+        'sm:left-[50%] sm:top-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:w-full sm:max-w-lg sm:rounded-lg sm:p-6',
+        // Bottom sheet on <sm
+        'max-sm:left-0 max-sm:right-0 max-sm:bottom-0 max-sm:rounded-t-[18px] max-sm:rounded-b-none max-sm:border-x-0 max-sm:border-b-0 max-sm:px-5 max-sm:pt-5 max-sm:pb-[max(env(safe-area-inset-bottom),20px)] max-sm:max-h-[88vh] max-sm:overflow-y-auto',
+        // Animations: zoom on desktop, slide-up on mobile
+        'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+        'sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95',
+        'max-sm:data-[state=open]:slide-in-from-bottom-8 max-sm:data-[state=closed]:slide-out-to-bottom-8',
         className
       )}
       {...props}
@@ -54,7 +64,16 @@ const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
 DialogHeader.displayName = 'DialogHeader'
 
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('flex justify-end gap-2 mt-6', className)} {...props} />
+  <div
+    className={cn(
+      // On mobile reverse the row so the primary action sits on the right
+      // edge of the screen (thumb-reachable) and Cancel falls to the left.
+      // `[&_button]:flex-1` lets the buttons share width evenly.
+      'flex gap-2 mt-6 sm:justify-end max-sm:flex-row-reverse max-sm:[&_button]:flex-1',
+      className,
+    )}
+    {...props}
+  />
 )
 DialogFooter.displayName = 'DialogFooter'
 

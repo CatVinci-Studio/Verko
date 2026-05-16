@@ -118,8 +118,8 @@ export function PaperDetail() {
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-base)]">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-[var(--bg-active)] shrink-0">
+      {/* Header — denser on narrow screens to give the body room. */}
+      <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-2.5 sm:pb-3 border-b border-[var(--bg-active)] shrink-0">
         {/* Title row */}
         <div className="flex items-start gap-2 mb-2">
           <div className="flex-1 min-w-0">
@@ -250,14 +250,14 @@ export function PaperDetail() {
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex items-center px-4 border-b border-[var(--bg-active)] shrink-0">
+      {/* Tab bar — horizontally scrollable in case more tabs land later. */}
+      <div className="flex items-center px-3 sm:px-4 border-b border-[var(--bg-active)] shrink-0 overflow-x-auto no-scrollbar">
         {(['read', 'edit', 'pdf'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveDetailTab(tab)}
             className={cn(
-              'px-3 py-2 text-[14.5px] font-medium border-b-2 transition-colors capitalize',
+              'px-3 py-2 text-[14.5px] font-medium border-b-2 transition-colors capitalize whitespace-nowrap',
               activeDetailTab === tab
                 ? 'border-[var(--accent-color)] text-[var(--text-primary)]'
                 : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-secondary)]',
@@ -271,7 +271,7 @@ export function PaperDetail() {
       {/* Content */}
       <div className="flex-1 overflow-hidden">
         {activeDetailTab === 'read' && (
-          <div className="h-full overflow-y-auto px-5 py-4 select-text">
+          <div className="h-full overflow-y-auto px-4 sm:px-5 py-3 sm:py-4 pb-[max(env(safe-area-inset-bottom),12px)] select-text">
             <div
               className="prose-paper max-w-none"
               dangerouslySetInnerHTML={{ __html: htmlContent }}

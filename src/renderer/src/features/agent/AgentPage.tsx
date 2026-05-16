@@ -1,7 +1,9 @@
 import { useRef, useEffect, useState } from 'react'
-import { Bot, FileText } from 'lucide-react'
+import { Bot, FileText, Menu } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAgentStore } from '@/store/agent'
+import { useUIStore } from '@/store/ui'
+import { useMobile } from '@/lib/useMobile'
 import { usePapersQuery } from '@/features/library/queries'
 import { MessageBubble, StreamingBubble } from './MessageBubble'
 import { ChatInput } from './ChatInput'
@@ -12,6 +14,8 @@ import type { ChatContentPart, PaperRef } from '@shared/types'
 
 export function AgentPage() {
   const { t } = useTranslation()
+  const isMobile = useMobile()
+  const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed)
 
   const activeId = useAgentStore((s) => s.activeId)
   const byId = useAgentStore((s) => s.byId)
@@ -78,17 +82,26 @@ export function AgentPage() {
       {/* Chat area (conversation list lives in the main Sidebar) */}
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Header */}
-        <div className="flex items-center gap-2 px-4 h-11 border-b border-[var(--border-color)] shrink-0">
+        <div className="flex items-center gap-2 px-3 sm:px-4 h-11 max-sm:pt-[max(env(safe-area-inset-top),0px)] max-sm:h-[calc(2.75rem+max(env(safe-area-inset-top),0px))] border-b border-[var(--border-color)] shrink-0">
+          {isMobile && (
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="shrink-0 p-1.5 -ml-1 rounded-[6px] text-[var(--text-muted)] active:bg-[var(--bg-elevated)]"
+              aria-label="Open menu"
+            >
+              <Menu size={18} />
+            </button>
+          )}
           <div className="w-6 h-6 rounded-[8px] bg-[var(--accent-color)]/15 border border-[var(--accent-color)]/25 flex items-center justify-center shrink-0">
             <Bot size={13} className="text-[var(--accent-color)]" />
           </div>
-          <span className="text-[15.5px] font-medium text-[var(--text-secondary)] truncate flex-1">
+          <span className="text-[15.5px] font-medium text-[var(--text-secondary)] truncate flex-1 min-w-0">
             {activeId ? (conversations.find((c) => c.id === activeId)?.title ?? t('agent.title')) : t('agent.title')}
           </span>
           {contextPaper && (
-            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--accent-color)]/10 border border-[var(--accent-color)]/20">
-              <FileText size={10} className="text-[var(--accent-color)]" />
-              <span className="text-[13.5px] text-[var(--accent-color)] truncate max-w-[180px]">
+            <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--accent-color)]/10 border border-[var(--accent-color)]/20 shrink-0 min-w-0 max-w-[40vw]">
+              <FileText size={10} className="text-[var(--accent-color)] shrink-0" />
+              <span className="text-[13.5px] text-[var(--accent-color)] truncate">
                 {contextPaper.title}
               </span>
             </div>
@@ -100,8 +113,8 @@ export function AgentPage() {
           {messages.length === 0 && !isStreaming ? (
             <EmptyState />
           ) : (
-            <div className="max-w-3xl mx-auto px-6 py-6">
-              <div className="space-y-5">
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+              <div className="space-y-4 sm:space-y-5">
                 {messages.map((msg) => (
                   <MessageBubble key={msg.id} message={msg} onToggleToolCall={toggleToolCall} />
                 ))}
@@ -132,13 +145,13 @@ export function AgentPage() {
 function EmptyState() {
   const { t } = useTranslation()
   return (
-    <div className="h-full flex flex-col items-center justify-center gap-4 px-6">
-      <img src={logoUrl} alt="" className="w-16 h-16 rounded-[18px] shadow-sm" />
+    <div className="h-full flex flex-col items-center justify-center gap-4 px-4 sm:px-6">
+      <img src={logoUrl} alt="" className="w-14 h-14 sm:w-16 sm:h-16 rounded-[18px] shadow-sm" />
       <div className="text-center">
-        <p className="text-[22px] font-semibold text-[var(--text-primary)] tracking-tight">
+        <p className="text-[19px] sm:text-[22px] font-semibold text-[var(--text-primary)] tracking-tight">
           {t('agent.welcomeTitle')}
         </p>
-        <p className="text-[15px] text-[var(--text-muted)] mt-1">
+        <p className="text-[14.5px] sm:text-[15px] text-[var(--text-muted)] mt-1">
           {t('agent.welcomeSubtitle')}
         </p>
       </div>

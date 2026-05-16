@@ -33,7 +33,7 @@ export function MobilePaperList({ papers, selectedId, onSelect }: Props) {
   }
 
   return (
-    <ul className="divide-y divide-[var(--border-color)]/40">
+    <ul className="divide-y divide-[var(--border-color)]/40 pb-[max(env(safe-area-inset-bottom),12px)]">
       {papers.map((p) => (
         <li key={p.id}>
           <button

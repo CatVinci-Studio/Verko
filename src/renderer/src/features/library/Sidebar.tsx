@@ -109,7 +109,7 @@ export function Sidebar() {
   const clearFilters = () => setFilter({ status: undefined, tags: undefined })
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] text-[var(--text-secondary)]">
+    <div className="flex flex-col h-full bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] text-[var(--text-secondary)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
 
       {/* ── Library header ────────────────────────────────────────────────── */}
       <div className="flex items-center border-b border-[var(--border-color)] shrink-0 h-11">

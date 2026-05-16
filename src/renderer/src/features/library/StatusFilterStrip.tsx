@@ -34,7 +34,7 @@ export function StatusFilterStrip() {
   })()
 
   return (
-    <div className="flex items-center gap-1 px-3 py-1.5 border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] shrink-0">
+    <div className="flex items-center gap-1 px-3 py-1.5 border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] shrink-0 overflow-x-auto no-scrollbar">
       {PILLS.map((p) => {
         const active = p.key === activeKey
         return (
@@ -42,7 +42,7 @@ export function StatusFilterStrip() {
             key={p.key}
             onClick={() => setFilter({ status: p.status ? [p.status] : undefined })}
             className={cn(
-              'px-2.5 py-0.5 text-[13px] rounded-full transition-colors',
+              'shrink-0 px-2.5 py-0.5 text-[13px] rounded-full transition-colors whitespace-nowrap',
               active
                 ? 'bg-[var(--accent-color)]/15 text-[var(--accent-color)] border border-[var(--accent-color)]/30'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] border border-transparent',

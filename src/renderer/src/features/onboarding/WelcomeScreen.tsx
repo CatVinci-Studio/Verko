@@ -106,7 +106,7 @@ export function WelcomeScreen() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-[var(--bg-base)] px-6 py-8 overflow-auto">
+    <div className="flex flex-col items-center justify-center h-full bg-[var(--bg-base)] px-4 sm:px-6 py-6 sm:py-8 pt-[max(env(safe-area-inset-top),24px)] pb-[max(env(safe-area-inset-bottom),24px)] overflow-auto">
       <div className="max-w-[480px] w-full space-y-5">
         <div className="flex flex-col items-center gap-3 text-center">
           <img

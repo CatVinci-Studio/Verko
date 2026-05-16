@@ -106,7 +106,7 @@ export function InboxBar() {
   return (
     <div
       className={`flex items-center gap-2 px-3 border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] shrink-0 transition-colors ${
-        isMobile ? 'py-2.5' : 'py-2'
+        isMobile ? 'py-2.5 pt-[max(env(safe-area-inset-top),10px)]' : 'py-2'
       } ${dragging ? 'bg-[var(--accent-color)]/10' : ''}`}
       onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
       onDragLeave={() => setDragging(false)}
