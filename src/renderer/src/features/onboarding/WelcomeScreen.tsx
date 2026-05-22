@@ -9,6 +9,9 @@ import { api } from '@/lib/ipc'
 import { Button } from '@/components/ui/button'
 import { S3ConnectForm } from './S3ConnectForm'
 
+declare const __WEB_BUILD__: boolean | undefined
+const isWeb = typeof __WEB_BUILD__ !== 'undefined' && __WEB_BUILD__
+
 export function WelcomeScreen() {
   const { t } = useTranslation()
   const noneReason = useLibraryStore((s) => s.noneReason)
@@ -115,7 +118,7 @@ export function WelcomeScreen() {
             {t('welcome.title')}
           </h1>
           <p className="text-[14.5px] text-[var(--text-muted)] max-w-[400px] leading-relaxed">
-            {t('welcome.subtitle')}
+            {isWeb ? t('welcome.subtitleWeb') : t('welcome.subtitle')}
           </p>
         </div>
 
@@ -130,20 +133,24 @@ export function WelcomeScreen() {
         )}
 
         <div className="grid gap-2.5">
-          <Choice
-            icon={<FolderOpen size={16} />}
-            title={t('welcome.actions.openExisting.title')}
-            description={t('welcome.actions.openExisting.description')}
-            onClick={handleOpenExisting}
-            disabled={busy}
-          />
-          <Choice
-            icon={<FolderPlus size={16} />}
-            title={t('welcome.actions.createLocal.title')}
-            description={t('welcome.actions.createLocal.description')}
-            onClick={handleCreateNew}
-            disabled={busy}
-          />
+          {!isWeb && (
+            <>
+              <Choice
+                icon={<FolderOpen size={16} />}
+                title={t('welcome.actions.openExisting.title')}
+                description={t('welcome.actions.openExisting.description')}
+                onClick={handleOpenExisting}
+                disabled={busy}
+              />
+              <Choice
+                icon={<FolderPlus size={16} />}
+                title={t('welcome.actions.createLocal.title')}
+                description={t('welcome.actions.createLocal.description')}
+                onClick={handleCreateNew}
+                disabled={busy}
+              />
+            </>
+          )}
           <Choice
             icon={<Cloud size={16} />}
             title={t('welcome.actions.connectS3.title')}
@@ -152,6 +159,13 @@ export function WelcomeScreen() {
             disabled={busy}
           />
         </div>
+        {isWeb && (
+          <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-[10px] border-l-2 border-[var(--accent-color)] bg-[var(--accent-color)]/5 text-[13.5px] text-[var(--text-secondary)]">
+            <span className="leading-relaxed">
+              {t('welcome.webNote')}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )

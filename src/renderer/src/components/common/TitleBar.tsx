@@ -30,7 +30,8 @@ export function TitleBar() {
   const { t } = useTranslation()
   const platform = api.app.platform
   const isMac = platform === 'darwin'
-  const showWindowControls = !isMac  // Windows / Linux Tauri custom decorations
+  const isWeb = platform as unknown as string === 'web'
+  const showWindowControls = !isMac && !isWeb  // Windows / Linux Electron + Tauri
 
   return (
     <div
@@ -50,7 +51,29 @@ export function TitleBar() {
       </div>
 
       {/* Right-side controls — Windows / Linux only */}
-      {showWindowControls ? <WindowControls /> : <div className="w-20 shrink-0" />}
+      {showWindowControls ? (
+        <WindowControls />
+      ) : isWeb ? (
+        <WebRightSlot />
+      ) : (
+        <div className="w-20 shrink-0" />
+      )}
+    </div>
+  )
+}
+
+function WebRightSlot() {
+  const { t } = useTranslation()
+  return (
+    <div data-tauri-drag-region="false" className="flex items-center pr-4 no-drag shrink-0">
+      <a
+        href="https://github.com/CatVinci-Studio/Verko/releases"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-[13.5px] text-[var(--text-muted)] hover:text-[var(--accent-color)] transition-colors"
+      >
+        {t('titlebar.getDesktop')}
+      </a>
     </div>
   )
 }

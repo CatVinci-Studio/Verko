@@ -11,7 +11,8 @@
     "loading": "加载中…"
   },
   "titlebar": {
-    "appName": "Verko"
+    "appName": "Verko",
+    "getDesktop": "下载桌面端 →"
   },
   "settings": {
     "title": "设置",
@@ -91,6 +92,8 @@
   "welcome": {
     "title": "欢迎使用 Verko",
     "subtitle": "选择一个已有的知识库,或新建一个。知识库可以是本地的 Markdown 文件夹,也可以是 S3 兼容的对象存储。",
+    "subtitleWeb": "连接一个 S3 兼容存储即可开始。本地文件夹需要使用桌面端。",
+    "webNote": "网页版可完整运行 Agent 操作 S3 知识库。桌面端额外支持本地文件夹、系统密钥环、离线使用。",
     "actions": {
       "openExisting": {
         "title": "打开已有文件夹",

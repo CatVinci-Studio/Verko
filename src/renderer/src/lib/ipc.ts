@@ -145,11 +145,25 @@ export interface IApi {
   }
 }
 
+import { webApi } from '@/web/webApi'
 import { makeDesktopApi } from '@/desktop/desktopApi'
 import { tauriShell } from '@/tauri/tauriShell'
+
+declare const __WEB_BUILD__: boolean | undefined
 
 export function isTauri(): boolean {
   return typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== 'undefined'
 }
 
-export const api: IApi = makeDesktopApi(tauriShell)
+/**
+ * Pick the right `IApi` for the runtime:
+ *   - Tauri: `__TAURI_INTERNALS__` injected → wrap the Tauri shell with `makeDesktopApi`
+ *   - Web build: `__WEB_BUILD__` define is true → use the S3-backed `webApi`
+ */
+function pickApi(): IApi {
+  if (isTauri()) return makeDesktopApi(tauriShell)
+  if (typeof __WEB_BUILD__ !== 'undefined' && __WEB_BUILD__) return webApi
+  throw new Error('Verko: no IApi backend (neither Tauri nor web build).')
+}
+
+export const api: IApi = pickApi()

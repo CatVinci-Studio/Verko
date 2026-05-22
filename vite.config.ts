@@ -6,17 +6,30 @@ import autoprefixer from 'autoprefixer'
 import { resolve } from 'path'
 
 /**
- * Single-target Vite config for the Tauri-bundled webview.
+ * Single Vite config that switches between two build targets via
+ * `--mode tauri` vs the default mode:
  *
- * Called by `tauri dev` / `tauri build` via beforeDevCommand /
- * beforeBuildCommand in src-tauri/tauri.conf.json.
+ *   default mode → web build (S3-only, deployed to GitHub Pages)
+ *   --mode tauri  → Tauri-bundled webview (called by `tauri dev` /
+ *                   `tauri build` via beforeDevCommand / beforeBuildCommand)
+ *
+ * Both share the renderer source, alias config, polyfills, and PostCSS
+ * pipeline; the differences (defines, server, build target / outDir,
+ * minification) are mode-driven below.
  */
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  const isTauri = mode === 'tauri'
   const tauriHost = process.env.TAURI_DEV_HOST
 
   return {
     root: 'src/renderer',
-    base: '/',
+    base: isTauri ? '/' : (process.env.BASE_PATH ?? '/'),
+
+    define: {
+      __TAURI_BUILD__: JSON.stringify(isTauri),
+      // Web build flag — read in renderer code to gate desktop-only paths.
+      __WEB_BUILD__: JSON.stringify(!isTauri),
+    },
 
     plugins: [
       react(),
@@ -32,27 +45,38 @@ export default defineConfig(() => {
     },
 
     css: {
+      // Inlined from the old postcss.config.js — keeps PostCSS pipeline
+      // discoverable without an extra root-level config file.
       postcss: {
         plugins: [tailwindcss(), autoprefixer()],
       },
     },
 
-    clearScreen: false,
+    clearScreen: !isTauri ? undefined : false,
 
-    server: {
-      port: 5173,
-      strictPort: true,
-      host: tauriHost || false,
-      hmr: tauriHost ? { protocol: 'ws', host: tauriHost, port: 1421 } : undefined,
-      watch: { ignored: ['**/src-tauri/**'] },
-    },
+    server: isTauri
+      ? {
+          port: 5173,
+          strictPort: true,
+          host: tauriHost || false,
+          hmr: tauriHost ? { protocol: 'ws', host: tauriHost, port: 1421 } : undefined,
+          watch: { ignored: ['**/src-tauri/**'] },
+        }
+      : {
+          port: 5173,
+          open: true,
+        },
 
     build: {
-      outDir: '../../dist-tauri',
+      outDir: isTauri ? '../../dist-tauri' : '../../dist-web',
       emptyOutDir: true,
-      target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13',
-      minify: !process.env.TAURI_ENV_DEBUG,
-      sourcemap: !!process.env.TAURI_ENV_DEBUG,
+      ...(isTauri
+        ? {
+            target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13',
+            minify: !process.env.TAURI_ENV_DEBUG,
+            sourcemap: !!process.env.TAURI_ENV_DEBUG,
+          }
+        : {}),
     },
   }
 })
