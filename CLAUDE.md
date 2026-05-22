@@ -39,7 +39,7 @@ src/
     types.ts          # Master type contract (AgentEvent, LibraryInfo, …)
     providers.ts      # PROVIDER_DEFINITIONS catalog (incl. `oauth: 'codex'` flag on OpenAI)
     presets.ts        # DEFAULT_AGENT_CONFIG derived from the catalog
-    net/fetch.ts      # nativeFetch shim — desktop installs Rust-backed fetcher; web uses browserFetcher
+    net/fetch.ts      # nativeFetch shim — Tauri installs the Rust-backed fetcher at boot
     oauth/codex.ts    # ChatGPT/Codex OAuth flow (PKCE, exchange, refresh, oauthKey() helper)
 
   renderer/src/       # React frontend — owns Library + agent runtime at runtime
@@ -51,12 +51,6 @@ src/
       shellApi.ts   #   IShellApi — the IO contract the Tauri shell implements
     tauri/
       tauriShell.ts #   IShellApi implementation: invoke() + listen() over Tauri commands
-    web/              # Web build (single S3-backed library, full agent)
-      webApi.ts       #   IApi backed by S3Backend + LocalStorageBackend.
-                      #   Uses the same shared Library + Agent runtime as desktop;
-                      #   only platform-bound calls (pickFolder/exportZip) reject.
-      apiKeys.ts      #   Per-provider key store (localStorage / memory)
-      credentials.ts  #   S3 credential store (IndexedDB)
     store/            # Zustand stores: library, ui, agent, dialogs
     features/         # library/, paper/, agent/, command/, settings/, dialogs/, onboarding/, update/
     components/ui/    # shadcn primitives (kebab-case)
@@ -89,10 +83,10 @@ Plugins wired in `lib.rs`: `tauri-plugin-dialog`, `tauri-plugin-opener` (externa
 
 **Single source of truth for everything except IO.** Library, agent loop,
 all tools, providers, prompts, conversation persistence, OAuth flow (PKCE / token
-exchange / refresh) — all in `shared/`, all run in the renderer for both web and
-desktop. The Rust shell only exposes capabilities a webview can't reach: file
-system (`fs_*`), OS keychain (`agent_*_key`), TCP listener (`oauth_loopback_wait`),
-native dialogs (`dialog_open_pdf`), and CORS-free outbound HTTP (`http_fetch`).
+exchange / refresh) — all in `shared/`, all run in the renderer. The Rust shell
+only exposes capabilities a webview can't reach: file system (`fs_*`), OS keychain
+(`agent_*_key`), TCP listener (`oauth_loopback_wait`), native dialogs
+(`dialog_open_pdf`), and CORS-free outbound HTTP (`http_fetch`).
 
 ## Storage Format
 A library is just a folder:
@@ -119,16 +113,14 @@ on first open: frontmatter is extracted into CSV and stripped from the `.md`.
 Paper IDs are `{year}-{lastname}-{titleword}` (e.g. `2017-vaswani-attention`). Generation falls back to `randomBytes` to avoid timestamp collisions on rapid adds.
 
 ## IPC Pattern
-The IPC contract is `IShellApi` in `src/renderer/src/desktop/shellApi.ts`. Two implementations:
-- **Tauri** (`src/renderer/src/tauri/tauriShell.ts`): wraps `invoke()` / `listen()` over Rust commands.
-- **Web** (`src/renderer/src/web/webApi.ts`): same shape, backed by S3Backend + localStorage / IndexedDB.
+The IPC contract is `IShellApi` in `src/renderer/src/desktop/shellApi.ts`. The single implementation `src/renderer/src/tauri/tauriShell.ts` wraps `invoke()` / `listen()` over Rust commands.
 
-Renderer code consumes `IApi` (broader surface) from `src/renderer/src/lib/ipc.ts`, where `pickApi()` detects the runtime: `__TAURI_INTERNALS__` → `makeDesktopApi(tauriShell)`, `__WEB_BUILD__` → `webApi`.
+Renderer code consumes `IApi` (broader surface) from `src/renderer/src/lib/ipc.ts`, which always wires `makeDesktopApi(tauriShell)`. `isTauri()` is exported for defensive runtime checks.
 
 The IPC surface is small and primitive — file IO, keychain, dialogs, outbound HTTP, OAuth callback. There is **no** `papers:*`, `schema:*`, `collections:*`, `agent:send`, or streaming `agent:event` IPC: those are renderer-local. `library:switched` and `library:none` are the only Rust → renderer events.
 
 ### HTTP routing
-Outbound HTTP from shared code goes through `nativeFetch()` in `shared/net/fetch.ts`. `entry.tsx` installs `api.net.fetch` as the active fetcher at boot — desktop routes through Rust (`http_fetch` command via reqwest, no CORS), web stays on browser fetch. Anywhere shared code needs the open internet (arxiv, `web_fetch` tool, OAuth token endpoint) it calls `nativeFetch`, never `fetch` directly.
+Outbound HTTP from shared code goes through `nativeFetch()` in `shared/net/fetch.ts`. `entry.tsx` installs `api.net.fetch` as the active fetcher at boot — Tauri routes through Rust (`http_fetch` command via reqwest, no CORS). Anywhere shared code needs the open internet (arxiv, `web_fetch` tool, OAuth token endpoint) it calls `nativeFetch`, never `fetch` directly.
 
 ### Zero-trust file scope
 `fs_read/write/list/exists/delete` commands take `(rootId, relPath)` — never absolute paths. `src-tauri/src/scope.rs` maintains a `rootId → absolute root` map (libraries register on add; the conversation store registers `'conversations'` and `'transcripts'` on boot) and rejects any path that escapes its root via `..` or symlinks. If the renderer is compromised, the blast radius is the union of registered roots.
@@ -189,7 +181,7 @@ The papers list is a TanStack Table v8 (headless) instance. The contract:
 - **Add column** flow: a context-menu "New column" opens a `promptDialog` for name + type and calls `api.schema.addColumn`. Schema changes are persisted (they're real data); only sizing/visibility live in localStorage.
 
 ## ChatGPT (Codex) OAuth
-The OpenAI provider has two auth modes — API key (the existing field) and a "Sign in with ChatGPT" OAuth flow that drives the same `chatgpt.com/backend-api/codex/responses` endpoint the codex CLI uses. The full flow lives in TS (`shared/oauth/codex.ts`): PKCE generation, authorize URL, token exchange, refresh-on-expiry. Rust only owns the loopback callback (`oauth_loopback_wait` — desktop binds `localhost:1455`; web rejects with a "desktop-only" error).
+The OpenAI provider has two auth modes — API key (the existing field) and a "Sign in with ChatGPT" OAuth flow that drives the same `chatgpt.com/backend-api/codex/responses` endpoint the codex CLI uses. The full flow lives in TS (`shared/oauth/codex.ts`): PKCE generation, authorize URL, token exchange, refresh-on-expiry. Rust only owns the loopback callback (`oauth_loopback_wait` binds `localhost:1455`).
 
 Tokens persist in the keychain under `oauthKey(providerId)` (= `${id}:oauth`), parallel to the API-key slot. `providerBuild.ts` picks OAuth tokens first when both are configured. `OpenAIProtocol` detects `config.oauth` and overrides the SDK's `fetch` with `makeCodexFetch` — Bearer header + `ChatGPT-Account-Id` + URL rewrite to the Codex backend, with serialized refresh-on-expiry (concurrent calls share one in-flight refresh promise so refresh-token rotation can't race).
 
@@ -206,17 +198,15 @@ The release binary is unsigned (no Authenticode cert). Mitigations baked in to l
 
 ## Commands
 ```bash
-npm run dev          # tauri dev — full Tauri app (Rust shell + Vite renderer)
-npm run build        # tauri build — bundle .dmg / .msi / .AppImage / .deb
-npm run dev:web      # Renderer-only web preview at http://localhost:5173
-npm run build:web    # Web build (S3-backed, deployed to GitHub Pages)
-npm test             # Run shared-side unit tests (Vitest, node env)
-npm run typecheck    # tsc --noEmit on tsconfig.node.json + tsconfig.web.json
-npm run lint         # ESLint over src/
-npm run lint:fix     # ESLint with --fix
+bun run dev          # tauri dev — full Tauri app (Rust shell + Vite renderer)
+bun run build        # tauri build — bundle .dmg / .msi / .AppImage / .deb
+bun test             # Run shared-side unit tests (Vitest, node env)
+bun run typecheck    # tsc --noEmit on tsconfig.node.json + tsconfig.renderer.json
+bun run lint         # ESLint over src/
+bun run lint:fix     # ESLint with --fix
 ```
 
-`npm run tauri:dev:vite` and `npm run tauri:build:vite` are internal — Tauri invokes them as `beforeDevCommand` / `beforeBuildCommand`.
+`bun run dev:vite` and `bun run build:vite` are internal — Tauri invokes them as `beforeDevCommand` / `beforeBuildCommand`.
 
 ## Releases
 - Tag with `v*` (e.g. `v0.5.0`) → full release. Tag with a semver prerelease suffix (e.g. `v0.5.0-dev.1`) → GitHub prerelease.

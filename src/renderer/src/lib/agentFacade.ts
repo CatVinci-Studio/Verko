@@ -5,7 +5,7 @@ import type { IApi } from './ipc'
 interface AgentFacadeDeps {
   ports: AgentPorts
   store: ConversationStore
-  /** `agent.*` IPC passthrough — webApi and desktopApi configure these their own way. */
+  /** `agent.*` IPC passthrough — the desktop adapter wires this up. */
   config: Pick<IApi['agent'], 'getConfig' | 'setProfile' | 'updateProfile' | 'saveKey' | 'loadKey' | 'testKey' | 'getProfiles'>
 }
 

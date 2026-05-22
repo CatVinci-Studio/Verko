@@ -11,8 +11,7 @@
     "loading": "Loading…"
   },
   "titlebar": {
-    "appName": "Verko",
-    "getDesktop": "Get the desktop app →"
+    "appName": "Verko"
   },
   "settings": {
     "title": "Settings",
@@ -92,8 +91,6 @@
   "welcome": {
     "title": "Welcome to Verko",
     "subtitle": "Pick or create a paper library to get started. A library is a folder of Markdown files (local) or an S3-compatible bucket (online).",
-    "subtitleWeb": "Connect an S3-compatible bucket to start. Local folders need the desktop app.",
-    "webNote": "Web build runs the full agent against your S3 bucket — the desktop app adds local-folder libraries, OS keychain, and offline access.",
     "actions": {
       "openExisting": {
         "title": "Open existing folder",

@@ -19,8 +19,8 @@ import { BackendAuthError, BackendNetworkError } from '@shared/paperdb/backend'
  *
  * Split of responsibilities:
  *   - File IO / dialogs / library registry / OS keychain → Rust commands
- *   - Agent config + profile editing → localStorage (mirrors `webApi`,
- *     keeps the catalog as the single source of truth)
+ *   - Agent config + profile editing → localStorage (keeps the provider
+ *     catalog as the single source of truth)
  *   - `probeS3` / `testKey` → renderer (S3 + provider SDKs already run here)
  */
 
