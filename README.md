@@ -41,7 +41,6 @@ A desktop and web app for organizing academic papers. Your library is a folder o
 | Platform | Installer |
 |---|---|
 | macOS (Apple Silicon) | `Verko_X.Y.Z_aarch64.dmg` |
-| macOS (Intel) | `Verko_X.Y.Z_x64.dmg` |
 | Windows | `Verko_X.Y.Z_x64-setup.exe` (NSIS) · `_x64_en-US.msi` (WiX) · `_x64-portable.zip` |
 | Linux | `Verko_X.Y.Z_amd64.AppImage` · `_amd64.deb` · `Verko-X.Y.Z-1.x86_64.rpm` |
 

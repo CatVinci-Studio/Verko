@@ -14,14 +14,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # macOS Apple Silicon
+          # macOS Apple Silicon (Intel dropped — Apple Silicon mainstream
+          # since 2020; cuts release CI time by ~25%)
           - os: macos-latest
             args: --target aarch64-apple-darwin
             rust_targets: aarch64-apple-darwin
-          # macOS Intel
-          - os: macos-13
-            args: --target x86_64-apple-darwin
-            rust_targets: x86_64-apple-darwin
           # Windows: NSIS .exe + WiX .msi (bundle.targets in tauri.conf.json).
           - os: windows-latest
             args: ''
