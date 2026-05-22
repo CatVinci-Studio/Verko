@@ -37,11 +37,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: '20'
-          cache: 'npm'
+          bun-version: latest
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -67,8 +66,8 @@ jobs:
             librsvg2-dev \
             libsoup-3.0-dev
 
-      - name: Install npm deps
-        run: npm ci
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
       - name: Build & publish Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -110,11 +109,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: '20'
-          cache: 'npm'
+          bun-version: latest
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -137,8 +135,8 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Install npm deps
-        run: npm ci
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
       - name: Install Tauri CLI
         run: cargo install tauri-cli@^2 --locked
