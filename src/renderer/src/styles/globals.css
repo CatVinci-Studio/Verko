@@ -158,6 +158,16 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-focus); }
 
+/* Opt-out for horizontal strips that look noisy with a track (tab bars,
+   pill rows, mobile filter chips). Apply via the `no-scrollbar` class. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* iOS safe-area utility — Tailwind doesn't ship one for env() shorthand,
+   so we expose `pb-safe` for callers that need home-indicator clearance. */
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+.pt-safe { padding-top: max(env(safe-area-inset-top), 0px); }
+
 /* ── Titlebar drag region ───────────────────────────────────────────────────── */
 .titlebar-drag { -webkit-app-region: drag; }
 .no-drag { -webkit-app-region: no-drag; }
@@ -221,6 +231,43 @@ body {
 .prose-paper ul, .prose-paper ol { padding-left: 1.5em; }
 .prose-paper li { margin: 0.25em 0; }
 
+/* ── Chat bubble markdown — tighter than prose-paper ───────────────────────── */
+.chat-md > :first-child { margin-top: 0; }
+.chat-md > :last-child  { margin-bottom: 0; }
+.chat-md p  { margin: 0.4em 0; }
+.chat-md ul, .chat-md ol { padding-left: 1.4em; margin: 0.4em 0; }
+.chat-md li { margin: 0.15em 0; }
+.chat-md h1, .chat-md h2, .chat-md h3 {
+  font-weight: 600; margin: 0.6em 0 0.3em; line-height: 1.3;
+}
+.chat-md h1 { font-size: 1.2em; }
+.chat-md h2 { font-size: 1.1em; }
+.chat-md h3 { font-size: 1.05em; }
+.chat-md code {
+  font-family: 'Geist Mono', 'JetBrains Mono', 'SF Mono', monospace;
+  font-size: 0.88em;
+  background: rgba(255,255,255,0.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.chat-md pre {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 0.5em 0;
+  overflow-x: auto;
+  font-size: 0.88em;
+  line-height: 1.5;
+}
+.chat-md pre code { background: none; padding: 0; font-size: 1em; }
+.chat-md blockquote {
+  border-left: 3px solid var(--accent-color);
+  margin: 0.5em 0; padding-left: 12px;
+  color: var(--text-secondary);
+}
+.chat-md a { color: var(--text-link); }
+
 /* ── Rating stars ───────────────────────────────────────────────────────────── */
 .rating-star { cursor: pointer; color: var(--text-muted); transition: color 0.1s; }
 .rating-star.filled { color: var(--warning); }
@@ -258,8 +305,90 @@ body {
 .select-text, .select-text * { user-select: text; }
 
 /* ── PDF viewer ─────────────────────────────────────────────────────────────── */
+.pdf-page-wrap {
+  position: relative;
+  display: inline-block;
+  margin: 0 auto 12px;
+}
 .pdf-page-canvas {
   display: block;
-  margin: 0 auto 12px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 }
+/* pdfjs writes positioned <span>s into this layer. Glyphs are transparent —
+   we want users to be able to drag-select but not see double text. */
+.pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  opacity: 1;
+  line-height: 1;
+  --highlight-bg-color: transparent;
+}
+.pdf-text-layer > span,
+.pdf-text-layer > br {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+.pdf-text-layer ::selection {
+  background: rgba(255, 233, 157, 0.4);
+}
+/* Highlight overlay sits between canvas and text layer so selection still
+   works on top of existing highlights. */
+.pdf-highlight-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* Color palette is keyed by `data-color="<name>"`. The TS source of truth
+   is `COLORS` in `features/paper/PdfViewer.tsx` — keep this list in lockstep. */
+.pdf-highlight-rect,
+.pdf-color-swatch {
+  --hl-yellow: 255, 233, 157;
+  --hl-green:  140, 220, 160;
+  --hl-blue:   140, 190, 240;
+  --hl-pink:   240, 160, 200;
+}
+.pdf-highlight-rect[data-color="yellow"] { --hl-rgb: var(--hl-yellow); }
+.pdf-highlight-rect[data-color="green"]  { --hl-rgb: var(--hl-green); }
+.pdf-highlight-rect[data-color="blue"]   { --hl-rgb: var(--hl-blue); }
+.pdf-highlight-rect[data-color="pink"]   { --hl-rgb: var(--hl-pink); }
+.pdf-color-swatch[data-color="yellow"]   { --hl-rgb: var(--hl-yellow); }
+.pdf-color-swatch[data-color="green"]    { --hl-rgb: var(--hl-green); }
+.pdf-color-swatch[data-color="blue"]     { --hl-rgb: var(--hl-blue); }
+.pdf-color-swatch[data-color="pink"]     { --hl-rgb: var(--hl-pink); }
+
+.pdf-highlight-rect {
+  position: absolute;
+  border-radius: 1px;
+  pointer-events: auto;
+  cursor: pointer;
+  background: rgba(var(--hl-rgb), 0.35);
+  transition: background 0.1s, box-shadow 0.1s;
+}
+.pdf-highlight-rect:hover { background: rgba(var(--hl-rgb), 0.55); }
+.pdf-highlight-rect[data-has-note="true"]::after {
+  content: "";
+  position: absolute;
+  right: -3px;
+  top: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-bright);
+  box-shadow: 0 0 0 1px var(--bg-base);
+}
+
+.pdf-color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  background: rgba(var(--hl-rgb), 0.9);
+  transition: transform 0.1s, border-color 0.1s;
+}
+.pdf-color-swatch:hover { transform: scale(1.15); }
+.pdf-color-swatch[data-active="true"] { border-color: var(--text-bright); }

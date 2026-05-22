@@ -1,12 +1,23 @@
 {
-  "extends": "@electron-toolkit/tsconfig/tsconfig.node.json",
-  "include": ["electron.vite.config.*", "src/electron/**/*", "src/preload/**/*", "src/shared/**/*"],
+  "include": ["vite.config.ts", "vitest.config.ts"],
   "compilerOptions": {
     "composite": true,
-    "types": ["electron-vite/node"],
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
     "paths": {
-      "@shared/*":   ["./src/shared/*"],
-      "@electron/*": ["./src/electron/*"]
+      "@shared/*": ["./src/shared/*"]
     }
   }
 }

@@ -51,6 +51,7 @@ async function offscreenToPngBase64(canvas: OffscreenCanvas): Promise<string> {
 
 export const pdfTools: ToolRegistry = {
   extract_pdf_text: {
+    parallelSafe: true,
     def: {
       name: 'extract_pdf_text',
       description:
@@ -85,6 +86,7 @@ export const pdfTools: ToolRegistry = {
   },
 
   view_pdf_page: {
+    parallelSafe: true,
     def: {
       name: 'view_pdf_page',
       description:

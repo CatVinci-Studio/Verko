@@ -1,4 +1,5 @@
 import type { PaperDraft } from '@shared/types'
+import { nativeFetch } from '@shared/net/fetch'
 
 // ── arXiv ─────────────────────────────────────────────────────────────────────
 
@@ -35,13 +36,14 @@ export async function importFromArxiv(input: string): Promise<PaperDraft> {
   const id = extractArxivId(input)
   const url = `https://export.arxiv.org/abs/${id}`
 
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'Verko/0.1 (mailto:leonardoshen@icloud.com)' },
+  const res = await nativeFetch({
+    url,
+    headers: { 'User-Agent': 'Verko/0.5 (mailto:leonardoshen@icloud.com)' },
   })
   if (!res.ok) {
-    throw new Error(`arXiv request failed: ${res.status} ${res.statusText}`)
+    throw new Error(`arXiv request failed: ${res.status}`)
   }
-  const html = await res.text()
+  const html = res.body
 
   // Parse title — inside <h1 class="title mathjax"><span class="descriptor">Title:</span> …</h1>
   const titleMatch = html.match(

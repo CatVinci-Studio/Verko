@@ -14,6 +14,14 @@ export interface ToolContext {
 export interface ToolHandler {
   def: ToolDef
   call: (args: Record<string, unknown>, ctx: ToolContext) => Promise<string>
+  /**
+   * Whether the tool is safe to dispatch concurrently with other tool
+   * calls in the same turn. Read-only tools should opt in. Anything
+   * that mutates `Library` state, `papers.csv`, schema, or files
+   * should leave this `undefined` (treated as false) — concurrent
+   * read-modify-write through `Library.writeRefs()` can lose updates.
+   */
+  parallelSafe?: boolean
 }
 
 export type ToolRegistry = Record<string, ToolHandler>

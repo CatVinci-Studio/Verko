@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLibraryStore } from '@/store/library'
+import { useInvalidateLibrary } from '@/features/library/queries'
 import { api } from '@/lib/ipc'
 import { confirmDialog, promptDialog } from '@/store/dialogs'
 import type { LibraryInfo } from '@shared/types'
@@ -12,7 +12,7 @@ import type { LibraryInfo } from '@shared/types'
  */
 export function useLibraryActions() {
   const { t } = useTranslation()
-  const { refreshLibraries } = useLibraryStore()
+  const invalidate = useInvalidateLibrary()
   const [busy, setBusy] = useState(false)
 
   const promptForName = async (path: string): Promise<string | null> => {
@@ -71,7 +71,7 @@ export function useLibraryActions() {
         kind: 'local', name, path,
         initialize: probe.status === 'uninitialized',
       })
-      await refreshLibraries()
+      invalidate.libraries()
     } catch (e) {
       await showError('welcome.errors.openTitle', e)
     }
@@ -83,7 +83,7 @@ export function useLibraryActions() {
     const name = await promptForName(path)
     if (!name) return
     await api.libraries.add({ kind: 'local', name, path, initialize: true })
-    await refreshLibraries()
+    invalidate.libraries()
   })
 
   const exportLib = guarded(async (lib: LibraryInfo) => {
@@ -104,7 +104,7 @@ export function useLibraryActions() {
   const importLib = guarded(async () => {
     try {
       const info = await api.libraries.importZip()
-      if (info) await refreshLibraries()
+      if (info) invalidate.libraries()
     } catch (e) {
       await showError('settings.libraries.importError', e)
     }

@@ -3,49 +3,48 @@
     "save": "保存",
     "cancel": "取消",
     "delete": "删除",
-    "remove": "移除",
     "rename": "重命名",
     "create": "创建",
     "add": "添加",
     "open": "打开",
     "ok": "确定",
-    "loading": "加载中…",
-    "settings": "设置",
-    "close": "关闭"
+    "loading": "加载中…"
   },
   "titlebar": {
     "appName": "Verko",
-    "askAgent": "问 Agent (⌘K)",
-    "settings": "设置 (⌘,)",
     "getDesktop": "下载桌面端 →"
   },
   "settings": {
     "title": "设置",
     "tabs": {
       "general": "通用",
+      "provider": "模型",
       "schema": "字段",
-      "library": "知识库"
+      "library": "知识库",
+      "debug": "调试日志"
     },
-    "tabDescriptions": {
-      "general": "主题、语言和模型提供商。",
-      "schema": "在核心论文字段之上添加自定义列。",
-      "library": "管理并切换论文库文件夹。"
+    "debug": {
+      "enable": "记录 agent 回合",
+      "enableHint": "在内存中保留最近 50 条 agent 与模型的交互记录，关闭应用即清空。",
+      "entryCount_one": "{{count}} 条记录",
+      "entryCount_other": "{{count}} 条记录",
+      "clear": "清空",
+      "empty": "尚未记录任何 agent 回合。发送一条消息开始记录。",
+      "request": "请求",
+      "response": "响应",
+      "events": "个事件",
+      "copy": "复制",
+      "copied": "已复制"
     },
     "basic": {
-      "title": "基础",
-      "description": "调整界面外观。",
       "colorScheme": "配色方案",
-      "colorSchemeHint": "「系统」会自动跟随操作系统的偏好。",
       "system": "系统",
       "dark": "深色",
       "light": "浅色",
-      "language": "语言",
-      "languageHint": "影响界面文案以及 Agent 的系统提示词。"
+      "language": "语言"
     },
     "provider": {
       "title": "模型提供商",
-      "description": "选择一个提供商,然后配置其 API key。点击提供商即切换为当前使用。",
-      "current": "当前",
       "fields": {
         "apiKey": "API Key",
         "model": "模型",
@@ -56,39 +55,19 @@
       "testConnection": "测试连接",
       "connected": "已连接",
       "failed": "失败",
-      "keySaved": "已保存 key"
-    },
-    "schema": {
-      "customColumns": {
-        "title": "自定义列",
-        "description": "你在核心论文字段之外添加的列,会出现在论文表格和 CSV 索引里。",
-        "empty": "还没有自定义列。",
-        "removeConfirmTitle": "移除列「{{name}}」?",
-        "removeConfirmMessage": "已有论文的 Markdown frontmatter 里仍保留数据,但该列不再出现在表格视图和 CSV 索引里。"
-      },
-      "addColumn": {
-        "title": "添加列",
-        "description": "新列会立即在所有论文上可用。",
-        "namePlaceholder": "列名…"
-      },
-      "types": {
-        "text": "文本",
-        "number": "数字",
-        "date": "日期",
-        "bool": "布尔",
-        "select": "单选",
-        "multiselect": "多选",
-        "tags": "标签",
-        "url": "链接"
+      "keySaved": "已保存 key",
+      "chatgpt": {
+        "title": "使用 ChatGPT 登录",
+        "description": "用你的 ChatGPT 订阅替代 API Key。会在浏览器中打开 openai.com 完成授权。",
+        "signIn": "登录",
+        "signOut": "退出",
+        "signedIn": "已登录"
       }
     },
     "libraries": {
-      "title": "知识库",
-      "description": "每个知识库是一个独立的文件夹,包含论文、附件和字段定义。",
       "switch": "切换",
       "active": "使用中",
       "papers": "{{count}} 篇论文",
-      "addExisting": "添加已有知识库",
       "addDialog": {
         "title": "添加知识库",
         "description": "指向一个已存在的文件夹,Verko 会在首次打开时建立索引。",
@@ -96,7 +75,6 @@
         "absolutePath": "绝对路径"
       },
       "export": "导出为 .zip",
-      "import": "从 .zip 导入",
       "action": {
         "open": "打开文件夹",
         "new": "新建知识库",
@@ -115,7 +93,7 @@
     "title": "欢迎使用 Verko",
     "subtitle": "选择一个已有的知识库,或新建一个。知识库可以是本地的 Markdown 文件夹,也可以是 S3 兼容的对象存储。",
     "subtitleWeb": "连接一个 S3 兼容存储即可开始。本地文件夹需要使用桌面端。",
-    "webNote": "网页版只读。安装桌面端可编辑、运行 Agent 以及使用本地知识库。",
+    "webNote": "网页版可完整运行 Agent 操作 S3 知识库。桌面端额外支持本地文件夹、系统密钥环、离线使用。",
     "actions": {
       "openExisting": {
         "title": "打开已有文件夹",
@@ -180,7 +158,16 @@
     "newPaper": "新建论文",
     "importArxiv": "从 arXiv 导入",
     "papers": "{{count}} 篇论文",
-    "showHidden": "显示已隐藏的列",
+    "inbox": {
+      "placeholder": "粘贴链接，丢进收件箱…",
+      "ingesting": "抓取中…",
+      "errorTitle": "投递失败",
+      "filterAll": "全部",
+      "filterUnread": "收件箱",
+      "filterReading": "阅读中",
+      "filterRead": "已读",
+      "filterArchived": "已归档"
+    },
     "deletePaper": {
       "title": "删除这篇论文?",
       "message": "会删除对应的 Markdown 文件和附件,无法撤销。",
@@ -223,7 +210,6 @@
     "placeholder": "问点什么…",
     "send": "发送",
     "stop": "停止",
-    "clear": "清空对话",
     "tool": {
       "input": "输入",
       "output": "输出"
@@ -235,7 +221,6 @@
       "empty": "未找到匹配项"
     },
     "conversations": {
-      "title": "对话",
       "new": "新对话",
       "empty": "暂无对话",
       "delete": {
@@ -270,12 +255,7 @@
     "send": "发送 (↵)",
     "shortcutHintBase": "↵ 发送 · ⇧↵ 换行",
     "shortcutHintWithPaper": " · ⇥ 把论文加为上下文",
-    "papersHeading": "论文 — Tab 加为上下文",
-    "suggestions": [
-      "总结一下注意力论文的核心贡献",
-      "我的论文库里有哪些讨论扩散模型的?",
-      "对比这两篇论文的方法"
-    ]
+    "papersHeading": "论文 — Tab 加为上下文"
   },
   "sidebar": {
     "collectionNew": "新建合集",

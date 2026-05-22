@@ -11,7 +11,9 @@ type LibraryGetter = () => Library | Promise<Library | null> | null
  * `getLibrary` may be sync or async; we await it on every call so platforms
  * can defer construction until the first request.
  */
-export function buildLibraryFacade(getLibrary: LibraryGetter): Pick<IApi, 'papers' | 'schema' | 'collections' | 'pdf'> {
+export function buildLibraryFacade(
+  getLibrary: LibraryGetter,
+): Pick<IApi, 'papers' | 'schema' | 'collections' | 'pdf' | 'highlights'> {
   const lib = async (): Promise<Library | null> => {
     const result = getLibrary()
     return result instanceof Promise ? result : result
@@ -31,6 +33,15 @@ export function buildLibraryFacade(getLibrary: LibraryGetter): Pick<IApi, 'paper
       delete:      async (id)                  => (await need()).delete(id),
       search:      async (q, filter)           => (await lib())?.search(q, filter) ?? [],
       importArxiv: async (input)               => (await need()).importArxiv(input),
+      ingestUrl:   async (url, opts)           => (await need()).ingestUrl(url, opts),
+      importPdfBlob: async (filename, bytes) => {
+        const l = await need()
+        const baseTitle = filename.replace(/\.pdf$/i, '')
+        const id = await l.add({ title: baseTitle, kind: 'pdf', tags: [], status: 'unread' })
+        await l.backend.writeFile(`attachments/${id}.pdf`, bytes)
+        await l.markPdfPresent(id)
+        return id
+      },
       importPdf:   async () => {
         throw new Error('importPdf must be provided by the platform adapter')
       },
@@ -51,6 +62,12 @@ export function buildLibraryFacade(getLibrary: LibraryGetter): Pick<IApi, 'paper
     },
     pdf: {
       getPath: async (id) => (await lib())?.pdfPath(id) ?? null,
+    },
+    highlights: {
+      list:   async (id)                     => (await lib())?.listHighlights(id) ?? [],
+      add:    async (id, draft)              => (await need()).addHighlight(id, draft),
+      update: async (id, highlightId, patch) => (await need()).updateHighlight(id, highlightId, patch),
+      delete: async (id, highlightId)        => (await need()).deleteHighlight(id, highlightId),
     },
   }
 }

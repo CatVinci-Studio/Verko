@@ -38,6 +38,7 @@ async function docxToMarkdown(bytes: Uint8Array): Promise<string> {
 
 export const documentTools: ToolRegistry = {
   read_document: {
+    parallelSafe: true,
     def: {
       name: 'read_document',
       description:

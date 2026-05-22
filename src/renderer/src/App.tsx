@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { PanelLeft, Settings } from 'lucide-react'
 import { useLibraryStore } from './store/library'
+import { useInvalidateLibrary } from './features/library/queries'
 import { useUIStore } from './store/ui'
 import { Sidebar } from './features/library/Sidebar'
 import { LibraryView } from './features/library/LibraryView'
@@ -14,10 +15,16 @@ import { WelcomeScreen } from './features/onboarding/WelcomeScreen'
 import { Button } from './components/ui/button'
 import { api } from './lib/ipc'
 import { useAgentEvents } from './features/agent/useAgent'
+import { useMobile } from './lib/useMobile'
+import { useDeepLinkIngest } from './features/library/useDeepLinkIngest'
 
 export default function App() {
-  const { refreshAll, status, setStatus } = useLibraryStore()
+  const status = useLibraryStore((s) => s.status)
+  const setStatus = useLibraryStore((s) => s.setStatus)
+  const invalidate = useInvalidateLibrary()
   const setActiveView = useUIStore((s) => s.setActiveView)
+  const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed)
+  const isMobile = useMobile()
   const {
     sidebarCollapsed,
     activeView,
@@ -29,36 +36,66 @@ export default function App() {
     toggleAgent,
   } = useUIStore()
 
-  // Subscribe to agent IPC events at the top level
+  // Subscribe to agent IPC events + OS share-sheet ingest at the top level
   useAgentEvents()
+  useDeepLinkIngest()
 
-  // Initial data load. Zustand actions are stable; mount-only is intentional.
+  // On small viewports the sidebar takes the full screen — keep it
+  // collapsed by default so the inbox is what the user sees first.
   useEffect(() => {
-    (async () => {
-      const noLibrary = await api.libraries.hasNone()
-      if (noLibrary) {
-        setStatus('none', { reason: 'empty' })
-        return
-      }
-      setStatus('ready')
-      setActiveView('agent')
-      await refreshAll()
-    })().catch(() => setStatus('none', { reason: 'empty' }))
+    if (isMobile) setSidebarCollapsed(true)
+  }, [isMobile, setSidebarCollapsed])
+
+  // Initial library presence check. Server data is fetched lazily by query
+  // hooks once status flips to 'ready'.
+  useEffect(() => {
+    api.libraries.hasNone().then(
+      (none) => {
+        if (none) setStatus('none', { reason: 'empty' })
+        // Read-later pivot: open the inbox by default rather than the
+        // chat. The chat panel is one keystroke away (⌘.) when wanted.
+        else setStatus('ready')
+      },
+      () => setStatus('none', { reason: 'empty' }),
+    )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Listen for library lifecycle events from main.
+  // Listen for library lifecycle events from the shell.
   useEffect(() => {
     const unsubSwitch = api.libraries.onSwitched(() => {
       setStatus('ready')
-      setActiveView('agent')
-      refreshAll()
+      setActiveView('library')
+      invalidate.all()
     })
     const unsubNone = api.libraries.onNone((payload) => {
       setStatus('none', payload)
     })
     return () => { unsubSwitch(); unsubNone() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Without this, clicking an http(s) link in the Tauri webview navigates
+  // the webview itself with no way back. Same-origin and `#hash` links pass
+  // through unchanged.
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0) return
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      const target = (e.target as HTMLElement | null)?.closest('a')
+      if (!target) return
+      const href = target.getAttribute('href')
+      if (!href) return
+      if (!/^https?:\/\//i.test(href)) return
+      try {
+        const url = new URL(href)
+        if (url.origin === window.location.origin) return
+      } catch { return }
+      e.preventDefault()
+      void api.net.openExternal(href)
+    }
+    window.addEventListener('click', handleClick)
+    return () => window.removeEventListener('click', handleClick)
   }, [])
 
   // Global keyboard shortcuts
@@ -95,7 +132,7 @@ export default function App() {
   if (status === 'none') {
     return (
       <div className="flex flex-col h-full bg-[var(--bg-base)] overflow-hidden">
-        <TitleBar />
+        {!isMobile && <TitleBar />}
         <div className="flex-1 min-h-0 overflow-hidden">
           <WelcomeScreen />
         </div>
@@ -107,19 +144,34 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-full bg-[var(--bg-base)] overflow-hidden">
-      <TitleBar />
+      {!isMobile && <TitleBar />}
 
       {/* Main layout */}
-      <div className="flex flex-1 overflow-hidden min-h-0">
-        {/* Sidebar */}
+      <div className="flex flex-1 overflow-hidden min-h-0 relative">
+        {/* Sidebar — desktop = inline column; mobile = overlay drawer. */}
         {!sidebarCollapsed && (
-          <div className="w-[240px] shrink-0 overflow-hidden">
-            <Sidebar />
-          </div>
+          isMobile ? (
+            <>
+              {/* Backdrop: tap outside to dismiss */}
+              <div
+                className="fixed inset-0 z-40 bg-black/40"
+                onClick={() => setSidebarCollapsed(true)}
+              />
+              <div className="fixed inset-y-0 left-0 z-50 w-[80vw] max-w-[320px] shadow-xl">
+                <Sidebar />
+              </div>
+            </>
+          ) : (
+            <div className="w-[240px] shrink-0 overflow-hidden">
+              <Sidebar />
+            </div>
+          )
         )}
 
-        {/* Collapsed sidebar — expand at top, settings at bottom */}
-        {sidebarCollapsed && (
+        {/* Collapsed sidebar rail — desktop only. On mobile we surface
+            the open / settings affordances inside InboxBar instead so
+            the layout doesn't lose horizontal real estate. */}
+        {sidebarCollapsed && !isMobile && (
           <div className="w-9 shrink-0 flex flex-col items-center pt-2 pb-2 border-r border-[var(--border-color)]">
             <Button
               onClick={toggleSidebar}

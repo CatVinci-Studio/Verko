@@ -16,13 +16,14 @@ export class GeminiProtocol implements ProviderProtocol {
   }
 
   async testConnection(): Promise<boolean> {
+    // Auth-only check. countTokens is free, doesn't burn quota, and
+    // doesn't trip on reasoning-model token-budget edge cases.
     try {
-      const res = await this.client.models.generateContent({
+      await this.client.models.countTokens({
         model: this.config.model,
         contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
-        config: { maxOutputTokens: 1 },
       })
-      return !!res.text
+      return true
     } catch {
       return false
     }
@@ -40,7 +41,7 @@ export class GeminiProtocol implements ProviderProtocol {
         }]
       : undefined
 
-    const stream = await this.client.models.generateContentStream({
+    const body = {
       model: this.config.model,
       contents,
       config: {
@@ -49,7 +50,9 @@ export class GeminiProtocol implements ProviderProtocol {
         tools,
         abortSignal: opts.signal,
       },
-    })
+    }
+    opts.onRawRequest?.(body)
+    const stream = await this.client.models.generateContentStream(body)
 
     let finishReason: string | undefined
     const toolCalls: Array<{ id: string; name: string; args: string }> = []

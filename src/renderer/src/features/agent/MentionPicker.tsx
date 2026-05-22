@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Layers, FileText, ChevronLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useLibraryStore } from '@/store/library'
+import { useCollectionsQuery, usePapersQuery } from '@/features/library/queries'
 import { api } from '@/lib/ipc'
 import type { PaperRef } from '@shared/types'
 
@@ -23,7 +23,8 @@ interface MentionPickerProps {
  */
 export function MentionPicker({ x, y, query, onPick, onCancel }: MentionPickerProps) {
   const { t } = useTranslation()
-  const { collections, papers } = useLibraryStore()
+  const { data: collections = [] } = useCollectionsQuery()
+  const { data: papers = [] } = usePapersQuery()
   const [collection, setCollection] = useState<string | null>(null)  // null = top level
   const [scopedPapers, setScopedPapers] = useState<PaperRef[] | null>(null)
   const [highlight, setHighlight] = useState(0)

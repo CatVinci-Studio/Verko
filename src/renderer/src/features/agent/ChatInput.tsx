@@ -80,7 +80,7 @@ export function ChatInput({
   }
 
   return (
-    <div className="shrink-0 px-4 pb-5 pt-3">
+    <div className="shrink-0 px-3 sm:px-4 pt-3 pb-[max(env(safe-area-inset-bottom),20px)]">
       <div className="max-w-3xl mx-auto">
         <div className="bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-[16px] px-4 py-3 focus-within:border-[var(--border-focus)] shadow-sm transition-colors">
           {hasMentions && (

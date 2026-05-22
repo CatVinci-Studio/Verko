@@ -1,5 +1,6 @@
 import type { AgentEvent } from '../types'
 import type { NormalizedMessage, ProviderProtocol, ToolDef } from './providers'
+import { wireLog } from './wireLog'
 
 export interface RunAgentLoopOptions {
   provider: ProviderProtocol
@@ -11,6 +12,13 @@ export interface RunAgentLoopOptions {
   temperature: number
   /** Tool dispatcher — must close over its own context (Library, manager, etc). */
   dispatchTool: (name: string, args: Record<string, unknown>) => Promise<string>
+  /**
+   * Optional predicate identifying tools that are safe to dispatch
+   * concurrently. When all tool calls in a turn are safe, the loop runs
+   * them via `Promise.all`; if any is unsafe, the whole batch falls
+   * back to sequential. Defaults to "everything is unsafe".
+   */
+  isParallelSafe?: (name: string) => boolean
   onEvent: (event: AgentEvent) => void
   /** Called as each finalized assistant / tool message is appended. */
   onMessage: (msg: NormalizedMessage) => void
@@ -39,7 +47,7 @@ export interface RunAgentLoopOptions {
 export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
   const {
     provider, systemPrompt, messages, tools, maxTurns, temperature,
-    dispatchTool, onEvent, onMessage, abortSignal,
+    dispatchTool, isParallelSafe, onEvent, onMessage, abortSignal,
     beforeTurn, compactToolName, onCompact,
   } = opts
 
@@ -69,6 +77,18 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
     const toolCalls: Array<{ id: string; name: string; arguments: string }> = []
     let finishReason: 'stop' | 'tool_calls' | 'length' | 'other' = 'other'
 
+    const wireId = wireLog.start({
+      protocol: provider.config.protocol,
+      model: provider.config.model,
+      baseUrl: provider.config.baseUrl,
+      request: {
+        systemPrompt,
+        messages: messages.map((m) => ({ ...m })),
+        tools: tools.map((t) => ({ name: t.name, description: t.description })),
+        temperature,
+      },
+    })
+
     try {
       for await (const ev of provider.stream({
         model: '',  // unused — provider already has it
@@ -77,8 +97,10 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
         tools,
         temperature,
         signal: abortSignal,
+        onRawRequest: (body) => wireLog.setRawRequest(wireId, body),
       })) {
         if (abortSignal.aborted) break
+        wireLog.appendEvent(wireId, ev)
         if (ev.type === 'text') {
           assistantText += ev.delta
           onEvent({ type: 'text', delta: ev.delta })
@@ -88,12 +110,15 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
           finishReason = ev.reason
         }
       }
+      wireLog.finish(wireId, { finishReason })
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      wireLog.finish(wireId, { error: msg })
       if (abortSignal.aborted) {
         onEvent({ type: 'done' })
         return
       }
-      onEvent({ type: 'error', message: e instanceof Error ? e.message : String(e) })
+      onEvent({ type: 'error', message: msg })
       return
     }
 
@@ -116,19 +141,45 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
     }
 
     let manualCompactRequested = false
-    for (const tc of toolCalls) {
+
+    // Pre-parse args + emit tool_start so the UI streams immediately.
+    const prepared = toolCalls.map((tc) => {
       let parsed: Record<string, unknown> = {}
       try { parsed = JSON.parse(tc.arguments || '{}') } catch { /* keep {} */ }
-
       onEvent({ type: 'tool_start', name: tc.name, args: parsed })
-      let result: string
-      try {
-        result = await dispatchTool(tc.name, parsed)
-      } catch (e) {
-        result = JSON.stringify({ error: e instanceof Error ? e.message : String(e) })
+      if (compactToolName && tc.name === compactToolName) {
+        manualCompactRequested = true
       }
-      onEvent({ type: 'tool_result', name: tc.name, result })
+      return { tc, parsed }
+    })
 
+    const runOne = async ({ tc, parsed }: typeof prepared[number]): Promise<string> => {
+      try {
+        return await dispatchTool(tc.name, parsed)
+      } catch (e) {
+        return JSON.stringify({ error: e instanceof Error ? e.message : String(e) })
+      }
+    }
+
+    // Parallelize when every call in the batch opts in. Mixing safe and
+    // unsafe runs sequentially — too risky to interleave a write between
+    // reads when the underlying Library uses last-write-wins on `papers.csv`.
+    const allSafe = isParallelSafe != null && prepared.every((p) => isParallelSafe(p.tc.name))
+    let results: string[]
+    if (allSafe) {
+      results = await Promise.all(prepared.map(runOne))
+    } else {
+      results = []
+      for (const p of prepared) results.push(await runOne(p))
+    }
+
+    // Append tool messages in original order — the model expects each
+    // `role: 'tool'` to follow its `tool_call.id` slot in the assistant
+    // message above, regardless of completion order.
+    for (let i = 0; i < prepared.length; i++) {
+      const { tc } = prepared[i]
+      const result = results[i]
+      onEvent({ type: 'tool_result', name: tc.name, result })
       const toolMsg: NormalizedMessage = {
         role: 'tool',
         toolCallId: tc.id,
@@ -137,10 +188,6 @@ export async function runAgentLoop(opts: RunAgentLoopOptions): Promise<void> {
       }
       messages.push(toolMsg)
       onMessage(toolMsg)
-
-      if (compactToolName && tc.name === compactToolName) {
-        manualCompactRequested = true
-      }
     }
 
     if (manualCompactRequested && onCompact) {

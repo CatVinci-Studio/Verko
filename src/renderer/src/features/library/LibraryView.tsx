@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
 import { useDragAutoScroll } from './useDragAutoScroll'
-import { useQueryClient } from '@tanstack/react-query'
 import {
   getCoreRowModel,
   getSortedRowModel,
@@ -15,32 +14,37 @@ import { api } from '@/lib/ipc'
 import { confirmDialog, promptDialog } from '@/store/dialogs'
 import { Button } from '@/components/ui/button'
 import { FilterModal } from './FilterBar'
+import { InboxBar } from './InboxBar'
+import { MobilePaperList } from './MobilePaperList'
+import { StatusFilterStrip } from './StatusFilterStrip'
 import { PaperRow } from './PaperRow'
 import { ColumnHeader } from './ColumnHeader'
 import { buildColumns } from './columns'
 import { useColumnPersistence } from './useColumnPersistence'
+import { useMobile } from '@/lib/useMobile'
+import {
+  usePapersQuery, useSchemaQuery, useCollectionsQuery, useActiveLibrary,
+  useInvalidateLibrary,
+} from './queries'
 import type { Column, ColumnType, PaperRef } from '@shared/types'
 
 const CORE_COLS = new Set(['id', 'title', 'authors', 'year', 'status', 'tags', 'rating', 'added_at', 'updated_at', 'doi', 'url', 'venue'])
 
 export function LibraryView() {
   const { t } = useTranslation()
-  const {
-    papers,
-    schema,
-    selectedId,
-    setSelected,
-    refreshPapers,
-    isLoadingPapers,
-    collections,
-    activeCollection,
-    refreshCollections,
-    libraries,
-  } = useLibraryStore()
-  const { setActiveView } = useUIStore()
-  const queryClient = useQueryClient()
+  const isMobile = useMobile()
+  const selectedId = useLibraryStore((s) => s.selectedId)
+  const setSelected = useLibraryStore((s) => s.setSelected)
+  const activeCollection = useLibraryStore((s) => s.activeCollection)
+  const setActiveView = useUIStore((s) => s.setActiveView)
 
-  const activeLibraryName = libraries.find((l) => l.active)?.name ?? null
+  const { data: papers = [], isLoading: isLoadingPapers } = usePapersQuery()
+  const { data: schema } = useSchemaQuery()
+  const { data: collections = [] } = useCollectionsQuery()
+  const activeLibrary = useActiveLibrary()
+  const invalidate = useInvalidateLibrary()
+
+  const activeLibraryName = activeLibrary?.name ?? null
 
   const extraCols: Column[] = useMemo(
     () => schema?.columns.filter((c) => !CORE_COLS.has(c.name)) ?? [],
@@ -68,8 +72,8 @@ export function LibraryView() {
   const handleInlineUpdate = async (id: string, patch: Parameters<typeof api.papers.update>[1]) => {
     try {
       await api.papers.update(id, patch)
-      await refreshPapers()
-      queryClient.invalidateQueries({ queryKey: ['papers'] })
+      invalidate.papers()
+      invalidate.paper(id)
     } catch (e) {
       console.error(e)
     }
@@ -111,8 +115,7 @@ export function LibraryView() {
     })
     if (!ok) return
     await api.papers.delete(id)
-    queryClient.invalidateQueries({ queryKey: ['papers'] })
-    refreshPapers()
+    invalidate.papers()
     if (selectedId === id) {
       setSelected(null)
       setActiveView('library')
@@ -122,7 +125,7 @@ export function LibraryView() {
   const handleNewPaper = async () => {
     try {
       const id = await api.papers.add({ title: '', status: 'unread', tags: [] })
-      await refreshPapers()
+      invalidate.papers()
       // Select the new row and put its title cell into edit mode — clicking
       // the row's arrow opens the detail page, but creation alone shouldn't
       // navigate away from the table.
@@ -136,7 +139,7 @@ export function LibraryView() {
   const handleAddToCollection = async (paperId: string, collectionName: string) => {
     try {
       await api.collections.addPaper(paperId, collectionName)
-      await refreshCollections()
+      invalidate.collections()
     } catch (e) {
       console.error(e)
     }
@@ -145,8 +148,8 @@ export function LibraryView() {
   const handleRemoveFromCollection = async (paperId: string, collectionName: string) => {
     try {
       await api.collections.removePaper(paperId, collectionName)
-      await refreshCollections()
-      refreshPapers()
+      invalidate.collections()
+      invalidate.papers()
     } catch (e) {
       console.error(e)
     }
@@ -164,7 +167,7 @@ export function LibraryView() {
     if (!result) return
     try {
       await api.papers.importArxiv(result.input.trim())
-      refreshPapers()
+      invalidate.papers()
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       await confirmDialog({
@@ -197,7 +200,8 @@ export function LibraryView() {
         type: result.type.trim() as ColumnType,
         inCsv: true,
       })
-      queryClient.invalidateQueries({ queryKey: ['schema'] })
+      invalidate.schema()
+      invalidate.papers()
     } catch (e) {
       console.error(e)
     }
@@ -214,19 +218,28 @@ export function LibraryView() {
     <div className="flex flex-col h-full bg-[var(--bg-base)]">
       <FilterModal />
 
-      <div ref={scrollRef} className="flex-1 overflow-auto">
-        <TableHeader
-          table={table}
-          hiddenColumns={hiddenColumns}
-          onAddColumn={handleAddColumn}
-        />
+      <InboxBar />
+      <StatusFilterStrip />
 
+      <div ref={scrollRef} className="flex-1 overflow-auto">
         {isLoadingPapers ? (
           <div className="flex items-center justify-center h-32 text-[14.5px] text-[var(--text-muted)]">
             {t('common.loading')}
           </div>
+        ) : isMobile ? (
+          <MobilePaperList
+            papers={table.getRowModel().rows.map((r) => r.original)}
+            selectedId={selectedId}
+            onSelect={handleSelect}
+          />
         ) : (
           <>
+            <TableHeader
+              table={table}
+              hiddenColumns={hiddenColumns}
+              onAddColumn={handleAddColumn}
+            />
+
             {table.getRowModel().rows.map((row) => (
               <PaperRow
                 key={row.original.id}

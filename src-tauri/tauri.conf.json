@@ -1,0 +1,71 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Verko",
+  "version": "0.5.0-dev.5",
+  "identifier": "studio.catvinci.verko",
+  "build": {
+    "frontendDist": "../dist-tauri",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run tauri:dev:vite",
+    "beforeBuildCommand": "npm run tauri:build:vite"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Verko",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "decorations": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "app",
+      "dmg",
+      "nsis",
+      "deb",
+      "appimage",
+      "rpm"
+    ],
+    "publisher": "CatVinci-Studio",
+    "copyright": "Copyright © 2026 CatVinci-Studio",
+    "shortDescription": "Agent-first academic paper management.",
+    "longDescription": "Verko is an agent-first academic paper management desktop app with CSV + Markdown native storage.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser"
+      },
+      "wix": {
+        "language": "en-US"
+      }
+    },
+    "iOS": {
+      "minimumSystemVersion": "15.0"
+    },
+    "android": {
+      "minSdkVersion": 26
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "mobile": [
+        { "scheme": "verko", "host": "ingest", "pathPrefix": ["/"] }
+      ]
+    }
+  }
+}

@@ -9,35 +9,27 @@ permissions:
   contents: write
 
 jobs:
-  # Pre-create the release so the three parallel platform jobs don't race
-  # to create it (electron-builder's create-release path is not idempotent
-  # under concurrency — v0.3.5 lost the macOS DMG to a 422 already_exists).
-  create-release:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - name: Ensure release exists
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release create "$GITHUB_REF_NAME" \
-              --title "$GITHUB_REF_NAME" \
-              --notes "Automated release for $GITHUB_REF_NAME."
-          fi
-
   build:
-    needs: create-release
     strategy:
       fail-fast: false
       matrix:
         include:
+          # macOS Apple Silicon
           - os: macos-latest
-            platform: mac
+            args: --target aarch64-apple-darwin
+            rust_targets: aarch64-apple-darwin
+          # macOS Intel
+          - os: macos-13
+            args: --target x86_64-apple-darwin
+            rust_targets: x86_64-apple-darwin
+          # Windows: NSIS .exe + WiX .msi (bundle.targets in tauri.conf.json).
           - os: windows-latest
-            platform: win
+            args: ''
+            rust_targets: ''
+          # Linux: .AppImage + .deb + .rpm.
           - os: ubuntu-latest
-            platform: linux
+            args: ''
+            rust_targets: ''
 
     runs-on: ${{ matrix.os }}
 
@@ -51,34 +43,125 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
 
-      # Linux: install required libs for Electron
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # webkit2gtk + soup3 are required for the webview, librsvg for icons,
+      # libayatana-appindicator for the tray (kept even if unused — Tauri's
+      # default features pull it in).
       - name: Install Linux deps
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libsoup-3.0-dev
 
-      - name: Build frontend + main process
-        run: npm run build
+      - name: Install npm deps
+        run: npm ci
 
-      - name: Package (macOS)
-        if: matrix.os == 'macos-latest'
+      - name: Build & publish Tauri app
+        uses: tauri-apps/tauri-action@v0
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: npx electron-builder --mac --publish always
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: ${{ github.ref_name }}
+          releaseBody: 'Automated release for ${{ github.ref_name }}.'
+          # Semver prerelease tags (anything with a hyphen, e.g. v0.5.0-1)
+          # publish as a GitHub prerelease; stable tags as a full release.
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          args: ${{ matrix.args }}
 
-      - name: Package (Windows)
+      # Portable Windows zip: ship the unpacked verko.exe alongside the NSIS
+      # installer. No installer = no Defender SmartScreen "unknown publisher"
+      # prompt, and no per-machine state. Requires WebView2 Runtime on the
+      # user's machine (default on Win10 21H2+ / Win11).
+      - name: Package Windows portable zip
         if: matrix.os == 'windows-latest'
+        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win --publish always
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $version = $tag.TrimStart('v')
+          $exe = 'src-tauri/target/release/verko.exe'
+          if (-not (Test-Path $exe)) { throw "missing $exe" }
+          $zip = "Verko_${version}_x64-portable.zip"
+          Compress-Archive -Path $exe -DestinationPath $zip -Force
+          gh release upload $tag $zip --clobber
 
-      - name: Package (Linux)
-        if: matrix.os == 'ubuntu-latest'
+  # Android APK build. Unsigned (debug keystore) — sideloadable for
+  # testing, not Play Store ready. Production signing waits until we
+  # have a release keystore stored as a workflow secret.
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0 ndk;27.0.12077973'
+
+      - name: Install Rust + Android targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install npm deps
+        run: npm ci
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli@^2 --locked
+
+      # NDK_HOME points the Tauri CLI's ndk-build at the right toolchain.
+      # The setup-android action exports ANDROID_NDK_ROOT; mirror it.
+      - name: Initialize Android project
+        env:
+          NDK_HOME: ${{ env.ANDROID_NDK_ROOT }}
+        run: cargo tauri android init
+
+      - name: Build Android APK
+        env:
+          NDK_HOME: ${{ env.ANDROID_NDK_ROOT }}
+        run: cargo tauri android build --apk
+
+      - name: Upload APK to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --linux --publish always
+        run: |
+          tag='${{ github.ref_name }}'
+          version="${tag#v}"
+          apk=$(find src-tauri/gen/android/app/build/outputs/apk -name '*.apk' | head -1)
+          if [ -z "$apk" ]; then echo "no APK found"; exit 1; fi
+          cp "$apk" "Verko_${version}.apk"
+          gh release upload "$tag" "Verko_${version}.apk" --clobber

@@ -1,20 +1,28 @@
 import { useState } from 'react'
 import { Check, Cloud, Download, FolderOpen, FolderPlus, Upload } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useLibraryStore } from '@/store/library'
+import { useLibrariesQuery, useInvalidateLibrary } from '@/features/library/queries'
 import { Button } from '@/components/ui/button'
 import { S3ConnectForm } from '@/features/onboarding/S3ConnectForm'
 import { cn } from '@/lib/utils'
 import { useLibraryActions } from '../useLibraryActions'
+import { api } from '@/lib/ipc'
 import type { LibraryInfo } from '@shared/types'
 
 type Mode = 'list' | 's3'
 
 export function LibraryTab() {
   const { t } = useTranslation()
-  const { libraries, refreshLibraries, switchLibrary } = useLibraryStore()
+  const { data: libraries = [] } = useLibrariesQuery()
+  const invalidate = useInvalidateLibrary()
   const [mode, setMode] = useState<Mode>('list')
   const { busy, openExisting, createNew, exportLib, importLib } = useLibraryActions()
+
+  // Switching library: the shell emits `library:switched` which App.tsx
+  // catches and uses to invalidate every query. We only need to issue the call.
+  const switchLibrary = async (id: string) => {
+    await api.libraries.open(id)
+  }
 
   const summarize = (lib: LibraryInfo): string =>
     lib.kind === 'local' ? lib.path : `${lib.bucket}${lib.prefix ? '/' + lib.prefix : ''} (${lib.region})`
@@ -23,9 +31,9 @@ export function LibraryTab() {
     return (
       <S3ConnectForm
         onCancel={() => setMode('list')}
-        onConnected={async () => {
+        onConnected={() => {
           setMode('list')
-          await refreshLibraries()
+          invalidate.libraries()
         }}
       />
     )

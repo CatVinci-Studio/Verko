@@ -2,6 +2,8 @@ import type { IApi } from '@/lib/ipc'
 import type { LibraryInfo, S3LibraryInfo, AgentConfig, AgentProfile } from '@shared/types'
 import { PROVIDER_DEFINITIONS } from '@shared/providers'
 import { createProvider } from '@shared/agent/providers'
+import { browserFetcher } from '@shared/net/fetch'
+import { buildProviderForProfile } from '@/lib/providerBuild'
 import { Library } from '@shared/paperdb/store'
 import { S3Backend, type S3BackendConfig } from '@shared/paperdb/backendS3'
 import { LocalStorageBackend } from '@shared/paperdb/backendLocalStorage'
@@ -138,15 +140,18 @@ const ag = buildAgentFacade({
     async getProvider() {
       const def = PROVIDER_DEFINITIONS.find((d) => d.id === getActiveProfileId())
       if (!def) return null
-      const apiKey = loadApiKey(def.id)
-      if (!apiKey) return null
-      const provider = createProvider({
-        protocol: def.protocol,
-        baseUrl: def.defaults.baseUrl,
-        apiKey,
-        model: def.defaults.model,
-      })
-      return { provider, model: def.defaults.model }
+      return buildProviderForProfile(
+        {
+          name: def.id,
+          protocol: def.protocol,
+          baseUrl: def.defaults.baseUrl,
+          model: def.defaults.model,
+        },
+        {
+          load: (name) => loadApiKey(name),
+          save: (name, value) => { saveApiKey(name, value, true) },
+        },
+      )
     },
     describeContext: async () => {
       const l = await ensureLib()
@@ -169,6 +174,7 @@ const ag = buildAgentFacade({
       if (!lib) return JSON.stringify({ error: 'No active library.' })
       return dispatchFromRegistry(SHARED_TOOLS, name, args, { library: lib })
     },
+    isParallelSafe: (name) => SHARED_TOOLS[name]?.parallelSafe === true,
     store: convStore,
     saveTranscript: async (convId, snapshot) => {
       const key = `${convId}-${Date.now()}.json`
@@ -191,6 +197,8 @@ const papers: IApi['papers'] = {
   add: notSupported,
   update: notSupported,
   delete: notSupported,
+  ingestUrl: notSupported,
+  importPdfBlob: notSupported,
   importPdf: notSupported,
 }
 
@@ -291,6 +299,7 @@ export const webApi: IApi = {
   agent: ag.agent,
   conversations: ag.conversations,
   pdf,
+  highlights: libFacade.highlights,
   fs: {
     read:   () => Promise.reject(new Error('fs is desktop-only')),
     write:  () => Promise.reject(new Error('fs is desktop-only')),
@@ -310,5 +319,22 @@ export const webApi: IApi = {
     toggleMaximize: () => {},
     close: () => {},
     onMaximized: () => () => {},
+  },
+  net: {
+    fetch: browserFetcher,
+    openExternal: async (url) => { window.open(url, '_blank', 'noopener,noreferrer') },
+  },
+  oauth: {
+    // The Codex flow's OAuth client ID is registered for `localhost:1455`,
+    // which a browser tab can't bind. A web build would need a separate
+    // OAuth client + hosted redirect page — out of scope for this build.
+    loopbackWait: () => Promise.reject(new Error('ChatGPT sign-in is only available in the desktop app.')),
+  },
+  deepLink: {
+    // The browser is the OS share target on the web; the page can read
+    // `?url=…` query params or `share_target` on a PWA, but that wiring
+    // is out of scope for this build. The listener is a no-op so the
+    // shared `useDeepLinkIngest` hook can mount safely.
+    onIngest: () => () => {},
   },
 }

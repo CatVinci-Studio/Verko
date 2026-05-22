@@ -4,15 +4,41 @@ import { useTranslation } from 'react-i18next'
 import { api } from '@/lib/ipc'
 import logoUrl from '@/assets/logo.jpg'
 
+const isTauri = (): boolean =>
+  typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== 'undefined'
+
+/**
+ * Tauri ignores `-webkit-app-region: drag` and on Linux/webkit2gtk the
+ * `data-tauri-drag-region` attribute walk is unreliable. Drive the drag
+ * explicitly on mousedown — single click drags, double click toggles
+ * maximize. No-op on the web build (`__TAURI_INTERNALS__` absent).
+ */
+function onTitlebarMouseDown(e: React.MouseEvent) {
+  if (!isTauri() || e.button !== 0) return
+  if ((e.target as HTMLElement).closest('[data-tauri-drag-region="false"]')) return
+  e.preventDefault()
+  if (e.detail === 2) {
+    api.window.toggleMaximize()
+    return
+  }
+  void import('@tauri-apps/api/window').then(({ getCurrentWindow }) =>
+    getCurrentWindow().startDragging(),
+  )
+}
+
 export function TitleBar() {
   const { t } = useTranslation()
   const platform = api.app.platform
   const isMac = platform === 'darwin'
   const isWeb = platform as unknown as string === 'web'
-  const showWindowControls = !isMac && !isWeb  // Windows / Linux Electron only
+  const showWindowControls = !isMac && !isWeb  // Windows / Linux Electron + Tauri
 
   return (
-    <div className="flex items-center h-11 border-b border-[var(--border-color)] shrink-0 titlebar-drag select-none">
+    <div
+      data-tauri-drag-region
+      onMouseDown={onTitlebarMouseDown}
+      className="flex items-center h-11 border-b border-[var(--border-color)] shrink-0 titlebar-drag select-none"
+    >
       {/* macOS traffic-light spacer */}
       {isMac && <div className="w-20 shrink-0" />}
 
@@ -39,7 +65,7 @@ export function TitleBar() {
 function WebRightSlot() {
   const { t } = useTranslation()
   return (
-    <div className="flex items-center pr-4 no-drag shrink-0">
+    <div data-tauri-drag-region="false" className="flex items-center pr-4 no-drag shrink-0">
       <a
         href="https://github.com/CatVinci-Studio/Verko/releases"
         target="_blank"
@@ -57,7 +83,7 @@ function WindowControls() {
   useEffect(() => api.window.onMaximized(setMaximized), [])
 
   return (
-    <div className="flex items-stretch h-full no-drag shrink-0">
+    <div data-tauri-drag-region="false" className="flex items-stretch h-full no-drag shrink-0">
       <ControlButton onClick={() => api.window.minimize()} aria-label="Minimize">
         <Minus size={14} />
       </ControlButton>

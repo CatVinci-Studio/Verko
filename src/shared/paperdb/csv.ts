@@ -103,6 +103,8 @@ function rowToRef(
     tags:       asStringArray(out['tags']),
     status:     (out['status'] as PaperRef['status']) || 'unread',
     rating:     out['rating'] as number | undefined,
+    kind:       (out['kind']  as PaperRef['kind']) || 'paper',
+    summary:    (out['summary'] as string | undefined) || undefined,
     added_at:   (out['added_at']   as string) || now,
     updated_at: (out['updated_at'] as string) || now,
     hasPdf:     false,  // populated separately from attachments listing
@@ -118,7 +120,8 @@ function asStringArray(v: unknown): string[] {
 function extractExtras(out: Record<string, unknown>): Record<string, unknown> {
   const known = new Set([
     'id', 'title', 'authors', 'year', 'venue', 'doi', 'url',
-    'tags', 'status', 'rating', 'added_at', 'updated_at',
+    'tags', 'status', 'rating', 'kind', 'summary',
+    'added_at', 'updated_at',
   ])
   return Object.fromEntries(Object.entries(out).filter(([k]) => !known.has(k)))
 }

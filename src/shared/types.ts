@@ -30,11 +30,21 @@ export interface Schema {
   columns: Column[]
 }
 
-// ─── Paper ───────────────────────────────────────────────────────────────────
+// ─── Paper / Item ────────────────────────────────────────────────────────────
 
 export type PaperId = string  // e.g. "2024-ho-ddpm" or 7-char hash
 
 export type PaperStatus = 'unread' | 'reading' | 'read' | 'archived'
+
+/**
+ * What this row IS, beyond raw fields. Drives UI affordances:
+ *   - 'paper'  legacy academic paper (default for back-compat)
+ *   - 'web'    web article / blog post / page captured by URL
+ *   - 'pdf'    standalone PDF without a paper-shaped citation
+ *   - 'note'   user-authored markdown note (no external source)
+ *   - 'video'  video link (youtube, etc) — body is a generated transcript / summary
+ */
+export type ItemKind = 'paper' | 'web' | 'pdf' | 'note' | 'video'
 
 export interface Paper {
   id: PaperId
@@ -49,6 +59,9 @@ export interface Paper {
   rating?: number           // 0–5
   added_at: string          // ISO 8601
   updated_at: string
+  kind?: ItemKind
+  /** Agent- or user-authored short brief shown in list previews. */
+  summary?: string
   // custom columns (schema-defined) land here as key→value
   [key: string]: unknown
 }
@@ -67,6 +80,8 @@ export interface PaperRef {
   rating?: number
   added_at: string
   updated_at: string
+  kind?: ItemKind
+  summary?: string
   hasPdf: boolean
   [key: string]: unknown
 }
@@ -85,6 +100,8 @@ export interface PaperDraft {
   url?: string
   tags?: string[]
   status?: PaperStatus
+  kind?: ItemKind
+  summary?: string
   markdown?: string
   [key: string]: unknown
 }
@@ -107,6 +124,49 @@ export interface SearchHit {
   paper: PaperRef
   score: number
   terms: string[]
+}
+
+// ─── Highlights ──────────────────────────────────────────────────────────────
+
+export interface HighlightRect {
+  /** percent (0..1) of page width — resolution-independent so it survives zoom changes */
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink'
+
+export interface Highlight {
+  id: string
+  /** 1-based page number */
+  page: number
+  /** Selected text content. Stored so agent tools can read highlights without parsing the PDF. */
+  text: string
+  /** Bounding rects (one per visual line) in page-percent coordinates. */
+  rects: HighlightRect[]
+  /** Color swatch — defaults to yellow when missing (back-compat with v1 highlights). */
+  color?: HighlightColor
+  /** ISO timestamp */
+  createdAt: string
+  /** Optional user note */
+  note?: string
+  /**
+   * Group ID for cross-page selections. Multiple highlights sharing a
+   * group were created from a single drag that spanned page boundaries —
+   * the UI may want to delete them together.
+   */
+  groupId?: string
+}
+
+export interface HighlightDraft {
+  page: number
+  text: string
+  rects: HighlightRect[]
+  color?: HighlightColor
+  note?: string
+  groupId?: string
 }
 
 // ─── Agent ───────────────────────────────────────────────────────────────────
@@ -140,7 +200,8 @@ export interface AgentProfile {
 /** Editable fields of a provider profile. `name` and `hasKey` are not patchable. */
 export type ProfilePatch = Partial<Pick<AgentProfile, 'baseUrl' | 'model' | 'protocol'>>
 
-/** Supported UI languages — also used to pick the system prompt template. */
+/** Supported UI languages — also injected into the system prompt as
+ *  the user-reply language ("Reply in {language}"). */
 export type Language = 'en' | 'zh'
 
 export interface AgentConfig {
@@ -270,43 +331,6 @@ export interface LibraryNonePayload {
   message?: string
 }
 
-// ─── IPC channel map (main ↔ renderer) ───────────────────────────────────────
-
-export interface IpcChannels {
-  // Libraries (multi-library management — new entry-based API)
-  'libraries:list':     { args: [];                              ret: LibraryInfo[] }
-  'libraries:open':     { args: [string];                        ret: LibraryInfo } // id
-  'libraries:add':      { args: [NewLibraryInput];               ret: LibraryInfo }
-  'libraries:remove':   { args: [string];                        ret: void }        // id (unregisters, no delete)
-  'libraries:rename':   { args: [string, string];                ret: void }        // id, newName
-  'libraries:pickFolder': { args: [];                            ret: string | null }
-  'libraries:probeLocal': { args: [string];                      ret: ProbeResult } // path
-  'libraries:probeS3':    { args: [Omit<NewS3LibraryInput, 'kind' | 'name' | 'initialize'>]; ret: ProbeResult }
-  'libraries:hasNone':    { args: [];                            ret: boolean }
-  'libraries:exportZip':  { args: [string];                      ret: string | null } // libraryId → savedPath (null = cancelled)
-  'libraries:importZip':  { args: [];                            ret: LibraryInfo | null } // null = cancelled
-  'libraries:s3Creds':    { args: [string]; ret: { accessKeyId: string; secretAccessKey: string } | null }
-
-  // Agent — config + key store only. The loop runs in the renderer.
-  'agent:getConfig':     { args: [];                        ret: AgentConfig }
-  'agent:setProfile':    { args: [string];                  ret: void }
-  'agent:updateProfile': { args: [string, ProfilePatch];    ret: void }
-  'agent:saveKey':       { args: [string, string, boolean]; ret: void } // profile, key, remember
-  'agent:loadKey':       { args: [string];                  ret: string | null }
-  'agent:testKey':       { args: [string];                  ret: boolean }
-  'agent:getProfiles':   { args: [];                        ret: AgentProfile[] }
-
-  // Filesystem (zero-trust scoped). All paths are (rootId, relPath).
-  'fs:read':   { args: [string, string];                            ret: Uint8Array }
-  'fs:write':  { args: [string, string, Uint8Array | string];       ret: void }
-  'fs:delete': { args: [string, string];                            ret: void }
-  'fs:list':   { args: [string, string];                            ret: string[] }
-  'fs:exists': { args: [string, string];                            ret: boolean }
-
-  // Path resolution
-  'paths:libraryRoot': { args: [string]; ret: string | null }
-  'paths:userData':    { args: [];       ret: string }
-
-  // Native dialogs that return data (not paths)
-  'dialog:openPdf': { args: []; ret: { filename: string; bytes: Uint8Array } | null }
-}
+// IPC contract lives in `src/renderer/src/desktop/shellApi.ts` (`IShellApi`).
+// Tauri commands implement that surface from Rust; the renderer's `makeDesktopApi`
+// wraps it into the consumer-facing `IApi`.

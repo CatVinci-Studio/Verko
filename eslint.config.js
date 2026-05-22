@@ -8,11 +8,12 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
-      'out/**',
+      'dist-tauri/**',
+      'dist-web/**',
       'node_modules/**',
+      'src-tauri/target/**',
       '*.config.js',
       '*.config.ts',
-      'src/preload/**',
     ],
   },
   {
@@ -54,7 +55,7 @@ export default tseslint.config(
       // (lib/utils.ts debounce). Keep visible as a warning.
       '@typescript-eslint/no-explicit-any': 'warn',
 
-      // Vite/electron-vite Fast Refresh boundary rule
+      // Vite Fast Refresh boundary rule
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },
@@ -62,7 +63,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/electron/__tests__/**/*.ts'],
+    files: ['src/shared/**/__tests__/**/*.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },

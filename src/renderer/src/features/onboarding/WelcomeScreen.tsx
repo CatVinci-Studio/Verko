@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { FolderOpen, FolderPlus, Cloud, AlertTriangle } from 'lucide-react'
 import logoUrl from '@/assets/logo.jpg'
 import { useLibraryStore } from '@/store/library'
+import { useInvalidateLibrary } from '@/features/library/queries'
 import { confirmDialog, promptDialog } from '@/store/dialogs'
 import { api } from '@/lib/ipc'
 import { Button } from '@/components/ui/button'
@@ -13,13 +14,15 @@ const isWeb = typeof __WEB_BUILD__ !== 'undefined' && __WEB_BUILD__
 
 export function WelcomeScreen() {
   const { t } = useTranslation()
-  const { noneReason, refreshAll } = useLibraryStore()
+  const noneReason = useLibraryStore((s) => s.noneReason)
+  const setStatus = useLibraryStore((s) => s.setStatus)
+  const invalidate = useInvalidateLibrary()
   const [mode, setMode] = useState<'choose' | 's3'>('choose')
   const [busy, setBusy] = useState(false)
 
-  const setReady = async () => {
-    useLibraryStore.setState({ status: 'ready', noneReason: undefined })
-    await refreshAll()
+  const setReady = () => {
+    setStatus('ready')
+    invalidate.all()
   }
 
   const handleOpenExisting = async () => {
@@ -48,7 +51,7 @@ export function WelcomeScreen() {
       const name = await promptForName(path)
       if (!name) return
       await api.libraries.add({ kind: 'local', name, path, initialize: probe.status === 'uninitialized' })
-      await setReady()
+      setReady()
     } catch (e) {
       await confirmDialog({
         title: t('welcome.errors.openTitle'),
@@ -69,7 +72,7 @@ export function WelcomeScreen() {
       const name = await promptForName(path)
       if (!name) return
       await api.libraries.add({ kind: 'local', name, path, initialize: true })
-      await setReady()
+      setReady()
     } finally {
       setBusy(false)
     }
@@ -97,13 +100,13 @@ export function WelcomeScreen() {
     return (
       <S3ConnectForm
         onCancel={() => setMode('choose')}
-        onConnected={async () => { setMode('choose'); await setReady() }}
+        onConnected={async () => { setMode('choose'); setReady() }}
       />
     )
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-[var(--bg-base)] px-6 py-8 overflow-auto">
+    <div className="flex flex-col items-center justify-center h-full bg-[var(--bg-base)] px-4 sm:px-6 py-6 sm:py-8 pt-[max(env(safe-area-inset-top),24px)] pb-[max(env(safe-area-inset-bottom),24px)] overflow-auto">
       <div className="max-w-[480px] w-full space-y-5">
         <div className="flex flex-col items-center gap-3 text-center">
           <img

@@ -8,6 +8,9 @@ import { useLibraryStore } from '@/store/library'
 import { useUIStore } from '@/store/ui'
 import { useAgentStore } from '@/store/agent'
 import { useSidebarActions } from './useSidebarActions'
+import {
+  useLibrariesQuery, useActiveLibrary, useCollectionsQuery, usePapersQuery,
+} from './queries'
 import { cn } from '@/lib/utils'
 import { useTranslation } from 'react-i18next'
 
@@ -60,11 +63,15 @@ function SectionHeader({
 
 export function Sidebar() {
   const { t } = useTranslation()
-  const {
-    papers, filter, setFilter,
-    libraries, activeLibrary, switchLibrary,
-    collections, activeCollection, switchCollection,
-  } = useLibraryStore()
+  const filter = useLibraryStore((s) => s.filter)
+  const setFilter = useLibraryStore((s) => s.setFilter)
+  const activeCollection = useLibraryStore((s) => s.activeCollection)
+  const setActiveCollection = useLibraryStore((s) => s.setActiveCollection)
+
+  const { data: papers = [] } = usePapersQuery()
+  const { data: libraries = [] } = useLibrariesQuery()
+  const activeLibrary = useActiveLibrary()
+  const { data: collections = [] } = useCollectionsQuery()
 
   const { activeView, setActiveView, agentOpen, setAgentOpen, toggleSidebar, setSettingsOpen } = useUIStore()
   const activeId = useAgentStore((s) => s.activeId)
@@ -102,7 +109,7 @@ export function Sidebar() {
   const clearFilters = () => setFilter({ status: undefined, tags: undefined })
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] text-[var(--text-secondary)]">
+    <div className="flex flex-col h-full bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] text-[var(--text-secondary)] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
 
       {/* ── Library header ────────────────────────────────────────────────── */}
       <div className="flex items-center border-b border-[var(--border-color)] shrink-0 h-11">
@@ -120,7 +127,7 @@ export function Sidebar() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-52">
             {libraries.map(lib => (
-              <DropdownMenuItem key={lib.id} onClick={() => switchLibrary(lib.id)} className="flex items-center gap-2">
+              <DropdownMenuItem key={lib.id} onClick={() => actions.switchLibrary(lib.id)} className="flex items-center gap-2">
                 {lib.active && <Check size={11} className="text-[var(--accent-color)] shrink-0" />}
                 <span className={lib.active ? '' : 'ml-[15px]'}>{lib.name}</span>
                 <span className="ml-auto text-[13.5px] text-[var(--text-muted)]">{lib.paperCount}</span>
@@ -221,7 +228,7 @@ export function Sidebar() {
             <button
               onClick={() => {
                 clearFilters()
-                switchCollection(null)
+                setActiveCollection(null)
                 setActiveView('library')
               }}
               className={cn(
@@ -249,7 +256,7 @@ export function Sidebar() {
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-sidebar-hover)]'
                   )}
                   onClick={() => {
-                    switchCollection(col.name)
+                    setActiveCollection(col.name)
                     setActiveView('library')
                   }}
                 >

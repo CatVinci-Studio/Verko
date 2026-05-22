@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
  */
 export function FilterModal() {
   const { t } = useTranslation()
-  const { filter, setFilter } = useLibraryStore()
+  const filter = useLibraryStore((s) => s.filter)
+  const setFilter = useLibraryStore((s) => s.setFilter)
   const open = useUIStore((s) => s.filterOpen)
   const setOpen = useUIStore((s) => s.setFilterOpen)
   const [searchValue, setSearchValue] = React.useState(filter.query ?? '')

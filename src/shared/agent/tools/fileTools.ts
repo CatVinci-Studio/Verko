@@ -8,6 +8,7 @@ import { type ToolRegistry, decodeUtf8, safeRelPath } from './types'
  */
 export const fileTools: ToolRegistry = {
   read_file: {
+    parallelSafe: true,
     def: {
       name: 'read_file',
       description:
@@ -36,6 +37,7 @@ export const fileTools: ToolRegistry = {
   },
 
   list_files: {
+    parallelSafe: true,
     def: {
       name: 'list_files',
       description: 'List files and folders inside the active library directory. Useful for discovering attachment IDs (under attachments/) or per-collection CSVs.',

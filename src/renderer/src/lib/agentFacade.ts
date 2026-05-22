@@ -24,6 +24,7 @@ export function buildAgentFacade({ ports, store, config }: AgentFacadeDeps): {
     agent: {
       send: (message, attachments, paperId, language, conversationId) =>
         agent.send(message, attachments, paperId, language, conversationId),
+      runWorker: (prompt, paperId) => agent.runWorker(prompt, paperId),
       abort: async (conversationId) => { agent.abort(conversationId) },
       compact: (conversationId) => agent.compact(conversationId),
       onEvent: (cb) => agent.subscribe(cb),

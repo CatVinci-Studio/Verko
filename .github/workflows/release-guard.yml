@@ -12,18 +12,29 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Both versions must be bumped and stay in sync — tauri-action stamps
+      # tauri.conf.json's version into the bundled artifact filenames.
       - name: Check version bump
         run: |
-          BASE_VERSION=$(git show origin/main:package.json | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8');console.log(JSON.parse(d).version)")
-          PR_VERSION=$(node -e "console.log(require('./package.json').version)")
+          read_version() {
+            node -e "console.log(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).version)" < "$1"
+          }
 
-          echo "Base version : $BASE_VERSION"
-          echo "PR version   : $PR_VERSION"
+          base_pkg=$(git show origin/main:package.json | node -e "console.log(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).version)")
+          base_tauri=$(git show origin/main:src-tauri/tauri.conf.json | node -e "console.log(JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).version)")
+          pr_pkg=$(read_version package.json)
+          pr_tauri=$(read_version src-tauri/tauri.conf.json)
 
-          if [ "$BASE_VERSION" = "$PR_VERSION" ]; then
-            echo "❌ Version in package.json must be bumped before merging to main."
-            echo "   Current: $BASE_VERSION — please update to a higher semver."
+          echo "package.json     : $base_pkg → $pr_pkg"
+          echo "tauri.conf.json  : $base_tauri → $pr_tauri"
+
+          if [ "$base_pkg" = "$pr_pkg" ]; then
+            echo "❌ Bump package.json version before merging to main."
+            exit 1
+          fi
+          if [ "$pr_pkg" != "$pr_tauri" ]; then
+            echo "❌ package.json ($pr_pkg) and src-tauri/tauri.conf.json ($pr_tauri) versions must match."
             exit 1
           fi
 
-          echo "✅ Version bump detected: $BASE_VERSION → $PR_VERSION"
+          echo "✅ Version bump: $base_pkg → $pr_pkg (in sync with tauri.conf.json)"

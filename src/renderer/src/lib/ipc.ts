@@ -4,7 +4,9 @@ import type {
   AgentProfile, ProfilePatch, Language, LibraryInfo, CollectionInfo,
   NewLibraryInput, NewS3LibraryInput, ProbeResult, LibraryNonePayload,
   ChatContentPart, ChatMessage, ConversationSummary, Conversation,
+  Highlight, HighlightDraft,
 } from '@shared/types'
+import type { SimpleRequest, SimpleResponse } from '@shared/net/fetch'
 
 type UnsubFn = () => void
 
@@ -40,6 +42,17 @@ export interface IApi {
     delete(id: PaperId): Promise<void>
     search(q: string, filter?: Filter): Promise<SearchHit[]>
     importArxiv(input: string): Promise<PaperId>
+    /**
+     * Drop a URL into the read-later inbox. Fetches + extracts +
+     * creates a kind=web item in one shot. Used by the inbox drop bar.
+     */
+    ingestUrl(url: string, opts?: { tags?: string[] }): Promise<PaperId>
+    /**
+     * Drop raw PDF bytes (e.g. a drag-drop or a clipboard image) into the
+     * inbox. Creates a kind=pdf item, copies the bytes into the library's
+     * `attachments/` directory, and returns the new id.
+     */
+    importPdfBlob(filename: string, bytes: Uint8Array): Promise<PaperId>
     /** Show a native picker, copy the chosen PDF into the active library, return the new id. */
     importPdf(): Promise<PaperId>
   }
@@ -57,6 +70,12 @@ export interface IApi {
       language?: Language,
       conversationId?: string,
     ): Promise<string>
+    /**
+     * Background worker run — no conversation persisted, no event stream.
+     * Used by the inbox auto-summarize pass and any other "do this and
+     * disappear" task. Caller should treat it as fire-and-forget.
+     */
+    runWorker(prompt: string, paperId?: string): Promise<void>
     abort(conversationId?: string): Promise<void>
     compact(conversationId: string): Promise<void>
     getConfig(): Promise<AgentConfig | null>
@@ -79,6 +98,12 @@ export interface IApi {
   pdf: {
     getPath(id: PaperId): Promise<string | null>
   }
+  highlights: {
+    list(paperId: PaperId): Promise<Highlight[]>
+    add(paperId: PaperId, draft: HighlightDraft): Promise<Highlight>
+    update(paperId: PaperId, highlightId: string, patch: { note?: string; color?: import('@shared/types').HighlightColor }): Promise<Highlight | null>
+    delete(paperId: PaperId, highlightId: string): Promise<void>
+  }
   fs: {
     read(rootId: string, rel: string): Promise<Uint8Array>
     write(rootId: string, rel: string, data: Uint8Array | string): Promise<void>
@@ -99,31 +124,46 @@ export interface IApi {
     close(): void
     onMaximized(cb: (maximized: boolean) => void): UnsubFn
   }
-}
-
-declare global {
-  interface Window {
-    api: IApi
+  net: {
+    /** Native HTTP fetch — bypasses webview CORS on desktop; falls back to native fetch on web. */
+    fetch(req: SimpleRequest): Promise<SimpleResponse>
+    /** Open URL in user's default browser. */
+    openExternal(url: string): Promise<void>
+  }
+  oauth: {
+    /** Bind a one-shot loopback listener for the OAuth redirect. Desktop-only. */
+    loopbackWait(port: number, path: string, timeoutSecs: number): Promise<{ code: string; state: string }>
+  }
+  deepLink: {
+    /**
+     * Subscribe to URLs handed to Verko via the OS share sheet (iOS) /
+     * Send intent (Android) on `verko://ingest?url=…`. Returns an
+     * unsubscribe function. No-op on platforms without deep-link
+     * support (web build, desktop builds where the plugin is gated out).
+     */
+    onIngest(cb: (url: string) => void): UnsubFn
   }
 }
 
 import { webApi } from '@/web/webApi'
 import { makeDesktopApi } from '@/desktop/desktopApi'
-import type { IPreloadApi } from '@/desktop/preloadApi'
+import { tauriShell } from '@/tauri/tauriShell'
 
 declare const __WEB_BUILD__: boolean | undefined
 
+export function isTauri(): boolean {
+  return typeof (window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== 'undefined'
+}
+
 /**
  * Pick the right `IApi` for the runtime:
- *   - Electron renderer: `window.api` is set by preload → wrap with `makeDesktopApi`
- *   - Web build: `__WEB_BUILD__` define is true → use S3-backed `webApi`
- * Anything else throws — there is no third runtime.
+ *   - Tauri: `__TAURI_INTERNALS__` injected → wrap the Tauri shell with `makeDesktopApi`
+ *   - Web build: `__WEB_BUILD__` define is true → use the S3-backed `webApi`
  */
 function pickApi(): IApi {
-  const electronApi = (window as unknown as { api?: IPreloadApi }).api
-  if (electronApi) return makeDesktopApi(electronApi)
+  if (isTauri()) return makeDesktopApi(tauriShell)
   if (typeof __WEB_BUILD__ !== 'undefined' && __WEB_BUILD__) return webApi
-  throw new Error('Verko: no IApi backend (neither window.api nor __WEB_BUILD__ available).')
+  throw new Error('Verko: no IApi backend (neither Tauri nor web build).')
 }
 
 export const api: IApi = pickApi()

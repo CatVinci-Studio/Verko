@@ -1,12 +1,12 @@
 /**
  * Provider catalog — single source of truth for the agent's LLM provider list.
  *
- * Renderer settings UI renders forms declaratively from `fields[]`. Main
- * process uses `defaults` to seed the persisted config and `protocol` to
- * pick the right SDK adapter. Adding a new provider is a one-file change.
+ * Renderer settings UI renders forms declaratively from `fields[]`. The
+ * agent loop uses `defaults` to seed each profile and `protocol` to pick
+ * the right SDK adapter. Adding a new provider is a one-file change.
  *
  * Internal IDs (`openai`, `claude`, `gemini`, `custom`) are persistence keys —
- * they appear in electron-store config and as keys in safeStorage / localStorage.
+ * they appear as account names in the OS keychain and as localStorage keys.
  * The user-facing display name is `name`.
  */
 
@@ -33,6 +33,14 @@ export interface ProviderDefinition {
   defaults: { model: string; baseUrl: string }
   /** Fields exposed in the settings form. Rendered top-to-bottom. */
   fields: ProviderFieldDefinition[]
+  /**
+   * Optional OAuth login flow. When present, the settings UI shows a
+   * "Sign in" button alongside the API-key field; users can pick either
+   * path. Tokens are persisted in the keychain under `<id>:oauth`,
+   * separate from the API key in `<id>` so they don't clobber each
+   * other when the user swaps modes.
+   */
+  oauth?: 'codex'
 }
 
 const COMMON_FIELDS: ProviderFieldDefinition[] = [
@@ -48,6 +56,7 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     browserSupported: true,
     defaults: { model: 'gpt-5.4-mini', baseUrl: 'https://api.openai.com/v1' },
     fields: COMMON_FIELDS,
+    oauth: 'codex',
   },
   {
     id: 'claude',

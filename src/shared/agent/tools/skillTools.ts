@@ -9,6 +9,7 @@ import { type ToolRegistry } from './types'
  */
 export const skillTools: ToolRegistry = {
   load_skill: {
+    parallelSafe: true,
     def: {
       name: 'load_skill',
       description:

@@ -5,10 +5,25 @@ import type { StorageBackend } from './backend'
 export const SCHEMA_REL = 'schema.md'
 
 export const DEFAULT_SCHEMA: Schema = {
-  version: 1,
+  version: 2,
   columns: [
     { name: 'id',         type: 'text',   inCsv: true  },
     { name: 'title',      type: 'text',   inCsv: true  },
+    {
+      // What this row IS — drives the inbox UI affordances. Defaults to
+      // 'paper' so v1 libraries roll forward without surprises.
+      name: 'kind',
+      type: 'select',
+      inCsv: true,
+      default: 'paper',
+      options: [
+        { value: 'paper' },
+        { value: 'web'   },
+        { value: 'pdf'   },
+        { value: 'note'  },
+        { value: 'video' },
+      ],
+    },
     { name: 'authors',    type: 'tags',   inCsv: true  },
     { name: 'year',       type: 'number', inCsv: true  },
     { name: 'venue',      type: 'text',   inCsv: true  },
@@ -27,9 +42,32 @@ export const DEFAULT_SCHEMA: Schema = {
       ],
     },
     { name: 'rating',     type: 'number', inCsv: true  },
+    // Short brief (LLM- or user-authored) — shown in inbox cards before
+    // the user opens the full detail. Lives in CSV so listing stays O(1).
+    { name: 'summary',    type: 'text',   inCsv: true  },
     { name: 'added_at',   type: 'date',   inCsv: true  },
     { name: 'updated_at', type: 'date',   inCsv: true  },
   ] satisfies Column[],
+}
+
+/**
+ * Merge any new built-in columns from DEFAULT_SCHEMA into an existing on-disk
+ * schema. User-customized columns are preserved; existing column entries are
+ * left untouched (we never silently change a user's column definition).
+ *
+ * Returns `{ schema, changed }` so callers can persist + backfill row defaults
+ * only when something actually shifted.
+ */
+export function reconcileSchema(schema: Schema): { schema: Schema; changed: boolean } {
+  const known = new Set(schema.columns.map((c) => c.name))
+  const additions = DEFAULT_SCHEMA.columns.filter((c) => !known.has(c.name))
+  if (additions.length === 0) return { schema, changed: false }
+  const merged: Schema = {
+    ...schema,
+    version: Math.max(schema.version ?? 1, DEFAULT_SCHEMA.version),
+    columns: [...schema.columns, ...additions],
+  }
+  return { schema: merged, changed: true }
 }
 
 const SCHEMA_BODY = `# Schema

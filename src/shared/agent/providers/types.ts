@@ -45,6 +45,13 @@ export interface StreamOptions {
   tools: ToolDef[]
   temperature: number
   signal: AbortSignal
+  /**
+   * Optional capture hook invoked once per turn, just before the SDK
+   * sends the request. Receives the raw vendor-shaped request body so
+   * the wire log can record it. Implementations should treat the body
+   * as opaque — it differs per provider.
+   */
+  onRawRequest?: (body: unknown) => void
 }
 
 /** Events emitted while a single LLM turn streams. */
@@ -54,6 +61,9 @@ export type StreamEvent =
   | { type: 'finish'; reason: 'stop' | 'tool_calls' | 'length' | 'other' }
 
 export interface ProviderProtocol {
+  /** Active provider config (model / baseUrl / protocol). Read-only. */
+  readonly config: ProviderConfig
+
   /** Stream a single turn. Yields normalized events; throws on transport / auth errors. */
   stream(opts: StreamOptions): AsyncIterable<StreamEvent>
 
@@ -68,4 +78,24 @@ export interface ProviderConfig {
   baseUrl?: string
   apiKey: string
   model: string
+  /**
+   * When present, the provider authenticates via OAuth tokens instead of
+   * `apiKey`. The adapter is responsible for refresh-on-expiry and
+   * URL/auth-header overrides specific to the OAuth flavour.
+   */
+  oauth?: OAuthAuth
 }
+
+export interface CodexOAuth {
+  kind: 'codex'
+  /** Initial tokens. The adapter mutates this in place when refreshed. */
+  tokens: { accessToken: string; refreshToken: string; expiresAt: number; accountId?: string }
+  /**
+   * Refresh the access token. The adapter calls this when the current
+   * one is within ~30 s of expiry. Implementations should also persist
+   * the refreshed tokens so the next session starts non-expired.
+   */
+  refresh(refreshToken: string): Promise<{ accessToken: string; refreshToken: string; expiresAt: number; accountId?: string }>
+}
+
+export type OAuthAuth = CodexOAuth

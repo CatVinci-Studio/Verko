@@ -1,12 +1,12 @@
 import type { IApi } from '@/lib/ipc'
 import { ConversationStore } from '@shared/agent/conversationStore'
-import { createProvider } from '@shared/agent/providers'
 import { buildLibraryFacade } from '@/lib/libraryFacade'
 import { buildAgentFacade } from '@/lib/agentFacade'
+import { buildProviderForProfile } from '@/lib/providerBuild'
 import { IpcBackend } from './backendIpc'
 import { LibraryHost } from './libraryHost'
 import { buildDesktopDispatch } from './desktopTools'
-import type { IPreloadApi } from './preloadApi'
+import type { IShellApi } from './shellApi'
 
 const CONVERSATIONS_ROOT = 'conversations'
 const TRANSCRIPTS_ROOT   = 'transcripts'
@@ -19,12 +19,12 @@ const TRANSCRIPTS_ROOT   = 'transcripts'
  * else (papers, schema, collections, agent loop, conversation persistence)
  * runs locally.
  */
-export function makeDesktopApi(preload: IPreloadApi): IApi {
+export function makeDesktopApi(preload: IShellApi): IApi {
   const host = new LibraryHost(preload)
   const convStore = new ConversationStore(new IpcBackend(preload, CONVERSATIONS_ROOT))
   const transcriptBackend = new IpcBackend(preload, TRANSCRIPTS_ROOT)
 
-  const { dispatch, tools } = buildDesktopDispatch(preload, () => host.current())
+  const { dispatch, isParallelSafe, tools } = buildDesktopDispatch(preload, () => host.current())
   const toolDefs = Object.values(tools).map((h) => h.def)
 
   const lib = buildLibraryFacade(() => host.ensure())
@@ -45,15 +45,10 @@ export function makeDesktopApi(preload: IPreloadApi): IApi {
         if (!cfg) return null
         const profile = cfg.profiles.find((p) => p.name === cfg.defaultProfile)
         if (!profile) return null
-        const apiKey = await preload.agent.loadKey(profile.name)
-        if (!apiKey) return null
-        const provider = createProvider({
-          protocol: profile.protocol,
-          baseUrl: profile.baseUrl,
-          apiKey,
-          model: profile.model,
+        return buildProviderForProfile(profile, {
+          load: (name) => preload.agent.loadKey(name),
+          save: (name, value) => preload.agent.saveKey(name, value, true),
         })
-        return { provider, model: profile.model }
       },
       describeContext: async () => {
         const lib = await host.ensure()
@@ -75,6 +70,7 @@ export function makeDesktopApi(preload: IPreloadApi): IApi {
       },
       getTools: () => toolDefs,
       dispatchTool: dispatch,
+      isParallelSafe,
       store: convStore,
       saveTranscript: async (convId, snapshot) => {
         const fname = `${convId}-${Date.now()}.json`
@@ -111,11 +107,15 @@ export function makeDesktopApi(preload: IPreloadApi): IApi {
     schema:        lib.schema,
     collections:   lib.collections,
     pdf:           lib.pdf,
+    highlights:    lib.highlights,
     agent:         ag.agent,
     conversations: ag.conversations,
     fs:            preload.fs,
     paths:         { libraryRoot: preload.paths.libraryRoot },
     app:           preload.app,
     window:        preload.window,
+    net:           preload.net,
+    oauth:         preload.oauth,
+    deepLink:      preload.deepLink,
   }
 }

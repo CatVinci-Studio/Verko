@@ -2,7 +2,7 @@ import { Library } from '@shared/paperdb/store'
 import { S3Backend } from '@shared/paperdb/backendS3'
 import type { LibraryInfo } from '@shared/types'
 import { IpcBackend } from './backendIpc'
-import type { IPreloadApi } from './preloadApi'
+import type { IShellApi } from './shellApi'
 
 /**
  * Owns the active `Library` instance on the desktop renderer. Listens for
@@ -21,7 +21,7 @@ export class LibraryHost {
   private activeInfo: LibraryInfo | null = null
   private listeners = new Set<(lib: Library | null, info: LibraryInfo | null) => void>()
 
-  constructor(private readonly api: IPreloadApi) {
+  constructor(private readonly api: IShellApi) {
     api.libraries.onSwitched((info) => this.switchTo(info))
   }
 

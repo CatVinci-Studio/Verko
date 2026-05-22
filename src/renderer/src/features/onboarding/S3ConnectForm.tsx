@@ -24,7 +24,7 @@ const PRESETS: Preset[] = [
 
 interface Props {
   onCancel: () => void
-  onConnected: () => Promise<void>
+  onConnected: () => void | Promise<void>
 }
 
 export function S3ConnectForm({ onCancel, onConnected }: Props) {

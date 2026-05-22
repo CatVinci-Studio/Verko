@@ -3,7 +3,7 @@ import {
   type ToolRegistry, type ToolHandler,
 } from '@shared/agent/tools'
 import type { Library } from '@shared/paperdb/store'
-import type { IPreloadApi } from './preloadApi'
+import type { IShellApi } from './shellApi'
 
 /**
  * Build the desktop tool registry. SHARED_TOOLS handle paper / collection
@@ -11,10 +11,15 @@ import type { IPreloadApi } from './preloadApi'
  * Manager tools (list_libraries / switch_library) call the libraries IPC.
  */
 export function buildDesktopDispatch(
-  api: IPreloadApi,
+  api: IShellApi,
   getLibrary: () => Library | null,
-): { tools: ToolRegistry; dispatch: (name: string, args: Record<string, unknown>) => Promise<string> } {
+): {
+  tools: ToolRegistry
+  dispatch: (name: string, args: Record<string, unknown>) => Promise<string>
+  isParallelSafe: (name: string) => boolean
+} {
   const list_libraries: ToolHandler = {
+    parallelSafe: true,
     def: {
       name: 'list_libraries',
       description: 'List all registered libraries with their metadata.',
@@ -67,5 +72,7 @@ export function buildDesktopDispatch(
     return dispatchFromRegistry(tools, name, args, { library: lib! })
   }
 
-  return { tools, dispatch }
+  const isParallelSafe = (name: string): boolean => tools[name]?.parallelSafe === true
+
+  return { tools, dispatch, isParallelSafe }
 }

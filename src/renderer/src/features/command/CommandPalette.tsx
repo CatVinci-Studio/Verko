@@ -97,12 +97,12 @@ export function CommandPalette() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[max(env(safe-area-inset-top),8vh)] sm:pt-[15vh]"
       onClick={(e) => { if (e.target === e.currentTarget) setCommandOpen(false) }}
     >
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
-      <div className="relative w-full max-w-lg mx-4 bg-[var(--bg-surface)] border border-[var(--bg-active)] rounded-xl shadow-2xl overflow-hidden fade-in">
+      <div className="relative w-full max-w-lg mx-2 sm:mx-4 bg-[var(--bg-surface)] border border-[var(--bg-active)] rounded-xl shadow-2xl overflow-hidden fade-in max-h-[80vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
           <div className="w-7 h-7 rounded-lg bg-[var(--accent-color)]/15 border border-[var(--accent-color)]/30 flex items-center justify-center shrink-0">
