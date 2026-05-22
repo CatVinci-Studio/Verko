@@ -32,7 +32,7 @@ A desktop and web app for organizing academic papers. Your library is a folder o
 - **Your data stays yours.** One row per paper in `papers.csv`, one Markdown file per paper for notes. Open in any editor. Version-control with Git.
 - **AI does the busywork.** Ask in natural language: *"summarize my unread NLP papers"*, *"tag the diffusion ones"*, *"import this arXiv link"*. The agent has direct access to your files.
 - **Bring your own model.** OpenAI, Claude, Gemini, or any OpenAI-compatible endpoint — paste an API key, switch any time.
-- **Works online too.** The web build runs the full agent against any S3-compatible bucket — same UI, same tools, same model providers.
+- **Local or cloud libraries.** Open a folder on disk, or connect any S3-compatible bucket (AWS S3, Cloudflare R2, Backblaze B2, MinIO) — both run the same agent, same tools.
 
 ## Install
 
@@ -42,7 +42,7 @@ A desktop and web app for organizing academic papers. Your library is a folder o
 |---|---|
 | macOS (Apple Silicon) | `Verko_X.Y.Z_aarch64.dmg` |
 | macOS (Intel) | `Verko_X.Y.Z_x64.dmg` |
-| Windows | `Verko_X.Y.Z_x64-setup.exe` (NSIS) or `_x64_en-US.msi` (WiX) |
+| Windows | `Verko_X.Y.Z_x64-setup.exe` (NSIS) · `_x64_en-US.msi` (WiX) · `_x64-portable.zip` |
 | Linux | `Verko_X.Y.Z_amd64.AppImage` · `_amd64.deb` · `Verko-X.Y.Z-1.x86_64.rpm` |
 
 → Get the latest at [Releases](https://github.com/CatVinci-Studio/Verko/releases/latest). Builds are unsigned for now — first launch may need a right-click → Open on macOS, or "More info → Run anyway" on Windows SmartScreen.
@@ -53,7 +53,7 @@ A desktop and web app for organizing academic papers. Your library is a folder o
 
 ## Quick start
 
-1. Launch Verko → pick **Open existing folder** or **Create new local library** (web build: **Connect S3** instead).
+1. Launch Verko → pick **Open existing folder**, **Create new local library**, or **Connect S3** (web build: **Connect S3** is the only option — local folders need the desktop app).
 2. Open **Settings → General**, choose a provider, paste an API key, click **Test connection**.
 3. Press **⌘K** for the command palette or open the Agent panel from the sidebar — ask anything about your library.
 
@@ -91,18 +91,18 @@ Tools are sandboxed to your active library; the agent can't reach files outside.
 ```bash
 git clone https://github.com/CatVinci-Studio/Verko.git
 cd Verko
-npm install
+bun install
 
-npm run dev          # tauri dev — full desktop app
-npm run dev:web      # vite preview on http://localhost:5173 (web build)
-npm run build        # tauri build — produces installers in src-tauri/target/release/bundle/
-npm run build:web    # static web build → dist-web/
-npm test             # vitest unit tests against the shared Library
-npm run typecheck    # tsc --noEmit on web + node configs
-npm run lint         # eslint over src/
+bun run dev          # tauri dev — full desktop app
+bun run dev:web      # vite preview on http://localhost:5173 (web build, S3 only)
+bun run build        # tauri build — produces installers in src-tauri/target/release/bundle/
+bun run build:web    # static web build → dist-web/ (deployed to GitHub Pages)
+bun test             # vitest unit tests against the shared Library
+bun run typecheck    # tsc --noEmit on node + renderer configs
+bun run lint         # eslint over src/
 ```
 
-Requires Node 20+ and a Rust toolchain (`rustup default stable`). On Linux also: `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `libsoup-3.0-dev`. Codebase layout: [CLAUDE.md](./CLAUDE.md).
+Requires [Bun](https://bun.sh) and a Rust toolchain (`rustup default stable`). On Linux also: `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `libsoup-3.0-dev`. Codebase layout: [CLAUDE.md](./CLAUDE.md).
 
 ## License
 
