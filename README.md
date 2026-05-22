@@ -11,13 +11,12 @@
 
 <p align="center">
   <a href="https://github.com/CatVinci-Studio/Verko/releases/latest"><strong>Download</strong></a> ·
-  <a href="https://catvinci-studio.github.io/Verko/"><strong>Try in browser</strong></a> ·
   <a href="./README.zh.md">中文</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/CatVinci-Studio/Verko/releases/latest"><img alt="version" src="https://img.shields.io/github/v/release/CatVinci-Studio/Verko"></a>
-  <img alt="platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Web-lightgrey">
+  <img alt="platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey">
   <a href="./LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-yellow"></a>
 </p>
 
@@ -25,35 +24,29 @@
 
 ## What it is
 
-A desktop and web app for organizing academic papers. Your library is a folder of plain CSV + Markdown files — no proprietary database, no lock-in. An AI agent of your choice reads and writes that library through the same files you see.
+A desktop app for organizing academic papers. Your library is a folder of plain CSV + Markdown files — no proprietary database, no lock-in. An AI agent of your choice reads and writes that library through the same files you see.
 
 ## Why
 
 - **Your data stays yours.** One row per paper in `papers.csv`, one Markdown file per paper for notes. Open in any editor. Version-control with Git.
 - **AI does the busywork.** Ask in natural language: *"summarize my unread NLP papers"*, *"tag the diffusion ones"*, *"import this arXiv link"*. The agent has direct access to your files.
 - **Bring your own model.** OpenAI, Claude, Gemini, or any OpenAI-compatible endpoint — paste an API key, switch any time.
-- **Works online too.** The web build runs the full agent against any S3-compatible bucket — same UI, same tools, same model providers.
+- **Local or cloud libraries.** Open a folder on disk, or connect any S3-compatible bucket (AWS S3, Cloudflare R2, Backblaze B2, MinIO) — both run the same agent, same tools.
 
 ## Install
-
-### Desktop
 
 | Platform | Installer |
 |---|---|
 | macOS (Apple Silicon) | `Verko_X.Y.Z_aarch64.dmg` |
 | macOS (Intel) | `Verko_X.Y.Z_x64.dmg` |
-| Windows | `Verko_X.Y.Z_x64-setup.exe` (NSIS) or `_x64_en-US.msi` (WiX) |
+| Windows | `Verko_X.Y.Z_x64-setup.exe` (NSIS) · `_x64_en-US.msi` (WiX) · `_x64-portable.zip` |
 | Linux | `Verko_X.Y.Z_amd64.AppImage` · `_amd64.deb` · `Verko-X.Y.Z-1.x86_64.rpm` |
 
 → Get the latest at [Releases](https://github.com/CatVinci-Studio/Verko/releases/latest). Builds are unsigned for now — first launch may need a right-click → Open on macOS, or "More info → Run anyway" on Windows SmartScreen.
 
-### Web
-
-[catvinci-studio.github.io/Verko](https://catvinci-studio.github.io/Verko/) — connect any S3-compatible bucket (AWS S3, Cloudflare R2, Backblaze B2, MinIO). Your bucket needs CORS allowed for the page origin. Conversation history and API keys are stored in your browser.
-
 ## Quick start
 
-1. Launch Verko → pick **Open existing folder** or **Create new local library** (web build: **Connect S3** instead).
+1. Launch Verko → pick **Open existing folder**, **Create new local library**, or **Connect S3**.
 2. Open **Settings → General**, choose a provider, paste an API key, click **Test connection**.
 3. Press **⌘K** for the command palette or open the Agent panel from the sidebar — ask anything about your library.
 
@@ -91,18 +84,16 @@ Tools are sandboxed to your active library; the agent can't reach files outside.
 ```bash
 git clone https://github.com/CatVinci-Studio/Verko.git
 cd Verko
-npm install
+bun install
 
-npm run dev          # tauri dev — full desktop app
-npm run dev:web      # vite preview on http://localhost:5173 (web build)
-npm run build        # tauri build — produces installers in src-tauri/target/release/bundle/
-npm run build:web    # static web build → dist-web/
-npm test             # vitest unit tests against the shared Library
-npm run typecheck    # tsc --noEmit on web + node configs
-npm run lint         # eslint over src/
+bun run dev          # tauri dev — full desktop app
+bun run build        # tauri build — produces installers in src-tauri/target/release/bundle/
+bun test             # vitest unit tests against the shared Library
+bun run typecheck    # tsc --noEmit on node + renderer configs
+bun run lint         # eslint over src/
 ```
 
-Requires Node 20+ and a Rust toolchain (`rustup default stable`). On Linux also: `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `libsoup-3.0-dev`. Codebase layout: [CLAUDE.md](./CLAUDE.md).
+Requires [Bun](https://bun.sh) and a Rust toolchain (`rustup default stable`). On Linux also: `libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `libsoup-3.0-dev`. Codebase layout: [CLAUDE.md](./CLAUDE.md).
 
 ## License
 

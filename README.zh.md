@@ -11,13 +11,12 @@
 
 <p align="center">
   <a href="https://github.com/CatVinci-Studio/Verko/releases/latest"><strong>下载</strong></a> ·
-  <a href="https://catvinci-studio.github.io/Verko/"><strong>在线试用</strong></a> ·
   <a href="./README.md">English</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/CatVinci-Studio/Verko/releases/latest"><img alt="version" src="https://img.shields.io/github/v/release/CatVinci-Studio/Verko"></a>
-  <img alt="platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Web-lightgrey">
+  <img alt="platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey">
   <a href="./LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-yellow"></a>
 </p>
 
@@ -25,35 +24,29 @@
 
 ## 这是什么
 
-一个学术论文管理桌面 + 网页应用。论文库就是一个普通文件夹,里面是 CSV + Markdown 文件 —— 没有专有数据库,没有锁定。任意 AI 模型都能通过你看到的同一份文件读写你的库。
+一个学术论文管理桌面应用。论文库就是一个普通文件夹,里面是 CSV + Markdown 文件 —— 没有专有数据库,没有锁定。任意 AI 模型都能通过你看到的同一份文件读写你的库。
 
 ## 为什么
 
 - **数据是你的。** 一行一篇论文存在 `papers.csv`,每篇论文一个 Markdown 笔记文件。任意编辑器能开,Git 可版本化。
 - **杂活交给 AI。** 自然语言提问:*"总结我没读的 NLP 论文"*、*"给扩散模型的论文打标签"*、*"导入这篇 arXiv"*。Agent 直接操作你的文件。
 - **自带模型。** OpenAI、Claude、Gemini,或任何 OpenAI 兼容端点 —— 粘贴 API key,随时切换。
-- **网页版同样能用。** 网页版连接 S3 兼容存储后,同样跑完整的 agent —— 同一套 UI、同一套工具、同一套模型提供商。
+- **本地或云端库。** 打开磁盘上的文件夹,或连接任意 S3 兼容存储(AWS S3、Cloudflare R2、Backblaze B2、MinIO)—— 两种方式跑同一套 agent、同一套工具。
 
 ## 安装
-
-### 桌面端
 
 | 平台 | 安装包 |
 |---|---|
 | macOS (Apple Silicon) | `Verko_X.Y.Z_aarch64.dmg` |
 | macOS (Intel) | `Verko_X.Y.Z_x64.dmg` |
-| Windows | `Verko_X.Y.Z_x64-setup.exe`(NSIS)或 `_x64_en-US.msi`(WiX) |
+| Windows | `Verko_X.Y.Z_x64-setup.exe`(NSIS)· `_x64_en-US.msi`(WiX)· `_x64-portable.zip` |
 | Linux | `Verko_X.Y.Z_amd64.AppImage` · `_amd64.deb` · `Verko-X.Y.Z-1.x86_64.rpm` |
 
 → 在 [Releases](https://github.com/CatVinci-Studio/Verko/releases/latest) 下载最新版。当前未签名,首次启动 macOS 需右键「打开」绕过 Gatekeeper,Windows SmartScreen 选「更多信息 → 仍要运行」。
 
-### 网页版
-
-[catvinci-studio.github.io/Verko](https://catvinci-studio.github.io/Verko/) —— 连接 S3 兼容存储(AWS S3、Cloudflare R2、Backblaze B2、MinIO)。你的 bucket 需要给页面源域名开 CORS。对话历史和 API key 存在浏览器本地。
-
 ## 快速开始
 
-1. 打开 Verko → 选择**打开已有文件夹**或**新建本地库**(网页版改为**连接 S3**)。
+1. 打开 Verko → 选**打开已有文件夹**、**新建本地库**,或**连接 S3**。
 2. 进入**设置 → 通用**,选模型提供商,粘贴 API key,点**测试连接**。
 3. 按 **⌘K** 打开命令面板,或从侧边栏打开 Agent 面板,直接问关于你库的任何问题。
 
@@ -91,18 +84,16 @@ my-library/
 ```bash
 git clone https://github.com/CatVinci-Studio/Verko.git
 cd Verko
-npm install
+bun install
 
-npm run dev          # tauri dev — 桌面端
-npm run dev:web      # vite 预览 http://localhost:5173(网页版)
-npm run build        # tauri build — 安装包输出到 src-tauri/target/release/bundle/
-npm run build:web    # 静态网页构建 → dist-web/
-npm test             # vitest 单测,跑共享 Library 模块
-npm run typecheck    # tsc --noEmit
-npm run lint         # eslint 全 src/
+bun run dev          # tauri dev — 桌面端
+bun run build        # tauri build — 安装包输出到 src-tauri/target/release/bundle/
+bun test             # vitest 单测,跑共享 Library 模块
+bun run typecheck    # tsc --noEmit
+bun run lint         # eslint 全 src/
 ```
 
-需要 Node 20+ 和 Rust 工具链(`rustup default stable`)。Linux 还需要 `libwebkit2gtk-4.1-dev`、`libgtk-3-dev`、`libayatana-appindicator3-dev`、`librsvg2-dev`、`libsoup-3.0-dev`。代码结构见 [CLAUDE.md](./CLAUDE.md)。
+需要 [Bun](https://bun.sh) 和 Rust 工具链(`rustup default stable`)。Linux 还需要 `libwebkit2gtk-4.1-dev`、`libgtk-3-dev`、`libayatana-appindicator3-dev`、`librsvg2-dev`、`libsoup-3.0-dev`。代码结构见 [CLAUDE.md](./CLAUDE.md)。
 
 ## License
 
