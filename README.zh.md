@@ -11,12 +11,13 @@
 
 <p align="center">
   <a href="https://github.com/CatVinci-Studio/Verko/releases/latest"><strong>下载</strong></a> ·
+  <a href="https://catvinci-studio.github.io/Verko/"><strong>在线试用</strong></a> ·
   <a href="./README.md">English</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/CatVinci-Studio/Verko/releases/latest"><img alt="version" src="https://img.shields.io/github/v/release/CatVinci-Studio/Verko"></a>
-  <img alt="platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey">
+  <img alt="platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Web-lightgrey">
   <a href="./LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-yellow"></a>
 </p>
 
@@ -24,7 +25,7 @@
 
 ## 这是什么
 
-一个学术论文管理桌面应用。论文库就是一个普通文件夹,里面是 CSV + Markdown 文件 —— 没有专有数据库,没有锁定。任意 AI 模型都能通过你看到的同一份文件读写你的库。
+一个学术论文管理桌面 + 网页应用。论文库就是一个普通文件夹,里面是 CSV + Markdown 文件 —— 没有专有数据库,没有锁定。任意 AI 模型都能通过你看到的同一份文件读写你的库。
 
 ## 为什么
 
@@ -35,6 +36,8 @@
 
 ## 安装
 
+### 桌面端
+
 | 平台 | 安装包 |
 |---|---|
 | macOS (Apple Silicon) | `Verko_X.Y.Z_aarch64.dmg` |
@@ -44,9 +47,13 @@
 
 → 在 [Releases](https://github.com/CatVinci-Studio/Verko/releases/latest) 下载最新版。当前未签名,首次启动 macOS 需右键「打开」绕过 Gatekeeper,Windows SmartScreen 选「更多信息 → 仍要运行」。
 
+### 网页版
+
+[catvinci-studio.github.io/Verko](https://catvinci-studio.github.io/Verko/) —— 连接 S3 兼容存储(AWS S3、Cloudflare R2、Backblaze B2、MinIO)。bucket 需要给页面源域名开 CORS。对话历史和 API key 存在浏览器本地。
+
 ## 快速开始
 
-1. 打开 Verko → 选**打开已有文件夹**、**新建本地库**,或**连接 S3**。
+1. 打开 Verko → 选**打开已有文件夹**、**新建本地库**,或**连接 S3**(网页版只能选**连接 S3**,本地文件夹必须用桌面端)。
 2. 进入**设置 → 通用**,选模型提供商,粘贴 API key,点**测试连接**。
 3. 按 **⌘K** 打开命令面板,或从侧边栏打开 Agent 面板,直接问关于你库的任何问题。
 
@@ -87,7 +94,9 @@ cd Verko
 bun install
 
 bun run dev          # tauri dev — 桌面端
+bun run dev:web      # vite 预览 http://localhost:5173(网页版,只能连 S3)
 bun run build        # tauri build — 安装包输出到 src-tauri/target/release/bundle/
+bun run build:web    # 静态网页构建 → dist-web/(部署到 GitHub Pages)
 bun test             # vitest 单测,跑共享 Library 模块
 bun run typecheck    # tsc --noEmit
 bun run lint         # eslint 全 src/

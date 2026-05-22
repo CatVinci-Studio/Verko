@@ -11,12 +11,13 @@
 
 <p align="center">
   <a href="https://github.com/CatVinci-Studio/Verko/releases/latest"><strong>Download</strong></a> ·
+  <a href="https://catvinci-studio.github.io/Verko/"><strong>Try in browser</strong></a> ·
   <a href="./README.zh.md">中文</a>
 </p>
 
 <p align="center">
   <a href="https://github.com/CatVinci-Studio/Verko/releases/latest"><img alt="version" src="https://img.shields.io/github/v/release/CatVinci-Studio/Verko"></a>
-  <img alt="platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey">
+  <img alt="platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Web-lightgrey">
   <a href="./LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-yellow"></a>
 </p>
 
@@ -24,7 +25,7 @@
 
 ## What it is
 
-A desktop app for organizing academic papers. Your library is a folder of plain CSV + Markdown files — no proprietary database, no lock-in. An AI agent of your choice reads and writes that library through the same files you see.
+A desktop and web app for organizing academic papers. Your library is a folder of plain CSV + Markdown files — no proprietary database, no lock-in. An AI agent of your choice reads and writes that library through the same files you see.
 
 ## Why
 
@@ -35,6 +36,8 @@ A desktop app for organizing academic papers. Your library is a folder of plain 
 
 ## Install
 
+### Desktop
+
 | Platform | Installer |
 |---|---|
 | macOS (Apple Silicon) | `Verko_X.Y.Z_aarch64.dmg` |
@@ -44,9 +47,13 @@ A desktop app for organizing academic papers. Your library is a folder of plain 
 
 → Get the latest at [Releases](https://github.com/CatVinci-Studio/Verko/releases/latest). Builds are unsigned for now — first launch may need a right-click → Open on macOS, or "More info → Run anyway" on Windows SmartScreen.
 
+### Web
+
+[catvinci-studio.github.io/Verko](https://catvinci-studio.github.io/Verko/) — connect any S3-compatible bucket (AWS S3, Cloudflare R2, Backblaze B2, MinIO). Your bucket needs CORS allowed for the page origin. Conversation history and API keys are stored in your browser.
+
 ## Quick start
 
-1. Launch Verko → pick **Open existing folder**, **Create new local library**, or **Connect S3**.
+1. Launch Verko → pick **Open existing folder**, **Create new local library**, or **Connect S3** (web build: **Connect S3** is the only option — local folders need the desktop app).
 2. Open **Settings → General**, choose a provider, paste an API key, click **Test connection**.
 3. Press **⌘K** for the command palette or open the Agent panel from the sidebar — ask anything about your library.
 
@@ -87,7 +94,9 @@ cd Verko
 bun install
 
 bun run dev          # tauri dev — full desktop app
+bun run dev:web      # vite preview on http://localhost:5173 (web build, S3 only)
 bun run build        # tauri build — produces installers in src-tauri/target/release/bundle/
+bun run build:web    # static web build → dist-web/ (deployed to GitHub Pages)
 bun test             # vitest unit tests against the shared Library
 bun run typecheck    # tsc --noEmit on node + renderer configs
 bun run lint         # eslint over src/
