@@ -2,22 +2,32 @@ area:frontend:
   - changed-files:
     - any-glob-to-any-file:
       - "src/renderer/**"
+      - "src/shared/**"
 
-area:main:
+area:rust:
   - changed-files:
     - any-glob-to-any-file:
-      - "src/main/**"
+      - "src-tauri/src/**"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
 
 area:agent:
   - changed-files:
     - any-glob-to-any-file:
-      - "src/main/agent/**"
+      - "src/shared/agent/**"
+
+area:paperdb:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/shared/paperdb/**"
 
 area:ipc:
   - changed-files:
     - any-glob-to-any-file:
-      - "src/main/ipc/**"
-      - "src/preload/**"
+      - "src-tauri/src/**_cmd.rs"
+      - "src/renderer/src/desktop/**"
+      - "src/renderer/src/tauri/**"
+      - "src/renderer/src/lib/ipc.ts"
 
 area:ui:
   - changed-files:
@@ -30,6 +40,12 @@ area:store:
   - changed-files:
     - any-glob-to-any-file:
       - "src/renderer/src/store/**"
+
+area:i18n:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "src/renderer/src/locales/**"
+      - "src/renderer/src/lib/i18n.ts"
 
 area:tests:
   - changed-files:
@@ -48,4 +64,6 @@ area:deps:
   - changed-files:
     - any-glob-to-any-file:
       - "package.json"
-      - "package-lock.json"
+      - "bun.lock"
+      - "src-tauri/Cargo.toml"
+      - "src-tauri/Cargo.lock"
